@@ -1,0 +1,60 @@
+# Fixture set for scripts/self-pace-gate.mjs -- a PRESERVED NEGATIVE FINDING.
+#
+# 2026-09-16: the gate twice blocked a Bash command of mine whose TEXT contained a
+# launchctl invocation, and I reported it as a defect ("an agent cannot even REPORT
+# what it was unable to run"). Building the repair, I could not reproduce it: on all
+# 21 shapes below the gate decides correctly, and a verbatim rebuild of the blocked
+# command text is ALLOWED. The report was wrong; the gate was not.
+#
+# WHY THIS FILE IS KEPT RATHER THAN DELETED: a "could not reproduce" is exactly the
+# result that gets thrown away, and then the next person starts from zero and again
+# arrives at "the gate must be broken". This set says: on these 21 shapes it is not.
+#
+# >>> THE LEAD, IF IT HAPPENS AGAIN -- ASK THIS FIRST: <<<
+# The gate is wired with matcher
+#   ScheduleWakeup|CronCreate|CronDelete|CronList|RemoteTrigger|Bash|Write|Edit|NotebookEdit
+# so it runs on Write/Edit/NotebookEdit TOO, not only on Bash. Every fixture here is
+# a Bash command -- that is the whole blind spot of this set. So the first question
+# on the next block is not "what did the text look like" but WHICH TOOL was it on.
+#
+# A part-retraction worth keeping: denying the BACKTICK form is CORRECT, not a false
+# positive. `launchctl ...` in backticks is command substitution -- it would really
+# run. Calling that "prose" was the error.
+#
+# Run:  node scripts/selfpace-gate-measure.mjs scripts/selfpace-gate-fixtures.txt
+# Lines are  CLASS|command  ; "\n" becomes a real newline. '#' starts a comment.
+#
+# CLASSES and what each MUST do:
+#   VALODI_HIVAS   a real invocation, command substitution included -> deny
+#   JELENTES       prose naming the command -> allow
+#   INERT_IDEZETT  the command inside single quotes -> allow
+#   INERT_HEREDOC  the command inside a QUOTED heredoc body -> allow
+#   OLVASAS        a read-only listing -> allow
+
+VALODI_HIVAS|launchctl kickstart -k gui/501/com.nova.dashboard
+VALODI_HIVAS|launchctl load /Users/macmini/Library/LaunchAgents/com.foo.plist
+VALODI_HIVAS|launchctl bootstrap gui/501 /tmp/x.plist
+VALODI_HIVAS|crontab -e
+VALODI_HIVAS|echo hello && launchctl start com.nova.dashboard
+VALODI_HIVAS|echo x |launchctl kickstart -k gui/501/com.nova.dashboard
+VALODI_HIVAS|echo `launchctl kickstart -k gui/501/com.nova.dashboard`
+VALODI_HIVAS|echo $(launchctl kickstart -k gui/501/com.nova.dashboard)
+
+JELENTES|Nem tudtam lefuttatni: launchctl kickstart -k gui/501/com.nova.dashboard -- a kapu tiltja.
+JELENTES|valaki inditsa ujra: "launchctl kickstart -k gui/501/com.nova.dashboard"
+
+INERT_IDEZETT|echo 'launchctl kickstart -k gui/501/com.nova.dashboard'
+INERT_IDEZETT|printf '%s' 'VALODI|launchctl kickstart -k gui/501/com.nova.dashboard'
+
+INERT_HEREDOC|cat > /tmp/f.txt <<'EOF'\nVALODI_HIVAS|launchctl kickstart -k gui/501/com.nova.dashboard\nEOF
+INERT_HEREDOC|cat > /tmp/f.txt <<'EOF'\nVALODI_HIVAS|crontab -e\nEOF
+INERT_HEREDOC|cat > /tmp/f.txt <<'EOF'\nVALODI_HIVAS|launchctl bootstrap gui/501 /tmp/x.plist\nEOF
+INERT_HEREDOC|cat > /tmp/f.txt <<'EOF'\nVALODI_HIVAS|echo hello && launchctl start com.nova.dashboard\nEOF
+INERT_HEREDOC|cat > /tmp/f.txt <<'EOF'\nOLVASAS|launchctl list | grep com.nova\nEOF
+INERT_HEREDOC|cat > $S/f.txt <<'EOF'\nVALODI_HIVAS|crontab -e\nEOF
+INERT_HEREDOC|cat > /tmp/f.txt <<'EOF'\nsor egy\nEOF\nwhile IFS='|' read -r a b; do echo "$a"; done < /tmp/f.txt
+INERT_HEREDOC|python3 - <<'PY'\nc = "a `launchctl kickstart -k gui/501/com.nova.dashboard` a kapuba futott"\nprint(c)\nPY
+INERT_HEREDOC|curl -s -X POST http://x/api/messages --data-binary @- <<'JSON'\n{"content":"a launchctl kickstart -k gui/501/com.nova.dashboard a kapuba futott"}\nJSON
+
+OLVASAS|launchctl list | grep com.nova
+OLVASAS|crontab -l
