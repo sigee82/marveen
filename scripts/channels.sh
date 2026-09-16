@@ -730,7 +730,16 @@ fi
 # of the legacy dir while it moves. Idempotent: a migrated install skips both
 # branches.
 LEGACY_CHAN_DIR="$HOME/.claude/channels/$CHANNEL_PROVIDER"
-if [ "$LEGACY_CHAN_DIR" != "$MAIN_CHAN_DIR" ] && [ -f "$LEGACY_CHAN_DIR/.env" ]; then
+# ENVPARK912: compare RESOLVED paths, not strings. When ~/.claude/channels/<p>
+# is a symlink INTO the install-scoped dir (how a migrated install is usually
+# wired), the two strings differ while both name the same directory. The
+# else-branch below then "parked" the dir's own live .env as
+# .env.legacy-<epoch>, so every channels.sh start silently stripped the bot
+# token and the plugin came up with "TELEGRAM_BOT_TOKEN required" -- the main
+# agent unreachable on Telegram with no error anywhere. Measured 2026-09-12:
+# three parked copies in one day (05:00, 13:03, 13:10), identical hashes.
+_chan_resolve() { if [ -d "$1" ]; then ( cd "$1" 2>/dev/null && pwd -P ) || printf '%s\n' "$1"; else printf '%s\n' "$1"; fi; }
+if [ "$(_chan_resolve "$LEGACY_CHAN_DIR")" != "$(_chan_resolve "$MAIN_CHAN_DIR")" ] && [ -f "$LEGACY_CHAN_DIR/.env" ]; then
   if [ ! -f "$MAIN_CHAN_DIR/.env" ]; then
     mkdir -p "$(dirname "$MAIN_CHAN_DIR")"
     if [ ! -e "$MAIN_CHAN_DIR" ] && mv "$LEGACY_CHAN_DIR" "$MAIN_CHAN_DIR" 2>/dev/null; then
@@ -748,8 +757,17 @@ if [ "$LEGACY_CHAN_DIR" != "$MAIN_CHAN_DIR" ] && [ -f "$LEGACY_CHAN_DIR/.env" ];
     # Both hold a .env (e.g. a fresh onboarding already wrote install-scoped):
     # the shared-path token must not stay live -- park it next to the new one,
     # keeping the file instead of deleting history.
-    mv "$LEGACY_CHAN_DIR/.env" "$MAIN_CHAN_DIR/.env.legacy-$(date +%s)" 2>/dev/null || true
-    echo "[channels] #915: parked stale legacy .env from $LEGACY_CHAN_DIR"
+    # ENVPARK912 second gate: never park a file that IS the live one. The
+    # resolved-path guard above catches the symlinked-directory case; this
+    # catches a symlinked or hardlinked .env itself, where the dirs differ but
+    # the file does not. Without it the mv destroys the token it means to
+    # protect.
+    if [ "$LEGACY_CHAN_DIR/.env" -ef "$MAIN_CHAN_DIR/.env" ]; then
+      echo "[channels] ENVPARK912: legacy and main .env are the same file -- nothing to park"
+    else
+      mv "$LEGACY_CHAN_DIR/.env" "$MAIN_CHAN_DIR/.env.legacy-$(date +%s)" 2>/dev/null || true
+      echo "[channels] #915: parked stale legacy .env from $LEGACY_CHAN_DIR"
+    fi
   fi
 fi
 # Export for this script AND build the launch-command prefix for the spawned
