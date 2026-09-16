@@ -10,6 +10,7 @@ import { readBody, json, jsonMaybeGzip } from '../http-helpers.js'
 import { detectHomoglyphs, formatHomoglyphWarning } from '../../homoglyph.js'
 import type { HybridSearchTrace } from '../../db.js'
 import type { RouteContext } from './types.js'
+import { checkMemoryUpdateFields } from '../memory-update-fields.js'
 
 // Canonical memory categories. Kept in sync with the DB CHECK constraint in
 // src/db.ts so the API rejects bad values before they even reach SQLite.
@@ -275,10 +276,28 @@ Respond ONLY with JSON, nothing else:
   }
 
   const memUpdateMatch = path.match(/^\/api\/memories\/(\d+)$/)
+  // Read one memory back by id. Without this an edit could only be confirmed by
+  // running a search for it, which is why a write that applied nothing could
+  // stay invisible (Atlas, 2026-09-16).
+  if (memUpdateMatch && method === 'GET') {
+    const id = parseInt(memUpdateMatch[1], 10)
+    const row = getDb().prepare(
+      'SELECT id, agent_id, category, content, keywords, created_at, accessed_at FROM memories WHERE id = ?'
+    ).get(id)
+    if (!row) { json(res, { error: 'Memory not found' }, 404); return true }
+    json(res, row)
+    return true
+  }
+
   if (memUpdateMatch && (method === 'PUT' || method === 'PATCH')) {
     const id = parseInt(memUpdateMatch[1], 10)
     const body = await readBody(req)
-    const { content, category, tier, agent_id, keywords } = JSON.parse(body.toString()) as { content?: string; category?: string; tier?: string; agent_id?: string; keywords?: string }
+    const parsed = JSON.parse(body.toString()) as unknown
+    // An unrecognised or empty body used to answer 200 {ok:true} while writing
+    // the existing content back unchanged -- see memory-update-fields.ts.
+    const fieldCheck = checkMemoryUpdateFields(parsed)
+    if (!fieldCheck.ok) { json(res, { error: fieldCheck.message }, 400); return true }
+    const { content, category, tier, agent_id, keywords } = parsed as { content?: string; category?: string; tier?: string; agent_id?: string; keywords?: string }
     const newCategory = (tier || category || '').toLowerCase() || undefined
     if (newCategory && !MEMORY_CATEGORIES.has(newCategory)) {
       json(res, { error: `Invalid category "${newCategory}". Allowed: ${[...MEMORY_CATEGORIES].join(', ')}` }, 400)
