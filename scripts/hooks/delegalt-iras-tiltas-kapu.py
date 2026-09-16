@@ -84,7 +84,12 @@ def main():
             continue
         if not re.search(sz["muvelet"], low, re.I):
             continue
+        # A kapu NEVEZZE MEG MAGAT. Ok (2026-09-16, mert eset): Bit ket kulonbozo kaputol kapott
+        # blokkolast ugyanazon a napon, es MINDKETTOT a self-pace-gate-nek tulajdonitotta -- mert
+        # tobb kapunk uzenete is a "KAPU:" szoval kezdodik, tehat a prefix nem kulonbozteti meg oket.
+        # Ebbol egy nem reprodukalhato diagnozis lett, es majdnem egy rossz kapu lazitasa.
         uzenet = (
+            f"[delegalt-iras-tiltas-kapu] "
             f"KAPU: olyan IRAST kersz {cimzett or 'egy tarsagenstol'}, amit a SAJAT, ERVENYBEN LEVO "
             f"TILTASOD tilt meg neki ({sz['forras']}).\n"
             f"AZ INDOK, amit te magad mertel meg: {sz['indok']}\n"
