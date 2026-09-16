@@ -54,8 +54,19 @@ describe('web-reading profile posture (TMPLPERM908)', () => {
   // on a permission dialog at EVERY tool call, including read-only ones, and no
   // one answers it in a non-interactive agent -- orsi filed two session-stuck
   // alarms in 25 minutes and did zero work. The deny list still carries the
-  // real posture (SSH/AWS/.env, sudo, rm, curl -X POST, git push); it is simply
-  // advisory under permissive. Tightening the mode again is an OWNER decision,
+  // real posture (SSH/AWS/.gnupg/.env reads, sudo, rm, and git push for researcher
+  // only); it is simply advisory under permissive.
+  //
+  // `Bash(curl -X POST:*)` USED TO BE LISTED HERE and was removed on 2026-09-16.
+  // It never fired and must not: the rule matches on a PREFIX, so any inserted
+  // flag (`curl -s -X POST`) walks past it -- and the fleet's own documented
+  // inter-agent send is exactly that command. A rule whose enforcement would
+  // break the system's base operation is decorative, and the harm was not the
+  // pass-through but the impression that POSTs were gated. What actually gates
+  // outbound shell traffic is BASH_EGRESS_DENY in agent-scaffold.ts (https curl,
+  // wget, nc, ncat, telnet); plain http, interpreter one-liners and a URL hidden
+  // in a variable remain open BY STATED DECISION, see the comment above that
+  // constant. Tightening the mode again is an OWNER decision,
   // not a template edit, and it must land with the agents' work rerouted first.
   for (const id of ['marketer', 'researcher']) {
     it(`${id} stays permissive (owner decision) and carries the measured capability allows`, () => {

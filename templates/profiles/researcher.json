@@ -1,7 +1,7 @@
 {
   "id": "researcher",
   "label": "Kutató",
-  "description": "Piackutatas, versenytars-elemzes, webes forrasok olvasasa. Prompt injection szempontbol kiemelt felulet, ezert a deny-lista (SSH/AWS/.env, sudo, rm, curl -X POST, git push) VALTOZATLANUL all. A permissionMode viszont permissive a gazda 2026-09-07-i dontese szerint (TG 14764): strict alatt az agens minden tool-hivasnal engedelykero parbeszedre allt meg, amire nem-interaktiv agensben senki nem valaszol, tehat egyaltalan nem tudott dolgozni. Draft-only marad: riportot ir a sajat mappajaba, nem kuld magatol kifele.",
+  "description": "Piackutatas, versenytars-elemzes, webes forrasok olvasasa. Prompt injection szempontbol kiemelt felulet, ezert a deny-lista (SSH/AWS/.gnupg/.env olvasas, sudo, rm, git push) VALTOZATLANUL all. A shell-oldali kimeno forgalombol TENYLEGESEN tiltott: a https-es curl (curl *https://* es */curl *https://*), tovabba a wget, nc, ncat es telnet teljesen. NINCS tiltva, es ezt szandekosan kiirjuk: a sima http kules fetch, az interpreter-egysoros (python3 -c, node -e) es a valtozoba rejtett URL. Az ok nem felejtes: a szabaly-nyelvben nincs tagadas es a deny mindig veri az allow-t, tehat a barmely-http-KIVEVE-localhost nem kifejezheto, egy altalanos http-tiltas pedig a sajat dashboard-hivasainkat (memoria, kanban, uzenetsor, jovahagyasok) is elvagna, vagyis nemava tenne az agenst. A lezarasa Bash PreToolUse hookot igenyel, ami kulon dontes. A permissionMode viszont permissive a gazda 2026-09-07-i dontese szerint (TG 14764): strict alatt az agens minden tool-hivasnal engedelykero parbeszedre allt meg, amire nem-interaktiv agensben senki nem valaszol, tehat egyaltalan nem tudott dolgozni. Draft-only marad: riportot ir a sajat mappajaba, nem kuld magatol kifele.",
   "permissionMode": "permissive",
   "filesystem": {
     "allow": [
@@ -24,7 +24,6 @@
       "Read(**/.env)",
       "Bash(sudo:*)",
       "Bash(rm:*)",
-      "Bash(curl -X POST:*)",
       "Bash(git push:*)"
     ]
   }
