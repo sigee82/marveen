@@ -47,8 +47,6 @@ const EXEMPT: Record<string, string> = {
     'shared library imported by outgoing-copy-gate.py (and the level-2 email approval gate, EMAILKAPU901 PR2); not itself a hook',
   'memory-save.sh':
     'legacy: referenced only by a historical rebuild prompt, wired nowhere; kept pending a maintainer decision to remove it',
-  'telegram-ack.py':
-    'unreferenced anywhere in the repo; dead code kept pending a maintainer decision to remove it',
 }
 
 function registrationCorpus(): string {
