@@ -32,7 +32,8 @@ import { scheduleRecoveryBrief } from './restart-recovery-brief.js'
 import { beginRestart, endRestart } from './restart-lock.js'
 import { agentDir, listAgentNames, readAgentModel, readAgentClaudeConfigDir, readAgentClaudePlan, readAgentChannelProvider, readAgentAuthMode, readAgentDisplayName, readAgentRemoteConfig, readAgentRemoteHost, readAgentRunAsUser, readAgentMemoryIsolation, readAgentWorksourceChannel } from './agent-config.js'
 import { worksourceRootFor } from './worksource-queue.js'
-import { resolveAgentConfigDir } from './claude-plans.js'
+import { resolveAgentConfigDir, readClaudePlans, getClaudePlan } from './claude-plans.js'
+import { readClaudePlansState } from './claude-plans-state.js'
 import { provisionMemoryBoundaryDir } from './memory-boundary.js'
 import { renameSharedCredentialsIfSafe } from './claude-credentials-guard.js'
 import { atomicWriteFileSync } from './atomic-write.js'
@@ -375,6 +376,27 @@ export function ensureMainAgentIsolatedConfigDir(
   )
 }
 
+// READ-ONLY sibling of the two resolvers above: which config dir will the main
+// agent actually use, without provisioning anything. `null` means the shared
+// ~/.claude root, i.e. the same file the operator's own interactive sessions
+// read -- and a caller that must not touch the operator's shell has to treat
+// that as "no place of my own to write" rather than falling back to it.
+//
+// Same gates as ensureMainAgentIsolatedConfigDir (explicit dir wins; otherwise
+// the setting AND the fleet token AND the dir actually existing), deliberately
+// without its side effects, so a boot-time migration can ask the question
+// before the launcher has run.
+export function mainAgentConfigDirIfSeparate(): string | null {
+  const explicit = resolveMainAgentConfigDir()
+  if (explicit) return explicit
+  let enabled = false
+  try { enabled = String(getEffectiveSettingValue('MAIN_AGENT_ISOLATED_CONFIG')) === '1' } catch { return null }
+  if (!enabled) return null
+  if (!hasFleetOauthToken()) return null
+  const dir = join(PROJECT_ROOT, '.channels-config')
+  return existsSync(dir) ? dir : null
+}
+
 // CHANNEL_PLUGINS_EXTRA -- the co-listen plugins channels.sh appends to
 // --channels so ONE main session can serve several providers at once (e.g.
 // Telegram primary + Discord). Same .env key channels.sh parses, read here so
@@ -395,6 +417,75 @@ export function readExtraChannelPluginIds(): string[] {
     return raw.split(/\s+/).map(s => s.trim()).filter(Boolean)
   } catch {
     return []
+  }
+}
+
+/**
+ * Which shared-root regression this main-agent launch is, if any.
+ *
+ * THE SHAPE THIS ANSWERS, AND WHY IT IS A FUNCTION AND NOT AN `if`. The same two
+ * triggers already live in scripts/channels.sh (the LOUD REGRESSION GUARD, two
+ * blocks): that path shouts when the main agent comes up on the shared
+ * ~/.claude. Every OTHER way the main session starts -- the nightly respawn, the
+ * stage-3 recovery resume, the hard restart -- bypasses channels.sh entirely and
+ * was therefore silent, which is what kanban card `guard-respawn-vak` is about.
+ * The 2026-08-04 outage ran from 03:00 to 07:58 unnoticed for exactly that
+ * reason: the one path that runs at night with nobody watching is the one path
+ * that could not speak.
+ *
+ * Deliberately PURE and state-injected: the caller reads the three facts, this
+ * decides. That keeps it testable without a filesystem, and -- more to the point
+ * -- keeps the DECISION in one place while the EMISSION stays at the call site,
+ * so a test of the decision can never be mistaken for proof that anyone acts on
+ * it.
+ *
+ * `null` means "nothing to warn about", which covers TWO different situations:
+ * isolation is on and working, OR this is a plain default install that never
+ * ran isolated and holds no fleet token. The second is the common case and must
+ * stay silent, or the guard becomes noise on every stock install.
+ */
+export type MainSharedConfigTrigger =
+  /** A fleet setup-token exists but the resolution came back empty: the setting
+   *  is missing, not declined. Shape of issue #835; the isolation-lost trigger
+   *  is structurally blind to it because there is no .channels-config dir yet. */
+  | 'fleet-token-unused'
+  /** This install HAS run isolated (its .channels-config is still on disk), yet
+   *  this launch resolved to the shared root -- so the setting was LOST, e.g.
+   *  store/config-overrides.json deleted with no .env key behind it. */
+  | 'isolation-lost'
+  | null
+
+export function mainSharedConfigTrigger(state: {
+  /** The resolved isolated CLAUDE_CONFIG_DIR, or null for the shared root. */
+  isolatedConfigDir: string | null
+  /** store/.claude-oauth-token present and non-empty. */
+  fleetToken: boolean
+  /** PROJECT_ROOT/.channels-config exists on disk. */
+  isolatedDirExists: boolean
+}): MainSharedConfigTrigger {
+  // Running isolated -- the whole point of the guard is already satisfied.
+  if (state.isolatedConfigDir) return null
+  // Order matters, and it mirrors channels.sh: the dir on disk is the stronger
+  // evidence (isolation demonstrably worked here once), so it wins when both
+  // could apply. Swapping these would report a LOST setting as a fresh install
+  // and send the operator to the wrong fix.
+  if (state.isolatedDirExists) return 'isolation-lost'
+  if (state.fleetToken) return 'fleet-token-unused'
+  return null
+}
+
+/** Reads the three facts mainSharedConfigTrigger decides on. Separate from the
+ *  decision so the decision needs no filesystem, and separate from the emitter
+ *  so the emitter can be swapped in a test. */
+export function readMainSharedConfigState(isolatedConfigDir: string | null): {
+  isolatedConfigDir: string | null
+  fleetToken: boolean
+  isolatedDirExists: boolean
+} {
+  return {
+    isolatedConfigDir,
+    fleetToken: hasFleetOauthToken(),
+    isolatedDirExists: existsSync(join(PROJECT_ROOT, '.channels-config')),
   }
 }
 
@@ -422,6 +513,35 @@ export function resolveMainAgentConfigDir(): string | null {
     return null
   }
   return dir
+}
+
+// The main agent's CLAUDE_CONFIG_DIR when the rotation side-car
+// (store/claude-plans-state.json, PR2c) has recorded an active plan for it.
+//
+// Unlike the isolated credential-less dir above, a plan's configDir carries
+// its OWN real login -- the operator ran `claude setup-token` into it
+// directly (design 6.5/4, same as the per-agent resolveAgentConfigDir path).
+// So this behaves like an EXPLICIT dir, not an isolated one: the caller
+// (main-agent-isolated-config.mjs) must NOT inject the fleet token here,
+// exactly as it would not for resolveMainAgentConfigDir()'s result.
+//
+// Gated the same way rotation itself is gated (design 6.2): only applies
+// when MAIN_AGENT_ISOLATED_CONFIG=1 AND 2+ plans are registered. Below
+// either threshold this returns null even if a stale activePlanByAgent entry
+// exists on disk, so turning rotation off (or dropping back to one plan)
+// cannot strand the main agent on a dir nobody is maintaining anymore.
+export function resolveMainAgentRotatedConfigDir(): string | null {
+  let isolationEnabled = false
+  try { isolationEnabled = String(getEffectiveSettingValue('MAIN_AGENT_ISOLATED_CONFIG')) === '1' } catch { return null }
+  if (!isolationEnabled) return null
+
+  if (readClaudePlans().length < 2) return null
+
+  const activeId = readClaudePlansState().activePlanByAgent[MAIN_AGENT_ID]
+  if (!activeId) return null
+
+  const plan = getClaudePlan(activeId)
+  return plan ? plan.configDir : null
 }
 
 // Shared provisioning core for BOTH the sub-agents (ensureIsolatedChannelConfigDir)
@@ -626,6 +746,15 @@ function provisionIsolatedConfigDir(
       try { settings = JSON.parse(readFileSync(sharedSettings, 'utf-8')) as Record<string, unknown> }
       catch { settings = {} }
     }
+    // #1305: hooks never ride the clone. Fleet hooks live in the PROJECT scope
+    // (tracked <root>/.claude/settings.json for the main agent, agents/<n>/
+    // .claude/ for sub-agents), which Claude Code loads by cwd regardless of
+    // CLAUDE_CONFIG_DIR. Copying the shared file's hooks here is what made the
+    // isolated dirs carry a second, derived copy of the user-global entries --
+    // it double-fired every gate (measured 2026-09-04: two identical
+    // PROVENANCE-KAPU blocks per prompt) and made the global file look load-
+    // bearing when it was not.
+    delete settings.hooks
     const scopedPlugins = scopeChannelPlugins(
       providerType,
       settings.enabledPlugins as Record<string, boolean> | undefined,
@@ -667,7 +796,11 @@ function provisionIsolatedConfigDir(
         if (isPlainObject(own)) {
           const inherited: string[] = []
           for (const [key, value] of Object.entries(own)) {
-            if (key !== 'enabledPlugins' && !(key in settings)) {
+            // 'hooks' is excluded here too: the shared copy just dropped it
+            // (#1305), so without this exclusion an isolated dir that already
+            // carries the old derived hooks would inherit them right back as a
+            // "target-only" key on every re-provision.
+            if (key !== 'enabledPlugins' && key !== 'hooks' && !(key in settings)) {
               settings[key] = value
               inherited.push(key)
             }
@@ -1747,7 +1880,18 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
     // re-submitted and cancelled a live invoice; an earlier ghost emailed a family
     // member. Killing the suggestion at the source removes the ghost the recovery
     // misreads. Env var verified present in claude.exe (CLAUDE_CODE_ENABLE_*).
-    const promptSuggestionEnv = 'export CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION=false && '
+    // Same class, second source: the optional session-feedback survey
+    // ("How is Claude doing this session?  1: Bad  2: Fine  3: Good  0: Dismiss")
+    // waits on a keypress, and in an unattended agent nobody ever presses one --
+    // the session then takes no further turn at all. Measured 2026-09-11: FOUR
+    // agents stood frozen on it at the same time, one of them for 23 HOURS, while
+    // every external indicator stayed green -- running=true, messages
+    // status='delivered' (which only means the text was written INTO THE PANE, not
+    // that it was processed), pending=0, no error, scheduler silent. Three
+    // restarts did not clear it; one keypress did. Env var verified present in the
+    // shipped binary's CLAUDE_CODE_DISABLE_* table (2.1.205).
+    const promptSuggestionEnv =
+      'export CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION=false CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY=1 && '
     // Disable Claude Code's in-place auto-updater for every spawned agent. A
     // running agent whose updater fires does an in-place global reinstall into the
     // shared package prefix; a half-completed update can leave a broken stub and
@@ -1976,12 +2120,28 @@ export async function dismissResumeSummaryModalIfPresent(session: string, host: 
 // Returns true only if the modal was actually there AND the pane became ready
 // after clearing it -- a false keeps the caller on its existing skip path, so
 // nothing about the busy case changes.
+//
+// PANEWRITERS910: the dismissal keystrokes run under the per-pane send lane,
+// fail-closed (same contract as sendPromptToSession's pre-emit dismissals and
+// scheduleIdentitySetup's modal span). All four refusal-branch callers run on
+// their own timers, so without the lane this could press '0'/Escape into a
+// pane mid-delivery. A busy lane returns false: the holder is a delivery,
+// which runs its own pre-emit dismissals, so skipping loses nothing.
 export async function clearFeedbackModalAndRecheck(session: string, host: string | null = null): Promise<boolean> {
   try {
     const pane = capturePane(session, host)
     if (pane == null || !detectsFeedbackDraftModal(pane)) return false
-    logger.warn({ session }, 'pane held by a Claude Code feedback-draft modal on the not-ready path, dismissing')
-    await dismissFeedbackDraftModalIfPresent(session, host)
+    const releaseLane = tryAcquireSessionSendLane(session, host)
+    if (!releaseLane) {
+      logger.info({ session }, 'feedback-draft modal dismissal skipped -- a delivery holds this pane send lane (fail-closed)')
+      return false
+    }
+    try {
+      logger.warn({ session }, 'pane held by a Claude Code feedback-draft modal on the not-ready path, dismissing')
+      await dismissFeedbackDraftModalIfPresent(session, host)
+    } finally {
+      releaseLane()
+    }
     return await isSessionReadyForPrompt(session, host)
   } catch (err) {
     logger.warn({ err, session }, 'Failed to clear the feedback-draft modal on the not-ready path')
@@ -2913,7 +3073,23 @@ const unwedgeAttempts = new Map<string, { last: number; sig: string; fails: numb
 // parked text -- never 'busy'/processing) AND the text is unchanged across a
 // short settle, so input a human or agent is actively typing is never clobbered.
 // Returns true if it cleared something (caller should retry delivery next tick).
-export async function clearStaleParkedInput(session: string, host: string | null = null): Promise<boolean> {
+//
+// PANEWRITERS910: the settle-confirm and the clearing keystrokes run under the
+// per-pane send lane, fail-closed. The callers (message-router janitor and the
+// schedule-runner's two janitor sites) tick on independent timers, so without
+// the lane the Ctrl-U/C-k sequence could fire into a pane holding a delivery's
+// half-typed message -- a chunked send pausing past the 2s stability window
+// reads exactly like a stale parked line (same defect class as IDENTLANE910).
+// A busy lane returns false: if a delivery owns the pane, the "parked" text is
+// in-transit, not stale. lockMode 'held' is for the ONE caller already inside
+// the lane (schedule-runner's reinject path, which runs in its delivery's
+// withSessionSendLock span) -- acquiring again there would self-deadlock into
+// a false skip.
+export async function clearStaleParkedInput(
+  session: string,
+  host: string | null = null,
+  opts: { lockMode?: 'acquire' | 'held' } = {},
+): Promise<boolean> {
   const a = capturePane(session, host)
   if (a == null || detectPaneState(a) !== 'typing') return false
   // DIM-GUARD (2026-06-30, Szabi insight): extract the parked TEXT from the
@@ -2937,6 +3113,33 @@ export async function clearStaleParkedInput(session: string, host: string | null
   const prev = unwedgeAttempts.get(key)
   if (prev && prev.sig === parked && nowMs - prev.last < UNWEDGE_COOLDOWN_MS) return false
 
+  if ((opts.lockMode ?? 'acquire') === 'held') {
+    return clearStaleParkedInputInLane(session, host, a, parked, key, nowMs, prev)
+  }
+  const releaseLane = tryAcquireSessionSendLane(session, host)
+  if (!releaseLane) {
+    logger.info({ session }, 'stale-parked-input janitor skipped -- a delivery holds this pane send lane (the box likely holds in-transit text, not a wedge)')
+    return false
+  }
+  try {
+    return await clearStaleParkedInputInLane(session, host, a, parked, key, nowMs, prev)
+  } finally {
+    releaseLane()
+  }
+}
+
+// The lane-holding tail of clearStaleParkedInput: stability confirm, main-agent
+// escalation bookkeeping, and the clearing keystrokes. Split out so the lane
+// release lives in ONE finally regardless of which of the many exits runs.
+async function clearStaleParkedInputInLane(
+  session: string,
+  host: string | null,
+  a: string,
+  parked: string,
+  key: string,
+  nowMs: number,
+  prev: { last: number; sig: string; fails: number; escalated: boolean } | undefined,
+): Promise<boolean> {
   await delay(PARKED_STABLE_CONFIRM_MS)
   const b = capturePane(session, host)
   // Changed (someone is typing) or already cleared -> leave it alone, and do not

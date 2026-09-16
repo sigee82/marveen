@@ -47,6 +47,16 @@ const EXEMPT: Record<string, string> = {
     'shared library imported by outgoing-copy-gate.py (and the level-2 email approval gate, EMAILKAPU901 PR2); not itself a hook',
   'memory-save.sh':
     'legacy: referenced only by a historical rebuild prompt, wired nowhere; kept pending a maintainer decision to remove it',
+  // telegram-ack.py is deliberately NOT exempt on this install. Upstream ships it
+  // unregistered, so the exemption is true there; here 81470de wired it into
+  // .claude/settings.json, which makes "unreferenced anywhere in the repo" false
+  // and trips the stale-exemption check -- exactly as this file's header
+  // prescribes. A local divergence, and it will surface again on the next
+  // upgrade: the fix then is still to keep it out, or to unregister the hook.
+  'telegram_fallback_send.py':
+    'agent-invoked CLI (manual Bot API fallback sender, see scripts/lib/send-telegram.sh), not a settings hook; since #1305 the progress installer no longer copies or names it',
+  'telegram-image-resize.sh':
+    'legacy predecessor of channel-image-resize.sh; only its old installer migration path named it, and since #1305 that installer is a no-op stub -- kept pending a maintainer decision to remove it',
 }
 
 function registrationCorpus(): string {

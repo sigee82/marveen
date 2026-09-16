@@ -1,5 +1,6 @@
 import { join, isAbsolute } from 'node:path'
 import { checkTaskMcpRequirements } from './schedule-mcp-precheck.js'
+import { collectHeartbeatMetricsBlock } from './heartbeat-metrics-inject.js'
 import { existsSync, readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { atomicWriteFileSync } from './atomic-write.js'
@@ -895,9 +896,24 @@ async function attemptFireTask(
     // Use the scheduled-task framing instead: tags are still scrubbed (so a
     // poisoned body cannot smuggle a fake security tag) but the preamble marks
     // it as a task-to-execute with the standard escalate-if-dangerous guard.
-    const taskBody = preCheckPrefix
-      ? `[Pre-check eredmeny]\n${preCheckPrefix}\n\n[Feladat]\n${task.prompt}`
+    //
+    // HBMETRICSWIRE910: for a heartbeat task flagged injectMetrics, the
+    // runner executes the on-disk instrument NOW and appends its output in
+    // final report form. Inside the scrubbed body on purpose: the block
+    // carries kanban titles (operator-adjacent but free text), so it gets the
+    // same tag-scrub as the rest of the task body. collectHeartbeatMetricsBlock
+    // never throws and never returns empty -- an instrument failure arrives as
+    // a muszer-hiba block, which is a result to deliver, not a reason to skip.
+    let metricsBlock: string | null = null
+    if (task.type === 'heartbeat' && task.injectMetrics) {
+      metricsBlock = await collectHeartbeatMetricsBlock()
+    }
+    const promptWithMetrics = metricsBlock
+      ? `${task.prompt}\n\n${metricsBlock}`
       : task.prompt
+    const taskBody = preCheckPrefix
+      ? `[Pre-check eredmeny]\n${preCheckPrefix}\n\n[Feladat]\n${promptWithMetrics}`
+      : promptWithMetrics
     const fullPrompt =
       SCHEDULED_TASK_PREAMBLE + '\n' +
       prefix.trimEnd() + '\n\n' +
@@ -1016,8 +1032,10 @@ async function attemptFireTask(
             // is off because the box is 'typing', not idle -- the pre-flight gate
             // would otherwise burn its whole budget and time out every attempt.
             // lockMode 'held': we are already inside this pane's lane; taking
-            // the lock again would deadlock the promise-chain mutex.
-            if (await clearStaleParkedInput(session, host)) {
+            // the lock again would deadlock the promise-chain mutex. That goes
+            // for the clear too (PANEWRITERS910): its own acquire would see
+            // OUR lane busy and skip, so this call site must say it holds it.
+            if (await clearStaleParkedInput(session, host, { lockMode: 'held' })) {
               await sendPromptToSession(session, fullPrompt, host, { waitForIdle: false, lockMode: 'held' })
               logger.info({ task: task.name, session, attempt }, 'Scheduled prompt re-injected after swallowed Enter')
             } else {
