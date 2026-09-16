@@ -67,6 +67,19 @@ const DRIVE_SERVER = /__google-drive__/i
 const DRIVE_TRASH_TOOL = /^deleteItem$/
 const TRASH_AGENTS = new Set(['copy'])
 
+// Second narrow carve-out, same shape and same agent set: deleting a RANGE INSIDE a
+// Google document is ordinary editing, not file destruction. DESTRUCTIVE_VERB caught
+// it on the name alone (`deleteRange` matches ^delete[A-Z]\w*$).
+//
+// MEASURED, 2026-09-16 (Copy, on a live doc, same minute): `insertText` and
+// `findAndReplaceInDoc` BOTH passed the gate on the same document while `deleteRange`
+// was denied. So doc writing is already permitted and the deny was an over-match on
+// one verb, not a policy -- the agent's workaround was to leave the bad text in place
+// and annotate around it, which is strictly worse for the owner than the deletion.
+// Docs and Sheets keep version history, so the edit is recoverable; file-level
+// destruction (deleteItem, deleteSheet, trash) stays denied and is NOT covered here.
+const DOC_RANGE_EDIT_TOOL = /^deleteRange$/
+
 // Agent identity comes from the harness-supplied cwd: /Users/.../agents/<name>/...
 export function agentFromCwd(cwd) {
   const m = String(cwd ?? '').match(/\/agents\/([^/]+)(?:\/|$)/)
@@ -256,7 +269,8 @@ export function decide(toolName, ctx = {}) {
   // Exception, checked BEFORE the deny: trashing (not erasing) on Drive, for the
   // content agents named above. See DRIVE_TRASH_TOOL for why this is safe.
   if (DRIVE_SERVER.test(name) && DRIVE_TRASH_TOOL.test(sn) && TRASH_AGENTS.has(agentFromCwd(ctx.cwd))) return 'allow'
-  if (DESTRUCTIVE_VERB.test(sn)) return 'deny'
+  if (DRIVE_SERVER.test(name) && DOC_RANGE_EDIT_TOOL.test(sn) && TRASH_AGENTS.has(agentFromCwd(ctx.cwd))) return 'allow'
+  if (DESTRUCTIVE_VERB.test(sn)) return 'deny-destructive'
   // Browser automation -> allow (after the destructive deny, never before).
   if (BROWSER_SERVER.test(name)) return 'allow'
   if (WRITE_VERB.test(sn)) return 'defer'             // mutation -> keep the prompt
@@ -275,15 +289,29 @@ function allow(reason = 'read-only / channel MCP tool') {
   process.exit(0)
 }
 
-function deny() {
-  // Hook-level deny: the tool is decided (blocked) here, so NO permission dialog is
-  // created and NOTHING is forwarded to the channel/chat. The reason tells the agent
-  // to route the money-spend through the fleet approval flow instead.
+export const DENY_REASON_ADS =
+  'Money-spend ad write is not run autonomously. Propose it via POST /api/approvals to Nova;'
+  + ' a human/Nova executes the approved change.'
+export const DENY_REASON_DESTRUCTIVE =
+  'Irreversible destruction is not run autonomously. This is NOT an ad-spend gate and an'
+  + ' /api/approvals ad request will not unblock it. If the deletion is genuinely needed, ask'
+  + ' Nova with the exact tool name, or use a non-destructive equivalent (insert/replace/mark).'
+
+// Hook-level deny: the tool is decided (blocked) here, so NO permission dialog is
+// created and NOTHING is forwarded to the channel/chat.
+//
+// THE REASON IS A PARAMETER BECAUSE IT USED TO BE A CONSTANT (measured 2026-09-16).
+// Every deny -- including the DESTRUCTIVE_VERB branch, which has nothing to do with
+// money -- answered with the ads text. Copy hit it on `deleteRange` while editing a
+// Google DOC and reported that the message sends the reader to the ads approval flow
+// for a text edit. A wrong reason is worse than a terse one: it does not just fail to
+// help, it routes the next person to a queue that cannot resolve their case.
+function deny(reason = DENY_REASON_ADS) {
   process.stdout.write(JSON.stringify({
     hookSpecificOutput: {
       hookEventName: 'PreToolUse',
       permissionDecision: 'deny',
-      permissionDecisionReason: 'Money-spend ad write is not run autonomously. Propose it via POST /api/approvals to Nova; a human/Nova executes the approved change. (mcp-permission-gate)',
+      permissionDecisionReason: `${reason} (mcp-permission-gate)`,
     },
   }))
   process.exit(0)
@@ -362,5 +390,6 @@ if (isInvokedDirectly()) {
   if (decision === 'allow-granted') allowGranted(grantAllows(name, shortName(name), ctx).why)
   if (decision === 'allow') allow(BROWSER_SERVER.test(name) ? 'browser automation tool' : undefined)
   if (decision === 'deny') deny()
+  if (decision === 'deny-destructive') deny(DENY_REASON_DESTRUCTIVE)
   process.exit(0) // defer
 }
