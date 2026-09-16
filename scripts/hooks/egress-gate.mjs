@@ -148,6 +148,24 @@ function matchesQuarantineDomain(url, extraDomains = []) {
   // Operator additions carry no path rule: an entry someone typed into the
   // store file is a deliberate act, and second-guessing its shape here would
   // only make the file's behaviour harder to predict.
+  //
+  // '*' IS A WILDCARD IN THE QUARANTINE TIER, AND THIS LINE IS A RESTORATION,
+  // NOT A NEW GRANT (2026-09-10). store/egress-allowlist.json has carried '*'
+  // as the FIRST quarantine_domains entry since 2026-08-27, and the gate
+  // honoured it: at 05:31 today the reader fetched tradingeconomics.com and
+  // vg.hu -- neither is on any list -- and both logged ALLOWED_QUARANTINE.
+  // At 14:30 this file was rewritten from the 2026-08-27 .bak, which predates
+  // the wildcard, so the handling was silently lost; from 15:32 every reader
+  // fetch logged BLOCKED. Measured: the full diff against the .bak is 29 lines,
+  // of which exactly 2 are code (a logging label), so the rewrite did not
+  // intend this change -- it inherited an older base. Same shape as a fix
+  // branched off a stale commit quietly reverting finished work.
+  //
+  // SCOPE, because this is a security gate: the wildcard applies ONLY to the
+  // quarantine tier, i.e. ONLY to the quarantine-reader sub-agent, whose whole
+  // purpose is that fetched content comes back as data and never as
+  // instructions. It does NOT widen the main agent's allowlist by one domain.
+  if (extraDomains.includes('*')) return true
   return extraDomains.some(hostMatches)
 }
 
