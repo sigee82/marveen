@@ -33,7 +33,18 @@ import sys
 # yields a double dash, matching how the config tree names projects.
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _SLUG = _ROOT.replace("/", "-").replace(".", "-")
-DEFAULT_DIR = os.path.join(_ROOT, ".channels-config", "projects", _SLUG, "memory")
+# The memory vault lives under ~/.claude, NOT under the project tree. An earlier
+# version pointed at <project>/.channels-config/... -- a directory that does not
+# exist on this machine, so the script crashed with FileNotFoundError whenever it
+# ran without an explicit argument (measured 2026-09-11, reported by signal).
+# Both candidates are listed so a future move is a one-line change, and the
+# chosen one is the first that actually exists: a silently wrong base is the
+# failure mode this file's own comment warns about.
+_CANDIDATES = [
+    os.path.join(os.path.expanduser("~/.claude"), "projects", _SLUG, "memory"),
+    os.path.join(_ROOT, ".channels-config", "projects", _SLUG, "memory"),
+]
+DEFAULT_DIR = next((c for c in _CANDIDATES if os.path.isdir(c)), _CANDIDATES[0])
 SKILL_DIRS = [
     os.path.expanduser("~/.claude/skills"),
     os.path.expanduser("~/.claude/scheduled-tasks"),
@@ -53,11 +64,37 @@ def is_artifact(target):
     return target in {"link", "name", "their-name"}
 
 
+def is_index_file(fname):
+    """Index files carry the loaded-at-startup pointer list, not a memory. They
+    have no frontmatter by design, so the name/filename drift check must skip
+    them -- otherwise every index shows up as "name: (hianyzik)" forever.
+
+    This used to be a single hardcoded `fname == "MEMORY.md"`. When the index
+    was split in two (MEMORY.md + MEMORY-korabbi.md, because the loader
+    truncates around 24 KB), the second file was not covered, and the audit
+    reported a permanent drift of 1 -- measured 2026-09-11, reported by signal.
+    A rule written for one name does not protect its siblings, so match the
+    FAMILY, not the instance.
+    """
+    return fname == "MEMORY.md" or fname.startswith("MEMORY-")
+
+
 def load(memory_dir):
-    """Return (filename stems, name-field -> stem, name/filename drift)."""
-    stems, by_name, drift = set(), {}, []
+    """Return (filename stems, name-field -> stem, drift, skipped index files).
+
+    The skipped list is returned so the report can NAME what it dropped. A
+    silent exclusion is the same defect class it was written to fix: a real
+    memory whose filename happened to start with "MEMORY-" would vanish from
+    `stems`, and every [[link]] to it would then surface as UNRESOLVED -- a
+    swallowed file masquerading as a broken link. Anything nothing points at
+    would disappear without a trace.
+    """
+    stems, by_name, drift, skipped = set(), {}, [], []
     for fname in sorted(os.listdir(memory_dir)):
-        if not fname.endswith(".md") or fname == "MEMORY.md":
+        if not fname.endswith(".md"):
+            continue
+        if is_index_file(fname):
+            skipped.append(fname)
             continue
         stem = fname[:-3]
         stems.add(stem)
@@ -69,12 +106,12 @@ def load(memory_dir):
             by_name.setdefault(declared, stem)
         if declared != stem:
             drift.append((fname, declared or "(hianyzik)"))
-    return stems, by_name, drift
+    return stems, by_name, drift, skipped
 
 
 def main():
     memory_dir = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_DIR
-    stems, by_name, drift = load(memory_dir)
+    stems, by_name, drift, skipped = load(memory_dir)
 
     skills = set()
     for root in SKILL_DIRS:
@@ -105,6 +142,7 @@ def main():
                 cls = "UNRESOLVED"
             buckets[cls].setdefault(t, []).append(fname)
 
+    print(f"INDEX-FAJLKENT KIHAGYVA: {len(skipped)} -> {', '.join(skipped) if skipped else '(egy sem)'}")
     print(f"memoria-fajlok: {len(stems)}   skill/task nevek: {len(skills)}")
     for cls in ("MEMORY", "MEMORY-NEV", "SKILL/TASK", "ARTIFACT", "UNRESOLVED"):
         hits = buckets[cls]
