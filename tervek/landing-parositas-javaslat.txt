@@ -1,0 +1,209 @@
+PAROSITAS-JAVASLAT -- a vegso szot COPY mondja ki.
+A doksi 42 sora es a prod 42 mezoje, megjelenesi sorrendben.
+Tipus-elteres: 0 (0 a jo).
+A "MARAD" sorokat a doksi jeloli [VALTOZATLAN]-kent -- azokat NEM irjuk felul.
+
+   CSERE [6b45d9c ] title              (heading)
+        MOST: Indul a 7 napos meal prep kihívás
+        UJ  : Indul a 7 napos egészséges reggeli kihívás
+        doksi: 1. szekció -- Hero (heading + két text-editor + gomb) | Heading
+
+   CSERE [b3e8629 ] editor             (text-editor)
+        MOST: Csatlakozz a kihíváshoz, és próbáld ki, hogy milyen finom, v
+        UJ  : Csatlakozz a kihíváshoz, és rakjuk össze együtt azt a reggelit, ami nem tíz perc alatt e
+        doksi: 1. szekció -- Hero (heading + két text-editor + gomb) | Text-editor (bevezető + felsorolás)
+
+   MARAD [ed700ab ] editor             (text-editor)
+        MOST: Regisztrálj most, a kihívás teljesen ingyenes. Indulás: 2026
+        doksi: 1. szekció -- Hero (heading + két text-editor + gomb) | Text-editor (állandó sor)
+
+   MARAD [2aec29b ] text               (button)
+        MOST: Én is kipróbálom
+        doksi: 1. szekció -- Hero (heading + két text-editor + gomb) | Gomb 1
+
+   CSERE [6c78b0f2] title              (heading)
+        MOST: Főzz kevesebbet, egyél változatosabban
+        UJ  : Reggelizz úgy, hogy délig kitartson
+        doksi: 2. szekció -- Ígéret-cím + a probléma jelenete | Heading
+
+   CSERE [370bdfea] editor             (text-editor)
+        MOST: Mit együnk ma? - ismerős a kérdés? Sokszor nem egy jó recept
+        UJ  : Reggel kapkodsz, és a végén marad a kávé meg valami gyors édesség - ismerős? Aztán tíz ó
+        doksi: 2. szekció -- Ígéret-cím + a probléma jelenete | Text-editor
+
+   CSERE [4aa9c3b ] title              (heading)
+        MOST: Miért éppen 7 nap?
+        UJ  : Miért éppen 7 nap?
+        doksi: 3. szekció -- Miért éppen 7 nap? [VÁLTOZATLAN, egy témaszó c | Heading
+
+   CSERE [8c97ba3 ] editor             (text-editor)
+        MOST: Bryan Tracy gyakorlás törvénye kimondja, hogy ha egy tevéken
+        UJ  : Brian Tracy gyakorlás törvénye kimondja, hogy ha egy tevékenységet elég sokszor ismétels
+        doksi: 3. szekció -- Miért éppen 7 nap? [VÁLTOZATLAN, egy témaszó c | Text-editor
+
+   MARAD [c0f829f ] text               (button)
+        MOST: Már megyek is
+        doksi: 3. szekció -- Miért éppen 7 nap? [VÁLTOZATLAN, egy témaszó c | Gomb 2
+
+   CSERE [64ff707 ] title              (heading)
+        MOST: Mire számíthatsz?
+        UJ  : Mire számíthatsz?
+        doksi: 4. szekció -- Mire számíthatsz? | Heading
+
+   CSERE [17c1f49 ] editor             (text-editor)
+        MOST: A 7 napos meal prep kihívás alatt 7 változatos főétkezést ké
+        UJ  : A 7 napos egészséges reggeli kihívás alatt minden nap kapsz egy receptet, és hozzá a het
+        doksi: 4. szekció -- Mire számíthatsz? | Text-editor
+
+   MARAD [e2e10c5 ] text               (button)
+        MOST: Vágjunk bele, csatlakozom
+        doksi: 4. szekció -- Mire számíthatsz? | Gomb 3
+
+   CSERE [9a135ee ] title              (heading)
+        MOST: Mit kapsz még?
+        UJ  : Mit kapsz még?
+        doksi: 5. szekció -- Mit kapsz még? + ikonos lista + a kizárás | Heading
+
+   CSERE [c927586 ] editor             (text-editor)
+        MOST: A Meal Prep kihívás abban segít, hogy ne kelljen minden egye
+        UJ  : Az egészséges reggeli abban segít, hogy ne a nap legrosszabb döntésével indítsd a napot,
+        doksi: 5. szekció -- Mit kapsz még? + ikonos lista + a kizárás | Text-editor
+
+   CSERE [360da42 ] icon_list.0.text   (icon-list)
+        MOST: sokkal kevesebb idő is elég lehet a hétköznapi főzéshez
+        UJ  : kitarthat a jóllakottság délig, és elmaradhat a délelőtti éhségroham
+        doksi: 5. szekció -- Mit kapsz még? + ikonos lista + a kizárás | Ikonos lista (4 elem) / 1. tetel
+
+   CSERE [360da42 ] icon_list.1.text   (icon-list)
+        MOST: milyen egyszerű többféle zöldséget enni
+        UJ  : milyen egyszerű sósan indítani a napot
+        doksi: 5. szekció -- Mit kapsz még? + ikonos lista + a kizárás | Ikonos lista (4 elem) / 2. tetel
+
+   CSERE [360da42 ] icon_list.2.text   (icon-list)
+        MOST: milyen könnyű változatosan étkezni
+        UJ  : néhány perc is elég lehet egy laktató reggelihez
+        doksi: 5. szekció -- Mit kapsz még? + ikonos lista + a kizárás | Ikonos lista (4 elem) / 3. tetel
+
+   CSERE [360da42 ] icon_list.3.text   (icon-list)
+        MOST: mennyivel könnyebb fenntartani az egészséges étkezést, ha va
+        UJ  : mennyivel nyugodtabb egy reggel, ha nem kell kitalálni, mi legyen
+        doksi: 5. szekció -- Mit kapsz még? + ikonos lista + a kizárás | Ikonos lista (4 elem) / 4. tetel
+
+   CSERE [6a0ce87 ] editor             (text-editor)
+        MOST: Ez nem egy méregtelenítő- vagy fogyókúra. A kihívás alatt ne
+        UJ  : Ez nem egy méregtelenítő- vagy fogyókúra. A kihívás alatt nem kell semmit sem kihagynod 
+        doksi: 5. szekció -- Mit kapsz még? + ikonos lista + a kizárás | Text-editor (a kizárás -- a korpusz funkciója megtartva)
+
+   MARAD [2053b90 ] text               (button)
+        MOST: Wow, erre rámegyek
+        doksi: 5. szekció -- Mit kapsz még? + ikonos lista + a kizárás | Gomb 4
+
+   CSERE [94b920d ] title              (heading)
+        MOST: Imádni fogod a kihívást, ha
+        UJ  : Imádni fogod a kihívást, ha
+        doksi: 6. szekció -- Imádni fogod a kihívást, ha | Heading
+
+   CSERE [bb2a697 ] icon_list.0.text   (icon-list)
+        MOST: szeretnél egészségesebben enni, de nincs időd minden nap főz
+        UJ  : reggelente kapkodsz, és a végén marad a kávé meg valami gyors édesség
+        doksi: 6. szekció -- Imádni fogod a kihívást, ha | Ikonos lista (8 elem) / 1. tetel
+
+   CSERE [bb2a697 ] icon_list.1.text   (icon-list)
+        MOST: gyakran délután jut eszedbe, hogy jaj, még vacsora is kellen
+        UJ  : délelőtt tízkor már a keksz után nyúlsz, pedig reggeliztél
+        doksi: 6. szekció -- Imádni fogod a kihívást, ha | Ikonos lista (8 elem) / 2. tetel
+
+   CSERE [bb2a697 ] icon_list.2.text   (icon-list)
+        MOST: kevés időd van, de szeretnél egészségesebb döntéseket hozni,
+        UJ  : unod a megszokott reggeliket, és nem jut eszedbe semmi új
+        doksi: 6. szekció -- Imádni fogod a kihívást, ha | Ikonos lista (8 elem) / 3. tetel
+
+   CSERE [bb2a697 ] icon_list.3.text   (icon-list)
+        MOST: szeretnél több zöldséget és hüvelyest enni,
+        UJ  : szeretnél egészségesebben reggelizni, de reggel nincs időd főzni
+        doksi: 6. szekció -- Imádni fogod a kihívást, ha | Ikonos lista (8 elem) / 4. tetel
+
+   CSERE [bb2a697 ] icon_list.4.text   (icon-list)
+        MOST: kezdő életmódváltó vagy, és valami egyszerűvel kezdenél,
+        UJ  : kezdő életmódváltó vagy, és valami egyszerűvel kezdenél
+        doksi: 6. szekció -- Imádni fogod a kihívást, ha | Ikonos lista (8 elem) / 5. tetel
+
+   CSERE [bb2a697 ] icon_list.5.text   (icon-list)
+        MOST: kipróbáltad már az előre főzést, de nem akarsz napokig ugyan
+        UJ  : gluténmentesen vagy tejmentesen étkezel, és elfogytak az ötleteid
+        doksi: 6. szekció -- Imádni fogod a kihívást, ha | Ikonos lista (8 elem) / 6. tetel
+
+   CSERE [bb2a697 ] icon_list.6.text   (icon-list)
+        MOST: munka és család mellett jól jönne egy kis segítség a menüter
+        UJ  : munka és család mellett jól jönne egy kis segítség a reggelekhez
+        doksi: 6. szekció -- Imádni fogod a kihívást, ha | Ikonos lista (8 elem) / 7. tetel
+
+   CSERE [bb2a697 ] icon_list.7.text   (icon-list)
+        MOST: vagy egyszerűen kíváncsi vagy, hogy könnyebb-e meal preppel
+        UJ  : vagy egyszerűen kíváncsi vagy, mitől lesz laktató egy reggeli.
+        doksi: 6. szekció -- Imádni fogod a kihívást, ha | Ikonos lista (8 elem) / 8. tetel
+
+   CSERE [be0d9b5 ] editor             (text-editor)
+        MOST: Remélem, a hét végére Te is úgy nézel majd a hűtődben sorako
+        UJ  : Remélem, a hét végére Te is úgy nézel majd erre a hétre, hogy volt közte legalább két ol
+        doksi: 6. szekció -- Imádni fogod a kihívást, ha | Text-editor (záró vágykép)
+
+   MARAD [4ac6aea ] text               (button)
+        MOST: Naná, regisztrálok is
+        doksi: 6. szekció -- Imádni fogod a kihívást, ha | Gomb 5
+
+   CSERE [e2e740b ] title              (heading)
+        MOST: A kihívás menete
+        UJ  : A kihívás menete
+        doksi: 7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN] | Heading
+
+   CSERE [fb7e110 ] title              (heading)
+        MOST: Regisztrálj a kihívásra
+        UJ  : Regisztrálj a kihívásra
+        doksi: 7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN] | 7. Heading
+
+   CSERE [eadbb3d ] editor             (text-editor)
+        MOST: Utána máris be tudsz lépni a kihívás felületére.
+        UJ  : Utána máris be tudsz lépni a kihívás felületére.
+        doksi: 7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN] | Text
+
+   CSERE [1ed9313 ] title              (heading)
+        MOST: Töltsd le az applikációt
+        UJ  : Töltsd le az applikációt
+        doksi: 7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN] | 8. Heading
+
+   CSERE [c0ad3ec ] editor             (text-editor)
+        MOST: iOS vagy Android készülékedre és lépj be!
+        UJ  : iOS vagy Android készülékedre és lépj be!
+        doksi: 7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN] | Text
+
+   CSERE [cd7ec3e ] title              (heading)
+        MOST: Keresd a bevásárlólistát
+        UJ  : Keresd a bevásárlólistát
+        doksi: 7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN] | 9. Heading
+
+   CSERE [84b9598 ] editor             (text-editor)
+        MOST: és szerezd be a hozzávalókat!
+        UJ  : és szerezd be a hozzávalókat!
+        doksi: 7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN] | Text
+
+   CSERE [76c4bce ] title              (heading)
+        MOST: Nyerj 1 hónap 21napalatt VIP Klub előfizetést Facebook nyere
+        UJ  : Nyerj 1 hónap 21napalatt VIP Klub előfizetést Facebook nyereményjátékunkon
+        doksi: 11. szekció -- Nyereményjáték (platform: FACEBOOK) | Heading
+
+   CSERE [1cfd5a8 ] editor             (text-editor)
+        MOST: Készíts fotót az elkészült meal prep ételedről.Posztold a ki
+        UJ  : Készíts fotót az elkészült reggelidről.
+Posztold a kihívás Facebook csoportjában a @21na
+        doksi: 11. szekció -- Nyereményjáték (platform: FACEBOOK) | Text-editor
+
+   MARAD [5b4972b ] text               (button)
+        MOST: Itt a helyem, regisztrálok
+        doksi: 11. szekció -- Nyereményjáték (platform: FACEBOOK) | Gomb 6
+
+   CSERE [3685e05 ] title              (heading)
+        MOST: Jelentkezem a 7 napos meal prep kihívásra
+        UJ  : Jelentkezem a 7 napos egészséges reggeli kihívásra
+        doksi: 12. szekció -- Űrlap-cím | Heading
+
