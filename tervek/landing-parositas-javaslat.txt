@@ -13,9 +13,11 @@ A "MARAD" sorokat a doksi jeloli [VALTOZATLAN]-kent -- azokat NEM irjuk felul.
         UJ  : Csatlakozz a kihíváshoz, és rakjuk össze együtt azt a reggelit, ami nem tíz perc alatt e
         doksi: 1. szekció -- Hero (heading + két text-editor + gomb) | Text-editor (bevezető + felsorolás)
 
-   MARAD [ed700ab ] editor             (text-editor)
+   CSERE [ed700ab ] editor             (text-editor)
         MOST: Regisztrálj most, a kihívás teljesen ingyenes. Indulás: 2026
-        doksi: 1. szekció -- Hero (heading + két text-editor + gomb) | Text-editor (állandó sor)
+        UJ  : Regisztrálj most, a kihívás teljesen ingyenes.
+Indulás: 2026. október 1.
+        doksi: 1. szekció -- Hero (heading + két text-editor + gomb) | Text-editor (a hero alatti sor)
 
    MARAD [2aec29b ] text               (button)
         MOST: Én is kipróbálom

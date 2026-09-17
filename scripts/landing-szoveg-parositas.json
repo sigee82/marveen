@@ -20,24 +20,24 @@
   "uj_szoveg": "Csatlakozz a kihíváshoz, és rakjuk össze együtt azt a reggelit, ami nem tíz perc alatt elszáll, hanem kitart délig.\n\nminden napra egy recept, 7 napon át\nheti bevásárlólista\ngluténmentes, tejmentes, hozzáadott cukor nélkül\niOS és Android applikáció"
  },
  {
-  "cserelendo": false,
+  "cserelendo": true,
   "sorszam": 3,
   "blokk": "1. szekció -- Hero (heading + két text-editor + gomb)",
-  "mezo_cimke": "Text-editor (állandó sor)",
-  "doksi_alak": "egy-soros",
+  "mezo_cimke": "Text-editor (a hero alatti sor)",
+  "doksi_alak": "jeloles+tartalom",
   "elem_id": "ed700ab",
   "elem_mezo": "editor",
-  "uj_szoveg": "[VÁLTOZATLAN]"
+  "uj_szoveg": "Regisztrálj most, a kihívás teljesen ingyenes.\nIndulás: 2026. október 1."
  },
  {
   "cserelendo": false,
   "sorszam": 4,
   "blokk": "1. szekció -- Hero (heading + két text-editor + gomb)",
   "mezo_cimke": "Gomb 1",
-  "doksi_alak": "egy-soros",
+  "doksi_alak": "jeloles+tartalom",
   "elem_id": "2aec29b",
   "elem_mezo": "text",
-  "uj_szoveg": "[VÁLTOZATLAN]"
+  "uj_szoveg": "Én is kipróbálom"
  },
  {
   "cserelendo": true,
@@ -84,10 +84,10 @@
   "sorszam": 9,
   "blokk": "3. szekció -- Miért éppen 7 nap? [VÁLTOZATLAN, egy témaszó cserélve + a szerző neve javítva]",
   "mezo_cimke": "Gomb 2",
-  "doksi_alak": "egy-soros",
+  "doksi_alak": "jeloles+tartalom",
   "elem_id": "c0f829f",
   "elem_mezo": "text",
-  "uj_szoveg": "[VÁLTOZATLAN]"
+  "uj_szoveg": "Már megyek is"
  },
  {
   "cserelendo": true,
@@ -114,10 +114,10 @@
   "sorszam": 12,
   "blokk": "4. szekció -- Mire számíthatsz?",
   "mezo_cimke": "Gomb 3",
-  "doksi_alak": "egy-soros",
+  "doksi_alak": "jeloles+tartalom",
   "elem_id": "e2e10c5",
   "elem_mezo": "text",
-  "uj_szoveg": "[VÁLTOZATLAN]"
+  "uj_szoveg": "Vágjunk bele, csatlakozom"
  },
  {
   "cserelendo": true,
@@ -194,10 +194,10 @@
   "sorszam": 20,
   "blokk": "5. szekció -- Mit kapsz még? + ikonos lista + a kizárás",
   "mezo_cimke": "Gomb 4",
-  "doksi_alak": "egy-soros",
+  "doksi_alak": "jeloles+tartalom",
   "elem_id": "2053b90",
   "elem_mezo": "text",
-  "uj_szoveg": "[VÁLTOZATLAN]"
+  "uj_szoveg": "Wow, erre rámegyek"
  },
  {
   "cserelendo": true,
@@ -304,10 +304,10 @@
   "sorszam": 31,
   "blokk": "6. szekció -- Imádni fogod a kihívást, ha",
   "mezo_cimke": "Gomb 5",
-  "doksi_alak": "egy-soros",
+  "doksi_alak": "jeloles+tartalom",
   "elem_id": "4ac6aea",
   "elem_mezo": "text",
-  "uj_szoveg": "[VÁLTOZATLAN]"
+  "uj_szoveg": "Naná, regisztrálok is"
  },
  {
   "cserelendo": false,
@@ -394,7 +394,7 @@
   "sorszam": 40,
   "blokk": "11. szekció -- Nyereményjáték (platform: FACEBOOK)",
   "mezo_cimke": "Text-editor",
-  "doksi_alak": "cimke-alatt",
+  "doksi_alak": "jeloles+tartalom",
   "elem_id": "1cfd5a8",
   "elem_mezo": "editor",
   "uj_szoveg": "Készíts fotót az elkészült reggelidről.\nPosztold a kihívás Facebook csoportjában a @21napalatt_kihivas hashtaggel\nOktóber 8-án a legalább 1 képet feltöltők között kisorsolunk egy szerencsés résztvevőt,\naki 1 hónapos 21napalatt VIP Klub előfizetést nyer.\nA 21napalatt VIP Klubtagság teljes hozzáférést ad a klub minden tartalmához: 21 napos életmódprogramhoz, a hetente frissülő menütervekhez, 500+ tej-, cukor- és gluténmentes recepthez, 21 napos kihívásokhoz, tudásanyagokhoz, a zárt Facebook csoporthoz."
@@ -404,10 +404,10 @@
   "sorszam": 41,
   "blokk": "11. szekció -- Nyereményjáték (platform: FACEBOOK)",
   "mezo_cimke": "Gomb 6",
-  "doksi_alak": "egy-soros",
+  "doksi_alak": "jeloles+tartalom",
   "elem_id": "5b4972b",
   "elem_mezo": "text",
-  "uj_szoveg": "[VÁLTOZATLAN]"
+  "uj_szoveg": "Itt a helyem, regisztrálok"
  },
  {
   "cserelendo": true,

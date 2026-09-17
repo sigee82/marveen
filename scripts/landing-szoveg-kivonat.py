@@ -17,7 +17,7 @@ import sys
 DOKSI = '/Users/macmini/marveen/agents/copy/munka/2026-10-ingyenes-kihivas-landing-szoveg.md'
 NYITO = '=== BEMENO-SZOVEG-KEZDETE ==='
 ZARO = '=== BEMENO-SZOVEG-VEGE ==='
-VART_HOSSZ = 6380  # Copy merte es a doksi fejleceben is all; a NYERS szakasz hossza
+VART_HOSSZ = 6746  # 2026-09-17: Copy atirta a jeloles-szotarat, a CIMKEK nottek (a szoveg nem)
 
 
 def kimeno_szakasz(szoveg):
@@ -42,6 +42,7 @@ MEZO_MINTA = re.compile(r'^\*\*(.+?):\*\*[ \t]*(.*)$', re.M)
 def mezokre_bont(szakasz):
     """[(blokk_cim, mezo_cimke, szoveg, alak)] a "## ..." blokkok es a mezo-cimkek menten."""
     blokkok = []
+    mezo_jeloles = {}
     hatarok = [m.start() for m in re.finditer(r'^## ', szakasz, re.M)] + [len(szakasz)]
     for i in range(len(hatarok) - 1):
         resz = szakasz[hatarok[i]:hatarok[i + 1]]
@@ -51,14 +52,32 @@ def mezokre_bont(szakasz):
             cimke = m.group(1)
             soron_belul = m.group(2).strip()
             veg = talalatok[j + 1].start() if j + 1 < len(talalatok) else len(resz)
+            # A cimke utan allhat egy IRANYITO JELOLES, es a valodi tartalom alatta jon:
+            #     **Gomb 1:** [MARAD -- a prodon allo szoveg valtozatlan, ne csereld]
+            #     En is kiprobalom
+            # Ha a jelolest vennenk ERTEKNEK, a gombra a "[MARAD -- ...]" szoveg kerulne.
+            # Copy 2026-09-17-en atirta a szotarat ([VALTOZATLAN] helyett [MARAD]/[CSERE]),
+            # tehat a jeloles-keszlet VALTOZIK -- ezert nem egy szora illesztunk, hanem az
+            # ALAKRA: szogletes zarojel a cimke utan, kulcsszoval kezdve.
+            jeloles = None
             if soron_belul:
-                torzs, alak = soron_belul, 'egy-soros'
+                jm = re.match(r'^\[(MARAD|CSERE|VÁLTOZATLAN)\b[^\]]*\]\s*(.*)$', soron_belul)
+                if jm:
+                    jeloles = jm.group(1)
+                    maradek = jm.group(2).strip()
+                    alatta = resz[m.end():veg].strip().rstrip('-').strip()
+                    torzs = maradek or alatta
+                    alak = 'jeloles+tartalom'
+                else:
+                    torzs, alak = soron_belul, 'egy-soros'
             else:
                 torzs = resz[m.end():veg].strip().rstrip('-').strip()
                 alak = 'cimke-alatt'
+            if jeloles is not None:
+                mezo_jeloles[(cim, cimke)] = jeloles
             if torzs:
                 blokkok.append((cim, cimke, torzs, alak))
-    return blokkok
+    return blokkok, mezo_jeloles
 
 
 def main():
@@ -68,7 +87,7 @@ def main():
     if len(szakasz) != VART_HOSSZ:
         print('@@ FIGYELEM: a hossz ELTER a vart ertektol. Copy valtoztatott -- '
               'ellenorizd, mielott barmit kikuldesz.')
-    mezok = mezokre_bont(szakasz)
+    mezok, mezo_jeloles = mezokre_bont(szakasz)
     alakok = {}
     for _, _, _, alak in mezok:
         alakok[alak] = alakok.get(alak, 0) + 1
@@ -116,12 +135,14 @@ def main():
         # tehat a vagas utan URES lett, az ures nem kezdodik a jelolessel -> mind a HAT
         # CTA-gomb CSERELENDOVE valt, URES uj szoveggel. Az elo landingen ez hat URES
         # gombot jelentett volna. Eloszor dontunk, aztan vagunk.
-        blokk_valtozatlan = bool(re.search(r'\[VÁLTOZATLAN\]\s*$', blokk))
-        csak_jeloles = torzs.strip().upper().startswith('[VÁLTOZATLAN')
-        valtozatlan = blokk_valtozatlan or csak_jeloles
-        if not csak_jeloles:
-            # Copy megjegyzese egy VALODI mondat vegen -- ez sosem tartalom.
-            torzs = re.sub(r'\s*\[VÁLTOZATLAN\]\s*$', '', torzs).strip()
+        # A blokk-cimben allo jeloles az EGESZ blokkra szol -- de csak ha NEM MINOSIT.
+        # A "[VALTOZATLAN, egy temaszo cserelve...]" eppen azt mondja, MI valtozott.
+        blokk_valtozatlan = bool(re.search(r'\[(VÁLTOZATLAN|MARAD)\]\s*$', blokk))
+        mezo_jel = mezo_jeloles.get((blokk, cimke))
+        valtozatlan = blokk_valtozatlan or mezo_jel in ('MARAD', 'VÁLTOZATLAN')
+        # Vedelem arra, ha egy jeloles megis a TARTALOM soran maradna (Copy 2026-09-17-en
+        # kivette oket, de a kovetkezo honapban ujra beleirhat egyet): sosem megy ki.
+        torzs = re.sub(r'\s*\[(VÁLTOZATLAN|MARAD|CSERE)\b[^\]]*\]\s*$', '', torzs).strip()
         sablon.append({
             'cserelendo': not valtozatlan,
             'sorszam': idx,
