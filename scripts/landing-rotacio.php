@@ -14,6 +14,7 @@
  *   ssh ... 'cd ~/vip.21napalatt.hu && php' < scripts/landing-rotacio.php
  *   ssh ... 'cd ~/vip.21napalatt.hu && php -- --duplikal' < scripts/landing-rotacio.php
  *   ssh ... 'cd ~/vip.21napalatt.hu && php -- --slugcsere --uj-id=<ID>' < scripts/landing-rotacio.php
+ *   ssh ... 'cd ~/vip.21napalatt.hu && php -- --proba-takarit --uj-id=<ID>' < scripts/landing-rotacio.php
  *
  * MIERT HAROM FAZIS, ES MIERT EZ A SORREND:
  *
@@ -31,17 +32,90 @@
  */
 if (PHP_SAPI !== 'cli') { exit("Csak CLI-bol.\n"); }
 define('WP_USE_THEMES', false);
-require_once '/home/napalatt/vip.21napalatt.hu/wp-load.php';
+
+/* PROBAPADI FELULIRAS -- KORNYEZETI VALTOZOBOL, NEM KAPCSOLOBOL, ES SZANDEKOSAN.
+ *
+ * Az iro agak kodja a szaraz futasban BELE SEM FUT, tehat egy zold `php -l` semmit nem mond
+ * arrol, hogy a duplikalas vagy a takaritas mukodik-e. Hogy ezt eles iras nelkul ki lehessen
+ * probalni egy lokalis WP-n, a wp-load utja es a forras-oldal ID-je felulirhato.
+ *
+ * MIERT KORNYEZETI VALTOZO ES NEM `--forras=<ID>`: egy kapcsolot el lehet gepelni egy eles
+ * futasban, es a slug-csere fazis a FORRAST NEVEZI AT. Kornyezeti valtozot nem ir be veletlenul
+ * senki. Es ha barmelyik feluliras aktiv, a szkript a SLUG-CSERET MEGTAGADJA: probapadon
+ * sosem gyakoroljuk az eles atnevezest, mert annak a kockazata nem a kodban van. */
+$WPLOAD    = getenv('LANDING_WPLOAD') ?: '/home/napalatt/vip.21napalatt.hu/wp-load.php';
+$FELULIRVA = (bool) (getenv('LANDING_WPLOAD') || getenv('LANDING_FORRAS'));
+if (!file_exists($WPLOAD)) { exit("Nincs wp-load itt: $WPLOAD\n"); }
+require_once $WPLOAD;
 error_reporting(E_ERROR | E_PARSE);
 function ki($s){ echo '@@ '.$s."\n"; }
+
+/**
+ * AZ ELES OLDAL UJJLENYOMATA.
+ *
+ * Nova atveteli feltetele a probahoz: "az ELES szeptemberi oldal VALTOZATLAN -- merd meg ELOTTE
+ * es UTANA". Ez azert kulon lepes, mert a masolas SIKERE es az eles oldal SERTETLENSEGE ket
+ * fuggetlen allitas: egy szep masolat mellett is elmozdulhat a forras, ha egy hook hozzanyul,
+ * es a szep masolat latvanya pont elnyomna a kerdest. Ezert a szam megy a kepernyore, nem a verdikt.
+ *
+ * A `post_modified` a legerzekenyebb mezo: a WP minden `wp_update_post`-nal frissiti, tehat egy
+ * veletlen erintes MEG AKKOR IS nyomot hagy, ha a tartalom valtozatlan maradt.
+ */
+function elesUjjlenyomat($id) {
+    $p = get_post($id);
+    if (!$p) { return array('letezik' => false); }
+    return array(
+        'letezik'   => true,
+        'ID'        => (int) $p->ID,
+        'slug'      => (string) $p->post_name,
+        'statusz'   => (string) $p->post_status,
+        'modositva' => (string) $p->post_modified_gmt,
+        'adat_byte' => strlen((string) get_post_meta($id, '_elementor_data', true)),
+    );
+}
+
+function ujjlenyomatKiir($cimke, $u) {
+    if (empty($u['letezik'])) { ki($cimke.': !! NEM LETEZIK'); return; }
+    ki(sprintf('%s: ID=%d  slug=%s  statusz=%s  modositva(GMT)=%s  _elementor_data=%d byte',
+        $cimke, $u['ID'], $u['slug'], $u['statusz'], $u['modositva'], $u['adat_byte']));
+}
+
+/** Ket ujjlenyomat osszevetese. A MEZONKENTI elteres megy ki, nem egy "valtozott/nem valtozott". */
+function ujjlenyomatOsszevet($elotte, $utana) {
+    $eltert = array();
+    foreach (array('ID','slug','statusz','modositva','adat_byte') as $k) {
+        $a = isset($elotte[$k]) ? $elotte[$k] : null;
+        $b = isset($utana[$k]) ? $utana[$k] : null;
+        if ($a !== $b) { $eltert[] = sprintf('%s: "%s" -> "%s"', $k, $a, $b); }
+    }
+    if (!$eltert) { ki('AZ ELES OLDAL VALTOZATLAN (mind az ot mezo azonos).'); return true; }
+    ki('!! AZ ELES OLDAL ELMOZDULT -- ez onmagaban lelet, fuggetlenul a masolat minosegetol:');
+    foreach ($eltert as $e) { ki('   '.$e); }
+    return false;
+}
+
+/** Az eles URL valodi HTTP-probaja a szerverrol: nem a DB-t kerdezzuk, hanem a webet. */
+function elesUrlProba($slug, $vart_id) {
+    $url = home_url('/'.$slug.'/');
+    $v = wp_remote_get($url, array('timeout' => 20, 'redirection' => 5));
+    if (is_wp_error($v)) { ki('!! '.$url.' -> HIBA: '.$v->get_error_message()); return false; }
+    $kod = (int) wp_remote_retrieve_response_code($v);
+    $p = get_page_by_path($slug);
+    $ok = ($kod === 200 && $p && (int) $p->ID === (int) $vart_id);
+    ki(sprintf('%s -> HTTP %d, a slug ID-je: %s (vart: %d)  %s', $url, $kod,
+        $p ? $p->ID : 'NINCS', $vart_id, $ok ? '(jo)' : '!! NEM EZ VOLT A CEL'));
+    return $ok;
+}
+
 
 $ARGV = $argv ?: array();
 $DUPLIKAL  = in_array('--duplikal', $ARGV, true);
 $SLUGCSERE = in_array('--slugcsere', $ARGV, true);
+$TAKARIT   = in_array('--proba-takarit', $ARGV, true);
 $UJ_ID = 0;
 foreach ($ARGV as $a) { if (strpos($a, '--uj-id=') === 0) { $UJ_ID = (int) substr($a, 8); } }
 
-$FORRAS       = 17153;                        // a jelenlegi /ingyenes-kihivas/
+$FORRAS       = (int) (getenv('LANDING_FORRAS') ?: 17153);   // a jelenlegi /ingyenes-kihivas/
 $REGI_UJ_SLUG = 'meal-prep-kihivas';          // amit a REGI kap (merve: SZABAD)
 $AKTIV_SLUG   = 'ingyenes-kihivas';
 $IDEIGLENES   = 'oktoberi-kihivas-eloke';     // az uj oldal slugja a csere ELOTT
@@ -50,9 +124,16 @@ $IDEIGLENES   = 'oktoberi-kihivas-eloke';     // az uj oldal slugja a csere ELOT
 $NEM_MASOLANDO = array('_elementor_css', '_elementor_page_assets', '_elementor_element_cache',
                        '_edit_lock', '_edit_last', '_wp_old_slug');
 
-ki('LANDING-ROTACIO  '.gmdate('c').' UTC   DB='.DB_NAME);
+ki('LANDING-ROTACIO  '.gmdate('c').' UTC   DB='.DB_NAME.'  home='.home_url());
+/* A DB NEVE ONMAGABAN NEM AZONOSIT: a lokalis peldany DB-je is `napalatt_vip21nap`.
+ * A `home_url()` az, ami elvalasztja oket -- ezert megy ki mindketto. */
+if ($FELULIRVA) {
+    ki('*** PROBAPAD: feluliras aktiv (wp-load es/vagy forras-ID). Ez NEM az eles menet. ***');
+    ki('    forras-ID='.$FORRAS);
+}
 ki($DUPLIKAL ? '*** DUPLIKALO MENET: IRNI FOG ***'
-   : ($SLUGCSERE ? '*** SLUG-CSERE MENET: IRNI FOG ***' : 'MERES: semmit nem ir'));
+   : ($SLUGCSERE ? '*** SLUG-CSERE MENET: IRNI FOG ***'
+   : ($TAKARIT ? '*** TAKARITO MENET: VEGLEGESEN TOROL EGY PROBAOLDALT ***' : 'MERES: semmit nem ir')));
 ki('');
 
 $forras = get_post($FORRAS);
@@ -62,7 +143,10 @@ ki(sprintf('FORRAS: ID=%d  slug=%s  statusz=%s  modositva=%s', $forras->ID, $for
 ki(sprintf('        cim: %s', $forras->post_title));
 
 /* ---------------------------------------------------------------- MERES */
-if (!$DUPLIKAL && !$SLUGCSERE) {
+/* MINDEN IRO FAZIST FEL KELL SOROLNI ITT. A `--proba-takarit` hozzaadasakor ez a sor
+ * kimaradt, es a kapcsolo NEMAN a meresbe futott volna, majd kilep -- a `php -l` zold,
+ * a fazis meg elerhetetlen. Uj kapcsolo eseten IDE IS be kell irni. */
+if (!$DUPLIKAL && !$SLUGCSERE && !$TAKARIT) {
     ki('');
     ki('=== 1. A FORRAS POSTAMETAI (amit a masolasnak vinnie kell) ===');
     global $wpdb;
@@ -161,6 +245,11 @@ if (!$DUPLIKAL && !$SLUGCSERE) {
 /* ------------------------------------------------------------ DUPLIKALAS */
 if ($DUPLIKAL) {
     global $wpdb;
+    /* Az eles oldal allapota MIELOTT hozzakezdunk. Ez a proba atveteli feltetele, nem dekoracio:
+     * a masolat szepsege es a forras sertetlensege ket fuggetlen allitas. */
+    $eles_elotte = elesUjjlenyomat($FORRAS);
+    ujjlenyomatKiir('ELES ELOTTE ', $eles_elotte);
+    ki('');
     $letezo = get_page_by_path($IDEIGLENES);
     if ($letezo) {
         ki('!! MAR LETEZIK oldal a(z) "'.$IDEIGLENES.'" slugon (ID='.$letezo->ID.').');
@@ -202,14 +291,48 @@ if ($DUPLIKAL) {
     $mod = get_post_meta($uj, '_elementor_edit_mode', true);
     ki('  _elementor_edit_mode a masolaton: '.($mod === '' ? '!! HIANYZIK' : $mod));
     ki('  _elementor_css a masolaton: '.(get_post_meta($uj,'_elementor_css',true) === '' ? 'nincs (helyes, ujraepul)' : '!! ATMASOLODOTT'));
+
+    /* "STILUSSAL JON-E FEL?" -- a draftot kivulrol nem lehet megnezni, es a szerkeszto-elonezet
+     * bejelentkezest kiván. Amit a szkript MEG TUD merni: hogy az Elementor a MASOLAT sajat
+     * CSS-et fel tudja-e epiteni. Pont ez a kockazat, amiert a `_elementor_css`-t nem masoljuk --
+     * ha az ujraepites nem megy, az oldal csupasz szovegkent jon fel.
+     * FIGYELEM: ez KOZVETETT bizonyitek. A vizualis atvetel (Nova, bejelentkezett elonezet)
+     * ettol fuggetlenul kell -- lasd a jelentes "amit ez nem bizonyit" sorat. */
+    if (class_exists('\\Elementor\\Core\\Files\\CSS\\Post')) {
+        try {
+            $css = new \Elementor\Core\Files\CSS\Post($uj);
+            $css->update();
+            $meret = strlen((string) $css->get_content());
+            ki(sprintf('  CSS-ujraepites a masolatra: %d byte  %s', $meret,
+                $meret > 0 ? '(felepult)' : '!! URES -- csupasz szovegkent jonne fel'));
+        } catch (Throwable $e) {
+            ki('  !! A CSS-ujraepites HIBAT dobott: '.$e->getMessage());
+        }
+    } else {
+        ki('  !! Az Elementor CSS-osztaly nem elerheto -- a stilus-epites NEM merheto innen.');
+    }
+
+    ki('');
+    $eles_utana = elesUjjlenyomat($FORRAS);
+    ujjlenyomatKiir('ELES UTANA  ', $eles_utana);
+    ujjlenyomatOsszevet($eles_elotte, $eles_utana);
+    elesUrlProba($AKTIV_SLUG, $FORRAS);
+
     ki('');
     ki('KOVETKEZO LEPES: a szoveg es a kepek bevitele az Elementorban (ember), MAJD:');
     ki('  php -- --slugcsere --uj-id='.$uj);
+    ki('PROBAFUTASNAL viszont NEM a slugcsere jon, hanem a takaritas:');
+    ki('  php -- --proba-takarit --uj-id='.$uj);
     exit;
 }
 
 /* ------------------------------------------------------------ SLUG-CSERE */
 if ($SLUGCSERE) {
+    if ($FELULIRVA) {
+        ki('!! PROBAPADON A SLUG-CSERE TILOS. Ez a fazis a FORRAST nevezi at, es az eles');
+        ki('   atnevezes kockazata nem a kodban van, hanem a sorrendben es az URL-ben.');
+        exit;
+    }
     if ($UJ_ID <= 0) { ki('!! Hianyzik a --uj-id=<ID>. Nem talalgatok.'); exit; }
     $uj = get_post($UJ_ID);
     if (!$uj) { ki('!! A megadott uj oldal ('.$UJ_ID.') NEM LETEZIK.'); exit; }
@@ -255,4 +378,56 @@ if ($SLUGCSERE) {
     ki('   a REGI statusza: '.get_post($FORRAS)->post_status.'  (publish kell, NEM draft)');
     ki('');
     ki('A bongeszos visszameres (mobil-nezet, urlap, nyeremenyjatek-platform) tovabbra is Nova dolga.');
+}
+
+/* ------------------------------------------------------------ PROBA-TAKARITAS */
+/**
+ * A PROBAFUTAS UTOLSO LEPESE: a HASZNALT probaoldal VEGLEGES torlese.
+ *
+ * Ez az egyetlen fazis, ami visszafordithatatlan, ezert ot kapun megy at, es MINDEGYIK
+ * megall, nem "javit". A torles maga a konnyebbik fele; a nehezebb az, hogy a torles
+ * UTAN is igazoljuk: az eles oldal es az eles URL valtozatlan. Egy sikeres torles, ami
+ * kozben elmozditotta az elest, rosszabb, mint ha ott maradt volna a piszkozat.
+ */
+if ($TAKARIT) {
+    if ($UJ_ID <= 0) { ki('!! Hianyzik a --uj-id=<ID>. Nem talalgatok, es itt kulonosen nem.'); exit; }
+    if ($UJ_ID === $FORRAS) { ki('!! A megadott ID maga a FORRAS ('.$FORRAS.'). ALLJ MEG.'); exit; }
+    $cel = get_post($UJ_ID);
+    if (!$cel) { ki('!! A megadott oldal ('.$UJ_ID.') nem letezik. Talan mar torolve van.'); exit; }
+
+    ki(sprintf('A TOROLNI KIVANT OLDAL: ID=%d  slug=%s  statusz=%s  cim=%s',
+        $cel->ID, $cel->post_name, $cel->post_status, $cel->post_title));
+
+    /* Kapu 1: publikus oldalt sosem torlunk ezzel a szkripttel. */
+    if ($cel->post_status === 'publish') {
+        ki('!! Ez az oldal PUBLIKUS. A probaoldal draft. NEM TOROLOK publikus oldalt.'); exit;
+    }
+    /* Kapu 2: csak a sajat, nevesitett ideiglenes slugot. Igy egy elgepelt ID sem visz el mast. */
+    if ($cel->post_name !== $IDEIGLENES) {
+        ki('!! A slug "'.$cel->post_name.'", nem "'.$IDEIGLENES.'". Ez nem a probaoldal. NEM TOROLOK.'); exit;
+    }
+    /* Kapu 3: az aktiv slug soha. */
+    if ($cel->post_name === $AKTIV_SLUG) { ki('!! Ez az AKTIV slug. ALLJ MEG.'); exit; }
+
+    $eles_elotte = elesUjjlenyomat($FORRAS);
+    ujjlenyomatKiir('ELES ELOTTE ', $eles_elotte);
+    ki('');
+
+    $torolt = wp_delete_post($UJ_ID, true);   // true = veglegesen, nem a kukaba
+    ki($torolt ? 'TOROLVE (veglegesen): ID='.$UJ_ID : '!! A TORLES NEM SIKERULT.');
+
+    /* Kapu 4-5: a torles UTANI allapot. Ez a resze az, amiert egyaltalan erdemes szkriptbol csinalni. */
+    ki('  visszaolvasva: '.(get_post($UJ_ID) ? '!! MEG MINDIG LETEZIK' : 'nincs ilyen poszt (jo)'));
+    $maradt = get_page_by_path($IDEIGLENES);
+    ki('  /'.$IDEIGLENES.'/ -> '.($maradt ? '!! MEG MINDIG VAN ott oldal (ID='.$maradt->ID.')' : 'nincs (jo)'));
+
+    ki('');
+    $eles_utana = elesUjjlenyomat($FORRAS);
+    ujjlenyomatKiir('ELES UTANA  ', $eles_utana);
+    ujjlenyomatOsszevet($eles_elotte, $eles_utana);
+    elesUrlProba($AKTIV_SLUG, $FORRAS);
+    ki('');
+    ki('A PROBA ITT ER VEGET. Amit ez NEM bizonyit: hogy a masolat a BONGESZOBEN is szep volt --');
+    ki('azt a bejelentkezett elonezetben kell megnezni, a torles ELOTT.');
+    exit;
 }
