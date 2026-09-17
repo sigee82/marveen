@@ -13,7 +13,30 @@ olvasás-váltás, GIF-konverzió.
 Zsolt kikötése: *„atomjaira tesztelve minden opcióra — csak Facebookkal, csak Instával,
 mindkettővel együtt, mindenfajta verzióban, képpel, videóval, GIF-fel."*
 
-## ÚJRAMÉRVE DEFINIÁLT ÁLLAPOTON — `2b5d01f0`
+## A 18. CELLA MEGVAN — újramérve `6ff6b8d0`-n
+
+**A második ütem átvételi feltétele teljesül:** egy poszt, két különböző láb-típus.
+
+| kérdés | eredmény |
+|---|---|
+| (a) a felület engedi-e | **igen** — `both`-nál „Külön típus hálózatonként", két választóval; a Facebook-láb listájából a `reel` **ki sem látszik** |
+| (b) ha tilt, kimondja-e | **igen** — „A Facebook-lábon a Reel JELENLEG nem megy: válaszd a Videó típust a Facebookhoz, az Instagram maradhat Reel." |
+| (c) a `save_post` ugyanazt mondja-e | **igen** — `fb=video` + `ig=reel` → `success` |
+| **visszaolvasó mérő** | **a DB-ben pontosan a kért érték áll**: `fb=video ig=reel split=1` — nem a szinkron alapértelmezése |
+| (d) a publikáló lábanként kezelné-e | **levezetve** (valódi Meta-hívás nem történt): az FB-ág `$fbTipus`-ból, az IG-ág `$igTipus`-ból dolgozik |
+| (e) a tiltás látszik-e | **igen**, két szinten: a választó fel sem kínálja, és a szerver saját mondattal utasít el |
+
+**A néma vesztés, amit a mérés talált és ami javítva lett:** egy `fb=single_image, ig=carousel`
+poszt egy **sikeres**, láb-típus nélküli mentés után `ig=single_image`-re állt vissza — a válasz
+`success` volt. A javítás a `post_type_split` jelölő: a szándékos szétválasztás **állapot**, és
+állapotnak hordozó kell. Visszamérve mindkét irányban: szétválasztottnál a láb túléli a második
+mentést, nem szétválasztottnál a platform-váltás továbbra is továbbterjed a lábakra.
+
+**Egy sor, amit Nova kért külön:** ha egy régi kliens láb nélkül ment egy szétválasztott posztra és
+a pár-szintű kikötés tiltja a párt, a mentés **elutasításra kerül** — nem némán ír felül. A váltás
+nem hagy hátsó ajtót a régi felületnek.
+
+## Az előző futás (`2b5d01f0`) — a definiált állapot bevezetése
 
 **A mérvadó futás:** `feat/halozatonkenti-tipus-es-gif`, commit **`2b5d01f0`**, nulla
 nem-commitolt változással. Külön, eldobható konténer szolgálta ki ezt a fát (8002-es port),
