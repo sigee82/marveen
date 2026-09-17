@@ -92,13 +92,39 @@ if (!$DUPLIKAL && !$SLUGCSERE) {
             if (isset($node['elType'])) {
                 $id = isset($node['id']) ? $node['id'] : '?';
                 $tipus = isset($node['widgetType']) ? $node['widgetType'] : $node['elType'];
-                foreach (array('title','editor','text','heading_text','button_text') as $mezo) {
-                    if (!empty($node['settings'][$mezo]) && is_string($node['settings'][$mezo])) {
-                        $sz = trim(preg_replace('/\s+/', ' ', wp_strip_all_tags($node['settings'][$mezo])));
-                        if ($sz === '') { continue; }
-                        $n++;
-                        ki(sprintf('  [%-7s] %-18s %-14s %s', $id, $tipus, $mezo, mb_substr($sz, 0, 70)));
+                /* A settings-et REKURZIVAN jarjuk be, nem egy fix mezolistaval.
+                   AZ ELSO VALTOZAT OT KULCSOT NEZETT (title/editor/text/...), es ezzel
+                   NEMAN KIHAGYTA az ISMETLODO (repeater) mezoket -- az ikonos listak
+                   teteleit, amik `settings.icon_list[].text` alatt ulnek. A Copy-doksi
+                   KET ikonos listat tartalmaz (4 + 8 tetel), tehat 12 cserelendo szoveg
+                   egyszeruen nem jelent volna meg a listaban, es a behelyettesites
+                   nyomtalanul kihagyta volna oket. */
+                $mezok = array();
+                $bejar = function ($ertek, $ut) use (&$bejar, &$mezok) {
+                    if (is_string($ertek)) {
+                        $sz = trim(preg_replace('/\s+/', ' ', wp_strip_all_tags($ertek)));
+                        /* Csak az EMBERI szoveg erdekel: a szin-kodok, ikon-nevek, URL-ek,
+                           meret-ertekek nem. Ezeket az ut UTOLSO kulcsa alapjan szurjuk. */
+                        if ($sz === '' || mb_strlen($sz) < 2) { return; }
+                        if (preg_match('/^(#|https?:|fa[srb]? |eicon-|\d+$)/', $sz)) { return; }
+                        $mezok[$ut] = $sz;
+                        return;
                     }
+                    if (is_array($ertek)) {
+                        foreach ($ertek as $k => $v) {
+                            if (in_array($k, array('elements','__globals__','__dynamic__'), true)) { continue; }
+                            $bejar($v, $ut === '' ? (string) $k : $ut . '.' . $k);
+                        }
+                    }
+                };
+                $ERDEKES = '/(^|\.)(title|editor|text|heading_text|button_text|description_text|item_title|tab_title|tab_content)$/';
+                if (!empty($node['settings']) && is_array($node['settings'])) {
+                    $bejar($node['settings'], '');
+                }
+                foreach ($mezok as $ut => $sz) {
+                    if (!preg_match($ERDEKES, $ut)) { continue; }
+                    $n++;
+                    ki(sprintf('  [%-8s] %-16s %-26s %s', $id, $tipus, $ut, mb_substr($sz, 0, 60)));
                 }
             }
             /* Egy elem gyerekei CSAK az `elements` alatt vannak. A lista-csomopontok
