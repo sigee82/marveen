@@ -16,6 +16,32 @@
  * arra, hogy inline konvertaljunk -- egy 100 MB-os video a keresben akkor is rossz
  * alak. A proba a TENYT adja meg, nem a dontest.
  *
+ * ================== MIRE VALASZOL, ES MIKOR KELL ==================
+ *
+ * 2026-09-17: EZT A PROBAT NEM FUTTATTUK LE, ES MA NINCS IS RA SZUKSEG.
+ *
+ * A kerdes idokozben eldolt OLVASASSAL: a web handler es a CLI ugyanaz a csomag
+ * (`ea-php82`), a `disable_functions` a MESTER ini-bol jon, es PHP_INI_SYSTEM --
+ * tehat `.user.ini`-bol vagy `.htaccess`-bol nem irhato felul. Ebbol kovetkezik,
+ * hogy a web SAPI ugyanazt latja, mint a CLI: `proc_open`/`shell_exec`/`popen`
+ * elerheto, `exec`/`system`/`passthru` tiltott.
+ * Es a GIF-konverter vegul NEM a webbol konvertal: a `JobDispatch` detachalt
+ * folyamatot indit, es az ffmpeg-et ABSZOLUT uton hivja, tehat a PATH-kerdes fel
+ * sem merul.
+ *
+ * AKKOR KELL ELOVENNI, HA:
+ *   - valaha INLINE konverzio kerul szoba (a `JobDispatch` harmadik fokozata a
+ *     webfolyamatban fut -- ott mar szamit, mit tud a web SAPI); vagy
+ *   - a konverter a bevezetes utan azzal bukik, hogy nem talalja vagy nem tudja
+ *     inditani az ffmpeg-et, es a naplosor nem mond eleget; vagy
+ *   - a hoszt PHP-verziot vagy csomagot valt -- akkor a fenti levezetes ujra
+ *     merendo, mert a KONFIGURACIO valtozott alatta.
+ *
+ * ES AMIERT NEM TETTUK KI "csak biztosra": egy fajl a webgyokerben akar egy
+ * percre is NYILVANOSAN elerheto, es kornyezeti reszleteket ir ki. A kockazat
+ * kicsi, de nem nulla -- es kiderult, hogy nincs is ra szukseg.
+ * ==================================================================
+ *
  * HASZNALAT: tedd a webgyokerbe ideiglenesen, hivd meg bongeszobol vagy curl-lel,
  * majd VEDD LE. Titkot nem ir ki: sem jelszot, sem tokent, sem kornyezeti valtozot
  * a PATH-on kivul.
