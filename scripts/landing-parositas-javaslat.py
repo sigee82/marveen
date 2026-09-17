@@ -69,6 +69,26 @@ def main():
         d['elem_mezo'] = p['ut']
         sorok.append((d, p, ok))
 
+    # A MARAD sorokra NEM a doksi szovege kerul, hanem ami a prodon MAR OTT VAN.
+    # Ez csak akkor helyes, ha a ketto AZONOS -- kulonben egy olyan mondat marad kint,
+    # amit senki nem nezett meg, mert "valtozatlannak" volt jelolve. (Copy kerte, 2026-09-17.)
+    # A meres 60 karakternel vag, ezert jelezzuk, ha egy mezo elerte a hatart: ott csak az
+    # ELEJE vetheto ossze, es azt nem szabad teljes egyezesnek olvasni.
+    marad_elter, marad_csonka = [], []
+    for d, p_, _ in sorok:
+        if d['cserelendo']:
+            continue
+        doksi_szoveg = d['uj_szoveg'].strip()
+        if len(p_['jelenlegi']) >= 60:
+            marad_csonka.append(p_['elem_id'])
+            if not doksi_szoveg.startswith(p_['jelenlegi'][:58]):
+                marad_elter.append(p_['elem_id'])
+        elif p_['jelenlegi'] != doksi_szoveg:
+            marad_elter.append(p_['elem_id'])
+    print(f'@@ MARAD-ellenorzes: {len(marad_elter)} elteres, {len(marad_csonka)} csonkan mert mezo')
+    if marad_elter:
+        print('@@ !! Ezek NEM maradhatnak valtozatlanul: ' + ', '.join(marad_elter))
+
     with open(KI, 'w', encoding='utf-8') as f:
         def ir(s=''):
             print(s)
@@ -76,6 +96,8 @@ def main():
         ir('PAROSITAS-JAVASLAT -- a vegso szot COPY mondja ki.')
         ir(f'A doksi {len(doksi)} sora es a prod {len(prod)} mezoje, megjelenesi sorrendben.')
         ir(f'Tipus-elteres: {eltero} (0 a jo).')
+        ir(f'MARAD-mezok karakter-egyezese a proddal: {len(marad_elter)} elteres '
+           f'({len(marad_csonka)} mezonel a meres csonkolt, ott csak az eleje vetheto ossze).')
         ir('A "MARAD" sorokat a doksi jeloli [VALTOZATLAN]-kent -- azokat NEM irjuk felul.')
         ir('')
         for d, p, ok in sorok:

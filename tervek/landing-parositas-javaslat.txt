@@ -1,6 +1,7 @@
 PAROSITAS-JAVASLAT -- a vegso szot COPY mondja ki.
 A doksi 42 sora es a prod 42 mezoje, megjelenesi sorrendben.
 Tipus-elteres: 0 (0 a jo).
+MARAD-mezok karakter-egyezese a proddal: 0 elteres (0 mezonel a meres csonkolt, ott csak az eleje vetheto ossze).
 A "MARAD" sorokat a doksi jeloli [VALTOZATLAN]-kent -- azokat NEM irjuk felul.
 
    CSERE [6b45d9c ] title              (heading)
