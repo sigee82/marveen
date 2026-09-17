@@ -101,9 +101,27 @@ def main():
     for idx, (blokk, cimke, torzs, alak) in enumerate(mezok, 1):
         elso = torzs.splitlines()[0]
         print(f'@@ [{idx:2d}] {blokk[:44]:44s} | {str(cimke)[:26]:26s} | {elso[:48]}')
-        # A doksi maga jeloli, mi marad: "[VALTOZATLAN]" a szoveg helyen.
-        # Ezeket ELEVE nem-cserelendonek jeloljuk, hogy ne kelljen kezzel kihuzni.
-        valtozatlan = torzs.strip().upper().startswith('[VÁLTOZATLAN')
+        # A doksi HAROM helyen jeloli, mi marad, es az elso valtozat csak az elsot ismerte:
+        #  (a) a mezo ERTEKE maga "[VALTOZATLAN]"            -- ezt ismerte
+        #  (b) a BLOKK cimeben all "[VALTOZATLAN]"           -- az egesz blokk marad
+        #  (c) a jeloles egy VALODI mondat VEGEN all         -- Copy megjegyzese, NEM tartalom
+        # A (c) volt a sulyos: a jeloles BENNE MARADT a cserelendo szovegben, tehat a
+        # "[VALTOZATLAN]" szo SZO SZERINT kikerult volna az elo landingre, a VIP Klub
+        # mondat vegere. A (b) pedig a "kihivas menete" blokk het mezojet tette volna
+        # cserelendove, pedig Copy az EGESZ blokkot valtozatlannak jelolte.
+        # KIVETEL a (b)-nel: ha a jeloles utan MEG VAN valami ("[VALTOZATLAN, egy temaszo
+        # cserelve...]"), akkor a blokk NEM valtozatlan -- eppen azt mondja, mi valtozott.
+        # A SORREND SZAMIT, ES EZT MEGJARTAM: eloszor a jelolest LEVAGTAM, es csak UTANA
+        # kerdeztem meg, hogy "valtozatlan-e". Egy gomb erteke PONTOSAN "[VALTOZATLAN]",
+        # tehat a vagas utan URES lett, az ures nem kezdodik a jelolessel -> mind a HAT
+        # CTA-gomb CSERELENDOVE valt, URES uj szoveggel. Az elo landingen ez hat URES
+        # gombot jelentett volna. Eloszor dontunk, aztan vagunk.
+        blokk_valtozatlan = bool(re.search(r'\[VÁLTOZATLAN\]\s*$', blokk))
+        csak_jeloles = torzs.strip().upper().startswith('[VÁLTOZATLAN')
+        valtozatlan = blokk_valtozatlan or csak_jeloles
+        if not csak_jeloles:
+            # Copy megjegyzese egy VALODI mondat vegen -- ez sosem tartalom.
+            torzs = re.sub(r'\s*\[VÁLTOZATLAN\]\s*$', '', torzs).strip()
         sablon.append({
             'cserelendo': not valtozatlan,
             'sorszam': idx,

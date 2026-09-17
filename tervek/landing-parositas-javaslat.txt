@@ -152,39 +152,32 @@ A "MARAD" sorokat a doksi jeloli [VALTOZATLAN]-kent -- azokat NEM irjuk felul.
         MOST: Naná, regisztrálok is
         doksi: 6. szekció -- Imádni fogod a kihívást, ha | Gomb 5
 
-   CSERE [e2e740b ] title              (heading)
+   MARAD [e2e740b ] title              (heading)
         MOST: A kihívás menete
-        UJ  : A kihívás menete
         doksi: 7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN] | Heading
 
-   CSERE [fb7e110 ] title              (heading)
+   MARAD [fb7e110 ] title              (heading)
         MOST: Regisztrálj a kihívásra
-        UJ  : Regisztrálj a kihívásra
         doksi: 7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN] | 7. Heading
 
-   CSERE [eadbb3d ] editor             (text-editor)
+   MARAD [eadbb3d ] editor             (text-editor)
         MOST: Utána máris be tudsz lépni a kihívás felületére.
-        UJ  : Utána máris be tudsz lépni a kihívás felületére.
         doksi: 7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN] | Text
 
-   CSERE [1ed9313 ] title              (heading)
+   MARAD [1ed9313 ] title              (heading)
         MOST: Töltsd le az applikációt
-        UJ  : Töltsd le az applikációt
         doksi: 7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN] | 8. Heading
 
-   CSERE [c0ad3ec ] editor             (text-editor)
+   MARAD [c0ad3ec ] editor             (text-editor)
         MOST: iOS vagy Android készülékedre és lépj be!
-        UJ  : iOS vagy Android készülékedre és lépj be!
         doksi: 7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN] | Text
 
-   CSERE [cd7ec3e ] title              (heading)
+   MARAD [cd7ec3e ] title              (heading)
         MOST: Keresd a bevásárlólistát
-        UJ  : Keresd a bevásárlólistát
         doksi: 7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN] | 9. Heading
 
-   CSERE [84b9598 ] editor             (text-editor)
+   MARAD [84b9598 ] editor             (text-editor)
         MOST: és szerezd be a hozzávalókat!
-        UJ  : és szerezd be a hozzávalókat!
         doksi: 7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN] | Text
 
    CSERE [76c4bce ] title              (heading)

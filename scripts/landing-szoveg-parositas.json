@@ -310,7 +310,7 @@
   "uj_szoveg": "[VÁLTOZATLAN]"
  },
  {
-  "cserelendo": true,
+  "cserelendo": false,
   "sorszam": 32,
   "blokk": "7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN]",
   "mezo_cimke": "Heading",
@@ -320,7 +320,7 @@
   "uj_szoveg": "A kihívás menete"
  },
  {
-  "cserelendo": true,
+  "cserelendo": false,
   "sorszam": 33,
   "blokk": "7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN]",
   "mezo_cimke": "7. Heading",
@@ -330,7 +330,7 @@
   "uj_szoveg": "Regisztrálj a kihívásra"
  },
  {
-  "cserelendo": true,
+  "cserelendo": false,
   "sorszam": 34,
   "blokk": "7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN]",
   "mezo_cimke": "Text",
@@ -340,7 +340,7 @@
   "uj_szoveg": "Utána máris be tudsz lépni a kihívás felületére."
  },
  {
-  "cserelendo": true,
+  "cserelendo": false,
   "sorszam": 35,
   "blokk": "7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN]",
   "mezo_cimke": "8. Heading",
@@ -350,7 +350,7 @@
   "uj_szoveg": "Töltsd le az applikációt"
  },
  {
-  "cserelendo": true,
+  "cserelendo": false,
   "sorszam": 36,
   "blokk": "7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN]",
   "mezo_cimke": "Text",
@@ -360,7 +360,7 @@
   "uj_szoveg": "iOS vagy Android készülékedre és lépj be!"
  },
  {
-  "cserelendo": true,
+  "cserelendo": false,
   "sorszam": 37,
   "blokk": "7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN]",
   "mezo_cimke": "9. Heading",
@@ -370,7 +370,7 @@
   "uj_szoveg": "Keresd a bevásárlólistát"
  },
  {
-  "cserelendo": true,
+  "cserelendo": false,
   "sorszam": 38,
   "blokk": "7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN]",
   "mezo_cimke": "Text",
@@ -397,7 +397,7 @@
   "doksi_alak": "cimke-alatt",
   "elem_id": "1cfd5a8",
   "elem_mezo": "editor",
-  "uj_szoveg": "Készíts fotót az elkészült reggelidről.\nPosztold a kihívás Facebook csoportjában a @21napalatt_kihivas hashtaggel\nOktóber 8-án a legalább 1 képet feltöltők között kisorsolunk egy szerencsés résztvevőt,\naki 1 hónapos 21napalatt VIP Klub előfizetést nyer.\nA 21napalatt VIP Klubtagság teljes hozzáférést ad a klub minden tartalmához: 21 napos életmódprogramhoz, a hetente frissülő menütervekhez, 500+ tej-, cukor- és gluténmentes recepthez, 21 napos kihívásokhoz, tudásanyagokhoz, a zárt Facebook csoporthoz. [VÁLTOZATLAN]"
+  "uj_szoveg": "Készíts fotót az elkészült reggelidről.\nPosztold a kihívás Facebook csoportjában a @21napalatt_kihivas hashtaggel\nOktóber 8-án a legalább 1 képet feltöltők között kisorsolunk egy szerencsés résztvevőt,\naki 1 hónapos 21napalatt VIP Klub előfizetést nyer.\nA 21napalatt VIP Klubtagság teljes hozzáférést ad a klub minden tartalmához: 21 napos életmódprogramhoz, a hetente frissülő menütervekhez, 500+ tej-, cukor- és gluténmentes recepthez, 21 napos kihívásokhoz, tudásanyagokhoz, a zárt Facebook csoporthoz."
  },
  {
   "cserelendo": false,
