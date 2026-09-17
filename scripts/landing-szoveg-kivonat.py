@@ -74,9 +74,29 @@ def main():
         alakok[alak] = alakok.get(alak, 0) + 1
     print(f'@@ blokk: {len(set(b for b, _, _, _ in mezok))}   mezo: {len(mezok)}'
           f'   (alak szerint: {alakok})')
-    print('@@ (a prod oldalon 30 szoveges mezo van -- a kulonbseg a sablon ALLANDO resze, '
-          'amit a skill szerint NEM irunk ujra)')
+    print('@@ (a prod oldalon 42 elem van: 30 kozonseges + 12 ikonlista-tetel -- Copy merese '
+          'mind az ot landingen)')
     print('@@')
+    # Az IKONOS LISTA a doksiban EGY mezo, a prod oldalon viszont ANNYI elem, ahany
+    # tetele van (`icon_list.0.text`, `icon_list.1.text`, ...). Ha egyben hagynank, a
+    # nyolc sor EGY parba menne, es a masik het tetel a REGI (meal prep) szoveget tartana
+    # meg az uj landingen -- ezt Copy merte vissza mind az ot landingen: az "osszes elem
+    # minusz icon-list tetel" MINDENHOL pontosan 30, tehat a rejtozes rendszeres.
+    # Ezert tetelekre bontjuk, hogy a parositas 1:1 legyen.
+    bontott = []
+    for blokk, cimke, torzs, alak in mezok:
+        if cimke and 'konos lista' in cimke:
+            tetelek = [t.strip().rstrip(',') for t in torzs.split('\n') if t.strip()]
+            for i, tetel in enumerate(tetelek):
+                bontott.append((blokk, f'{cimke} / {i + 1}. tetel', tetel, alak))
+        else:
+            bontott.append((blokk, cimke, torzs, alak))
+    print(f'@@ lista-bontas utan: {len(bontott)} sor  (a doksi {len(mezok)} mezojebol; '
+          f'a ket ikonos lista 2 mezobol {len(bontott) - len(mezok) + 2} tetelre bomlott)')
+    print('@@ EZ A SZAM ALL SZEMBEN a prod 42 elemevel -- ha nem egyezik, a parositas elott '
+          'tisztazni kell, melyik oldal rejt el valamit.')
+    mezok = bontott
+
     sablon = []
     for idx, (blokk, cimke, torzs, alak) in enumerate(mezok, 1):
         elso = torzs.splitlines()[0]

@@ -143,15 +143,45 @@
   "cserelendo": true,
   "sorszam": 15,
   "blokk": "5. szekció -- Mit kapsz még? + ikonos lista + a kizárás",
-  "mezo_cimke": "Ikonos lista (4 elem)",
+  "mezo_cimke": "Ikonos lista (4 elem) / 1. tetel",
   "doksi_alak": "cimke-alatt",
   "elem_id": "",
   "elem_mezo": "",
-  "uj_szoveg": "kitarthat a jóllakottság délig, és elmaradhat a délelőtti éhségroham\nmilyen egyszerű sósan indítani a napot\nnéhány perc is elég lehet egy laktató reggelihez\nmennyivel nyugodtabb egy reggel, ha nem kell kitalálni, mi legyen"
+  "uj_szoveg": "kitarthat a jóllakottság délig, és elmaradhat a délelőtti éhségroham"
  },
  {
   "cserelendo": true,
   "sorszam": 16,
+  "blokk": "5. szekció -- Mit kapsz még? + ikonos lista + a kizárás",
+  "mezo_cimke": "Ikonos lista (4 elem) / 2. tetel",
+  "doksi_alak": "cimke-alatt",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "milyen egyszerű sósan indítani a napot"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 17,
+  "blokk": "5. szekció -- Mit kapsz még? + ikonos lista + a kizárás",
+  "mezo_cimke": "Ikonos lista (4 elem) / 3. tetel",
+  "doksi_alak": "cimke-alatt",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "néhány perc is elég lehet egy laktató reggelihez"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 18,
+  "blokk": "5. szekció -- Mit kapsz még? + ikonos lista + a kizárás",
+  "mezo_cimke": "Ikonos lista (4 elem) / 4. tetel",
+  "doksi_alak": "cimke-alatt",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "mennyivel nyugodtabb egy reggel, ha nem kell kitalálni, mi legyen"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 19,
   "blokk": "5. szekció -- Mit kapsz még? + ikonos lista + a kizárás",
   "mezo_cimke": "Text-editor (a kizárás -- a korpusz funkciója megtartva)",
   "doksi_alak": "cimke-alatt",
@@ -161,7 +191,7 @@
  },
  {
   "cserelendo": false,
-  "sorszam": 17,
+  "sorszam": 20,
   "blokk": "5. szekció -- Mit kapsz még? + ikonos lista + a kizárás",
   "mezo_cimke": "Gomb 4",
   "doksi_alak": "egy-soros",
@@ -171,7 +201,7 @@
  },
  {
   "cserelendo": true,
-  "sorszam": 18,
+  "sorszam": 21,
   "blokk": "6. szekció -- Imádni fogod a kihívást, ha",
   "mezo_cimke": "Heading",
   "doksi_alak": "cimke-alatt",
@@ -181,17 +211,87 @@
  },
  {
   "cserelendo": true,
-  "sorszam": 19,
+  "sorszam": 22,
   "blokk": "6. szekció -- Imádni fogod a kihívást, ha",
-  "mezo_cimke": "Ikonos lista (8 elem)",
+  "mezo_cimke": "Ikonos lista (8 elem) / 1. tetel",
   "doksi_alak": "cimke-alatt",
   "elem_id": "",
   "elem_mezo": "",
-  "uj_szoveg": "reggelente kapkodsz, és a végén marad a kávé meg valami gyors édesség,\ndélelőtt tízkor már a keksz után nyúlsz, pedig reggeliztél,\nunod a megszokott reggeliket, és nem jut eszedbe semmi új,\nszeretnél egészségesebben reggelizni, de reggel nincs időd főzni,\nkezdő életmódváltó vagy, és valami egyszerűvel kezdenél,\ngluténmentesen vagy tejmentesen étkezel, és elfogytak az ötleteid,\nmunka és család mellett jól jönne egy kis segítség a reggelekhez,\nvagy egyszerűen kíváncsi vagy, mitől lesz laktató egy reggeli."
+  "uj_szoveg": "reggelente kapkodsz, és a végén marad a kávé meg valami gyors édesség"
  },
  {
   "cserelendo": true,
-  "sorszam": 20,
+  "sorszam": 23,
+  "blokk": "6. szekció -- Imádni fogod a kihívást, ha",
+  "mezo_cimke": "Ikonos lista (8 elem) / 2. tetel",
+  "doksi_alak": "cimke-alatt",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "délelőtt tízkor már a keksz után nyúlsz, pedig reggeliztél"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 24,
+  "blokk": "6. szekció -- Imádni fogod a kihívást, ha",
+  "mezo_cimke": "Ikonos lista (8 elem) / 3. tetel",
+  "doksi_alak": "cimke-alatt",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "unod a megszokott reggeliket, és nem jut eszedbe semmi új"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 25,
+  "blokk": "6. szekció -- Imádni fogod a kihívást, ha",
+  "mezo_cimke": "Ikonos lista (8 elem) / 4. tetel",
+  "doksi_alak": "cimke-alatt",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "szeretnél egészségesebben reggelizni, de reggel nincs időd főzni"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 26,
+  "blokk": "6. szekció -- Imádni fogod a kihívást, ha",
+  "mezo_cimke": "Ikonos lista (8 elem) / 5. tetel",
+  "doksi_alak": "cimke-alatt",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "kezdő életmódváltó vagy, és valami egyszerűvel kezdenél"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 27,
+  "blokk": "6. szekció -- Imádni fogod a kihívást, ha",
+  "mezo_cimke": "Ikonos lista (8 elem) / 6. tetel",
+  "doksi_alak": "cimke-alatt",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "gluténmentesen vagy tejmentesen étkezel, és elfogytak az ötleteid"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 28,
+  "blokk": "6. szekció -- Imádni fogod a kihívást, ha",
+  "mezo_cimke": "Ikonos lista (8 elem) / 7. tetel",
+  "doksi_alak": "cimke-alatt",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "munka és család mellett jól jönne egy kis segítség a reggelekhez"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 29,
+  "blokk": "6. szekció -- Imádni fogod a kihívást, ha",
+  "mezo_cimke": "Ikonos lista (8 elem) / 8. tetel",
+  "doksi_alak": "cimke-alatt",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "vagy egyszerűen kíváncsi vagy, mitől lesz laktató egy reggeli."
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 30,
   "blokk": "6. szekció -- Imádni fogod a kihívást, ha",
   "mezo_cimke": "Text-editor (záró vágykép)",
   "doksi_alak": "cimke-alatt",
@@ -201,7 +301,7 @@
  },
  {
   "cserelendo": false,
-  "sorszam": 21,
+  "sorszam": 31,
   "blokk": "6. szekció -- Imádni fogod a kihívást, ha",
   "mezo_cimke": "Gomb 5",
   "doksi_alak": "egy-soros",
@@ -211,7 +311,7 @@
  },
  {
   "cserelendo": true,
-  "sorszam": 22,
+  "sorszam": 32,
   "blokk": "7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN]",
   "mezo_cimke": "Heading",
   "doksi_alak": "egy-soros",
@@ -221,7 +321,7 @@
  },
  {
   "cserelendo": true,
-  "sorszam": 23,
+  "sorszam": 33,
   "blokk": "7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN]",
   "mezo_cimke": "7. Heading",
   "doksi_alak": "egy-soros",
@@ -231,7 +331,7 @@
  },
  {
   "cserelendo": true,
-  "sorszam": 24,
+  "sorszam": 34,
   "blokk": "7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN]",
   "mezo_cimke": "Text",
   "doksi_alak": "egy-soros",
@@ -241,7 +341,7 @@
  },
  {
   "cserelendo": true,
-  "sorszam": 25,
+  "sorszam": 35,
   "blokk": "7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN]",
   "mezo_cimke": "8. Heading",
   "doksi_alak": "egy-soros",
@@ -251,7 +351,7 @@
  },
  {
   "cserelendo": true,
-  "sorszam": 26,
+  "sorszam": 36,
   "blokk": "7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN]",
   "mezo_cimke": "Text",
   "doksi_alak": "egy-soros",
@@ -261,7 +361,7 @@
  },
  {
   "cserelendo": true,
-  "sorszam": 27,
+  "sorszam": 37,
   "blokk": "7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN]",
   "mezo_cimke": "9. Heading",
   "doksi_alak": "egy-soros",
@@ -271,7 +371,7 @@
  },
  {
   "cserelendo": true,
-  "sorszam": 28,
+  "sorszam": 38,
   "blokk": "7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN]",
   "mezo_cimke": "Text",
   "doksi_alak": "egy-soros",
@@ -281,7 +381,7 @@
  },
  {
   "cserelendo": true,
-  "sorszam": 29,
+  "sorszam": 39,
   "blokk": "11. szekció -- Nyereményjáték (platform: FACEBOOK)",
   "mezo_cimke": "Heading",
   "doksi_alak": "cimke-alatt",
@@ -291,7 +391,7 @@
  },
  {
   "cserelendo": true,
-  "sorszam": 30,
+  "sorszam": 40,
   "blokk": "11. szekció -- Nyereményjáték (platform: FACEBOOK)",
   "mezo_cimke": "Text-editor",
   "doksi_alak": "cimke-alatt",
@@ -301,7 +401,7 @@
  },
  {
   "cserelendo": false,
-  "sorszam": 31,
+  "sorszam": 41,
   "blokk": "11. szekció -- Nyereményjáték (platform: FACEBOOK)",
   "mezo_cimke": "Gomb 6",
   "doksi_alak": "egy-soros",
@@ -311,7 +411,7 @@
  },
  {
   "cserelendo": true,
-  "sorszam": 32,
+  "sorszam": 42,
   "blokk": "12. szekció -- Űrlap-cím",
   "mezo_cimke": "Heading",
   "doksi_alak": "cimke-alatt",
