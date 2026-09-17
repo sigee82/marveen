@@ -173,4 +173,40 @@ ki('  (Ha a shortcode-os szam > 0 de a _km_key-es 0, akkor a bevlista-leckek gen
 ki('   csak nem EZEN a vegponton keresztul keletkeztek.)');
 
 ki('');
+ki('=== 10. A 13716 ES A 16884 NYEREMENYJATEK-BLOKKJA, SZO SZERINT ===');
+ki('  (Nova kikotese: a 13716-ot OLVASSUK EL, ne a szamaibol kovetkeztessunk.');
+ki('   A 15135 referenciakent megy vele, mert az igazoltan belsoleg konzisztens.)');
+/* Az _elementor_data JSON: rendesen dekodoljuk es bejarjuk, nem substringgel turkalunk.
+   (Az elso valtozat egy `\u`-t strippelo regexet hasznalt -- az PCRE-ben ERVENYTELEN
+   escape, a preg_replace NULL-t adott, es a szekcio NEMAN semmit nem talalt. Lokalis
+   pozitiv kontroll fogta meg; prodon ugy nezett volna ki, mint "nincs ilyen blokk".) */
+function km_strings_gyujt($node, array &$ki) {
+    if (is_string($node)) { $ki[] = $node; return; }
+    if (is_array($node)) { foreach ($node as $v) { km_strings_gyujt($v, $ki); } }
+}
+foreach (array(13716, 15135, 16884) as $id) {
+    $d = get_post_meta($id, '_elementor_data', true);
+    $pp = get_post($id);
+    ki(sprintf('  --- ID=%d  slug=%s ---', $id, ($pp ? $pp->post_name : '?')));
+    if (!is_string($d) || $d === '') { ki('      nincs _elementor_data'); continue; }
+    $fa = json_decode($d, true);
+    if (!is_array($fa)) { ki('      !! a JSON nem dekodolhato: '.json_last_error_msg()); continue; }
+    $strings = array();
+    km_strings_gyujt($fa, $strings);
+    $talalt = 0;
+    foreach ($strings as $str) {
+        $tiszta = trim(preg_replace('/\s+/', ' ', wp_strip_all_tags($str)));
+        if ($tiszta === '') continue;
+        if (preg_match('/Nyerj|Posztold|nyerem|Sorsol|sorsol|Instagram|Facebook/u', $tiszta)) {
+            ki('      > '.mb_substr($tiszta, 0, 200));
+            $talalt++;
+        }
+    }
+    if ($talalt === 0) { ki('      (egyetlen nyeremenyjatek-horgony sem talalt -- ONALLO LELET, nezd meg kezzel)'); }
+    ki(sprintf('      [ellenorzes: %d szoveg-mezo a JSON-ban, ebbol %d talalat]', count($strings), $talalt));
+}
+ki('  >>> DONTES EZ UTAN: ha a 13716 fejlece ES torzse UGYANAZT a platformot mondja,');
+ki('      NEM nyulunk hozza (ugyanaz a hatar, mint a 15135-nel). Ha elternek, jelezni kell.');
+
+ki('');
 ki('MERES VEGE. Semmit nem irtunk.');
