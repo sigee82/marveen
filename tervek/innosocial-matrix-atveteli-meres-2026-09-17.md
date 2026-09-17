@@ -13,7 +13,30 @@ olvasás-váltás, GIF-konverzió.
 Zsolt kikötése: *„atomjaira tesztelve minden opcióra — csak Facebookkal, csak Instával,
 mindkettővel együtt, mindenfajta verzióban, képpel, videóval, GIF-fel."*
 
-## >>> A MÉRÉS FÁJA NEM VOLT DEFINIÁLT ÁLLAPOT — ezt utólag írom ide <<<
+## ÚJRAMÉRVE DEFINIÁLT ÁLLAPOTON — `2b5d01f0`
+
+**A mérvadó futás:** `feat/halozatonkenti-tipus-es-gif`, commit **`2b5d01f0`**, nulla
+nem-commitolt változással. Külön, eldobható konténer szolgálta ki ezt a fát (8002-es port),
+a meglévő stackhez nem nyúltam, és a mérés végén leállt.
+
+### A két futás különbsége — mit rejtett el a kevert fa
+
+**Egy valódi regressziót, az enyémet.** A kevert fán minden újonnan létrehozott poszt rendes
+id-t adott vissza; a definiált fán **`id: 0`**. Ok: a dual-write `innosocialLabakSzinkron()`
+egy UPDATE-et futtat, és MySQL-ben egy UPDATE után a `lastInsertId()` **nullát** ad — a hívás
+egy sorral a kiolvasás elé került. A poszt létrejött, a mentés `success`-t adott, csak az
+**azonosítója veszett el a válaszban** — vagyis a composer nem tudott média-t csatolni egy friss
+poszthoz. Pontosan az a hibaosztály, amiről ez az egész munka szól.
+
+A kevert fa azért nem mutatta, mert abban nem volt benne ez a változás. **Nem csak pontatlan
+volt: elrejtett egy hibát.** Javítva (`2b5d01f0`), visszamérve: a mentés `id: 108`-at ad, és a
+poszt `fb=single_image, ig=-` — a lábak is megvannak.
+
+**Minden más cella azonos eredményt adott a két futáson**: ugyanaz az 5 elutasítás ugyanazokkal
+a mondatokkal, ugyanaz a 13 elfogadás, és a média-réteg (PNG 200 / GIF 202 / MP4 400 a
+`single_image`-re) is változatlan.
+
+### Az eredeti, kevert futás korlátja (megtartva, mert a különbség ettől olvasható)
 
 Nova mérte vissza, és igaza van. A konténer, amelyen a **mentés-réteg** futott, nem `origin/dev`
 és nem is egy megnevezett commit: HEAD `ecb86939` (a #277), **hat committal elmaradva** dev-től,
