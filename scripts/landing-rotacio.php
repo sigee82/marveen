@@ -94,6 +94,33 @@ function ujjlenyomatOsszevet($elotte, $utana) {
     return false;
 }
 
+
+/**
+ * AZ ELEMENTOR GENERALT CSS-FAJLJA EGY OLDALHOZ: letezik-e, mekkora, mikor iródott.
+ *
+ * A "stilussal jon-e fel" kerdest szkriptbol nem lehet megnezni -- de a mogotte levo
+ * KOCKAZAT merheto. Azert nem masoljuk a `_elementor_css` metat, mert az a FORRAS
+ * poszt-ID-jere mutat; ha a masolat nem tudja felepiteni a SAJAT fajljat, csupasz
+ * szovegkent jon fel. Tehat a fajl letezese, merete es KULONBOZOSEGE a bizonyitek.
+ */
+function elementorCssFajl($id) {
+    $u = wp_upload_dir();
+    $ut = trailingslashit($u['basedir']).'elementor/css/post-'.((int) $id).'.css';
+    clearstatcache(true, $ut);
+    return array(
+        'ut'     => $ut,
+        'letezik'=> file_exists($ut),
+        'meret'  => file_exists($ut) ? filesize($ut) : 0,
+        'mtime'  => file_exists($ut) ? filemtime($ut) : 0,
+    );
+}
+
+function cssFajlKiir($cimke, $f) {
+    ki(sprintf('%s: %s  %s  meret=%d byte  mtime=%s', $cimke,
+        $f['ut'], $f['letezik'] ? 'LETEZIK' : 'NINCS', $f['meret'],
+        $f['mtime'] ? gmdate('H:i:s', $f['mtime']) : '-'));
+}
+
 /** Az eles URL valodi HTTP-probaja a szerverrol: nem a DB-t kerdezzuk, hanem a webet. */
 function elesUrlProba($slug, $vart_id) {
     $url = home_url('/'.$slug.'/');
@@ -249,6 +276,8 @@ if ($DUPLIKAL) {
      * a masolat szepsege es a forras sertetlensege ket fuggetlen allitas. */
     $eles_elotte = elesUjjlenyomat($FORRAS);
     ujjlenyomatKiir('ELES ELOTTE ', $eles_elotte);
+    $cssForras_elotte = elementorCssFajl($FORRAS);
+    cssFajlKiir('FORRAS CSS ELOTTE', $cssForras_elotte);
     ki('');
     $letezo = get_page_by_path($IDEIGLENES);
     if ($letezo) {
@@ -302,14 +331,36 @@ if ($DUPLIKAL) {
         try {
             $css = new \Elementor\Core\Files\CSS\Post($uj);
             $css->update();
-            $meret = strlen((string) $css->get_content());
-            ki(sprintf('  CSS-ujraepites a masolatra: %d byte  %s', $meret,
-                $meret > 0 ? '(felepult)' : '!! URES -- csupasz szovegkent jonne fel'));
+            $cssUj = elementorCssFajl($uj);
+            cssFajlKiir('  MASOLAT CSS  ', $cssUj);
+            /* Harom allitas, kulon-kulon, mert kulon is tudnak bukni. */
+            if (!$cssUj['letezik']) {
+                ki('  !! A masolat CSS-fajlja NEM JOTT LETRE -- csupasz szovegkent jonne fel.');
+            } elseif ($cssUj['meret'] <= 0) {
+                ki('  !! A masolat CSS-fajlja URES -- csupasz szovegkent jonne fel.');
+            } elseif ($cssUj['ut'] === $cssForras_elotte['ut']) {
+                ki('  !! A masolat a FORRAS fajljara mutat -- pontosan ezt akartuk elkerulni.');
+            } else {
+                ki('  a masolat SAJAT, nem ures CSS-fajlt kapott (jo).');
+            }
         } catch (Throwable $e) {
             ki('  !! A CSS-ujraepites HIBAT dobott: '.$e->getMessage());
         }
     } else {
         ki('  !! Az Elementor CSS-osztaly nem elerheto -- a stilus-epites NEM merheto innen.');
+    }
+
+    /* A NEGATIV KONTROLL, ami nelkul a fenti zold szam csak egy szam: a FORRAS sajat
+     * CSS-fajlja valtozatlan. Ha a generalas hozzanyulna, a masolat szepsege pont
+     * elfedne, hogy kozben az eles oldal fajlja alatta mozdult el. */
+    $cssForras_utana = elementorCssFajl($FORRAS);
+    cssFajlKiir('  FORRAS CSS UTANA', $cssForras_utana);
+    if ($cssForras_elotte['meret'] === $cssForras_utana['meret']
+        && $cssForras_elotte['mtime'] === $cssForras_utana['mtime']) {
+        ki('  a forras CSS-fajlja VALTOZATLAN (meret es mtime azonos).');
+    } else {
+        ki('  !! A FORRAS CSS-FAJLJA ELMOZDULT: meret '.$cssForras_elotte['meret'].' -> '.$cssForras_utana['meret']
+           .', mtime '.$cssForras_elotte['mtime'].' -> '.$cssForras_utana['mtime'].'. ALLJ MEG, NE TAKARITS.');
     }
 
     ki('');
@@ -413,8 +464,38 @@ if ($TAKARIT) {
     ujjlenyomatKiir('ELES ELOTTE ', $eles_elotte);
     ki('');
 
+    /* A PROBA SAJAT SZEMETE IS A PROBAE. A duplikalas generalt egy `post-<ID>.css`-t az
+     * uploads ala; ha csak a posztot toroljuk, az a fajl ott marad, es a kovetkezo ember
+     * egy nem letezo oldal CSS-et talalja. A forras fajljat viszont SOHA nem bantjuk --
+     * ezert megy a torles a MASOLAT ID-jere epitett uton, es ezert merjuk vissza a forrast. */
+    $cssForras_elotte = elementorCssFajl($FORRAS);
+    $cssProba = elementorCssFajl($UJ_ID);
+    cssFajlKiir('  A PROBA CSS-FAJLJA', $cssProba);
+
     $torolt = wp_delete_post($UJ_ID, true);   // true = veglegesen, nem a kukaba
     ki($torolt ? 'TOROLVE (veglegesen): ID='.$UJ_ID : '!! A TORLES NEM SIKERULT.');
+
+    $cssProba_utana = elementorCssFajl($UJ_ID);
+    if ($cssProba_utana['letezik']) {
+        /* Az Elementor sajat takaritasa nem mindig fut le a poszt torlesenel. Ha maradt,
+         * elvisszuk -- de KIZAROLAG a masolat sajat, ID-re epitett fajljat. */
+        if ($cssProba_utana['ut'] === $cssForras_elotte['ut']) {
+            ki('  !! A proba CSS-utja AZONOS a forraseval. NEM NYULOK HOZZA.');
+        } else {
+            @unlink($cssProba_utana['ut']);
+            clearstatcache(true, $cssProba_utana['ut']);
+            ki('  a maradek CSS-fajl: '.(file_exists($cssProba_utana['ut']) ? '!! MEG MINDIG OTT VAN' : 'elvive (jo)'));
+        }
+    } else {
+        ki('  a proba CSS-fajlja a torlessel elment (jo).');
+    }
+    $cssForras_utana = elementorCssFajl($FORRAS);
+    if ($cssForras_elotte['meret'] === $cssForras_utana['meret']
+        && $cssForras_elotte['mtime'] === $cssForras_utana['mtime']) {
+        ki('  a FORRAS CSS-fajlja valtozatlan (meret es mtime azonos).');
+    } else {
+        ki('  !! A FORRAS CSS-FAJLJA ELMOZDULT a takaritas alatt. Ez lelet, szolj.');
+    }
 
     /* Kapu 4-5: a torles UTANI allapot. Ez a resze az, amiert egyaltalan erdemes szkriptbol csinalni. */
     ki('  visszaolvasva: '.(get_post($UJ_ID) ? '!! MEG MINDIG LETEZIK' : 'nincs ilyen poszt (jo)'));
