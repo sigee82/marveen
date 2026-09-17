@@ -25,6 +25,26 @@ require_once ABSPATH . 'wp-admin/includes/plugin.php';
 error_reporting(E_ERROR | E_PARSE);
 function ki($s){ echo '@@ '.$s."\n"; }
 
+/* SZAMLALO, AMI NEM HAZUDIK A HALLGATASAVAL (Nova kikotese, 2026-09-17).
+   A $wpdb->get_var hibas lekerdezesnel NULL-t ad, a (int) abbol NULLAT csinal --
+   es egy "0 talalat" pontosan ugy nez ki, mint egy sikeres meres. Ma KETSZER
+   estem bele: egy ervenytelen `\u` escape a preg_replace-ben, es egy backslashsel
+   tobb a MySQL REGEXP-ben. Mindketto nemán nullat adott volna prodon.
+   Ez a fuggveny a hibat HIBAKENT irja ki, es a visszaadott ertek NULL marad,
+   hogy a hivo se tudja veletlenul szamnak olvasni. */
+function km_szam($sql, $mit) {
+    global $wpdb;
+    $wpdb->last_error = '';
+    $v = $wpdb->get_var($sql);
+    if ($v === null && $wpdb->last_error !== '') {
+        ki('  !! LEKERDEZES HIBA (' . $mit . '): ' . $wpdb->last_error);
+        ki('     -- ezt NE olvasd nullanak: a meres nem futott le.');
+        return null;
+    }
+    return (int) $v;
+}
+function km_szamki($ertek) { return $ertek === null ? 'MERETLEN(hiba)' : (string) $ertek; }
+
 global $wpdb;
 $FORRAS = 17153; // az aktualis /ingyenes-kihivas/ landing, ebbol duplikalunk
 
@@ -62,8 +82,8 @@ ki('');
 ki('=== 3. CSAK-FORRAS (generalt) METAK -- ezeket NE masold, ujra kell generalni ===');
 if ($forrasVan) {
 foreach (array('_elementor_css','_elementor_element_cache','_elementor_page_assets','_edit_lock','_edit_last','_wp_old_slug') as $k) {
-    $v = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->postmeta} WHERE post_id=%d AND meta_key=%s", $FORRAS, $k));
-    ki(sprintf('  %-28s van a forrason: %s', $k, ((int)$v ? 'IGEN ('.$v.')' : 'nem')));
+    $v = km_szam($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->postmeta} WHERE post_id=%d AND meta_key=%s", $FORRAS, $k), 'meta ' . $k);
+    ki(sprintf('  %-28s van a forrason: %s', $k, ($v === null ? 'MERETLEN(hiba)' : ($v ? 'IGEN ('.$v.')' : 'nem'))));
 }
 } else { ki('  -- kimarad, nincs forras-oldal --'); }
 ki('  Elementor verzio: '.(defined('ELEMENTOR_VERSION') ? ELEMENTOR_VERSION : 'NINCS DEFINIALVA'));
@@ -164,11 +184,11 @@ foreach (array(17491,17492,17494) as $lid) {
     ki(sprintf('        cim: %s', $lp->post_title));
     ki(sprintf('        tartalom eleje: %s', substr(preg_replace('/\s+/', ' ', $lp->post_content), 0, 90)));
 }
-$osszLecke = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type='sfwd-lessons' AND post_status IN ('publish','future')");
-$kmKeyes  = $wpdb->get_var("SELECT COUNT(DISTINCT post_id) FROM {$wpdb->postmeta} WHERE meta_key='_km_key' AND meta_value<>''");
-$shortcodeos = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type='sfwd-lessons' AND post_content LIKE '%[kihivas_bevlista%'");
-ki(sprintf('  OSSZESITES: sfwd-lessons=%d   ebbol NEM URES _km_key=%d   [kihivas_bevlista] shortcode-os=%d',
-    (int)$osszLecke, (int)$kmKeyes, (int)$shortcodeos));
+$osszLecke = km_szam("SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type='sfwd-lessons' AND post_status IN ('publish','future')", 'lecke-szam');
+$kmKeyes  = km_szam("SELECT COUNT(DISTINCT post_id) FROM {$wpdb->postmeta} WHERE meta_key='_km_key' AND meta_value<>''", '_km_key-es leckek');
+$shortcodeos = km_szam("SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type='sfwd-lessons' AND post_content LIKE '%[kihivas_bevlista%'", 'kihivas_bevlista shortcode');
+ki(sprintf('  OSSZESITES: sfwd-lessons=%s   ebbol NEM URES _km_key=%s   [kihivas_bevlista] shortcode-os=%s',
+    km_szamki($osszLecke), km_szamki($kmKeyes), km_szamki($shortcodeos)));
 ki('  (Ha a shortcode-os szam > 0 de a _km_key-es 0, akkor a bevlista-leckek generaltak,');
 ki('   csak nem EZEN a vegponton keresztul keletkeztek.)');
 
@@ -223,13 +243,13 @@ foreach (array('[kihivas_bevlista' => 'kihivas-manager shortcode',
                '[bevlist'          => 'hm-heti-menu shortcode (EZ AZ UJ TU)',
                'hm-bevlista__'     => 'a hm renderelo HTML-alairasa (=> BEMASOLT kimenet)',
                '[hm_weekgrid'      => 'heti racs shortcode') as $tu => $mit) {
-    $db = $wpdb->get_var($wpdb->prepare(
+    $db = km_szam($wpdb->prepare(
         "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type='sfwd-lessons' AND post_content LIKE %s",
-        '%' . $wpdb->esc_like($tu) . '%'));
-    $dbAkarmi = $wpdb->get_var($wpdb->prepare(
+        '%' . $wpdb->esc_like($tu) . '%'), $tu . ' (leckeben)');
+    $dbAkarmi = km_szam($wpdb->prepare(
         "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_content LIKE %s",
-        '%' . $wpdb->esc_like($tu) . '%'));
-    ki(sprintf('  %-18s %-44s leckeben=%-5d  barmely poszt-tipusban=%d', $tu, $mit, (int)$db, (int)$dbAkarmi));
+        '%' . $wpdb->esc_like($tu) . '%'), $tu . ' (barhol)');
+    ki(sprintf('  %-18s %-44s leckeben=%-7s barmely poszt-tipusban=%s', $tu, $mit, km_szamki($db), km_szamki($dbAkarmi)));
 }
 ki('  (NEGATIV KONTROLL: ha MIND a negy nulla, az azt is jelentheti, hogy rossz helyen keresek.');
 ki('   Ezert alatta megnezzuk, van-e EGYALTALAN shortcode barmelyik leckeben.)');
@@ -238,10 +258,11 @@ ki('   Ezert alatta megnezzuk, van-e EGYALTALAN shortcode barmelyik leckeben.)')
    vagyis a NEGATIV KONTROLL ugy nezett ki, mintha semmilyen shortcode nem lenne SEHOL.
    Pont az az allitas, aminek a kizarasara kitalaltam. Lokalis kontroll fogta meg.
    Ezert most LIKE, es minden szamlalo melle odanezunk, jott-e DB-hiba. */
-$barmiShortcode = $wpdb->get_var(
-    "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type='sfwd-lessons' AND post_content LIKE '%[%'");
+$barmiShortcode = km_szam(
+    "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type='sfwd-lessons' AND post_content LIKE '%[%'",
+    'negativ kontroll');
 if ($barmiShortcode === null) {
-    ki('  !! A szamlalo lekerdezes HIBAT adott, nem nullat: ' . $wpdb->last_error);
+    // a km_szam mar kiirta a hibat
 } else {
     ki(sprintf('  barmilyen [ jel egy leckeben: %d lecke  (ha ez 0, a fenti negy nullaja nem lelet,', (int)$barmiShortcode));
     ki('   hanem annyit jelent, hogy ezen a peldanyon nincs mit talalni)');
