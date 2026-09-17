@@ -21,6 +21,7 @@
 if (PHP_SAPI !== 'cli') { exit("Csak CLI-bol.\n"); }
 define('WP_USE_THEMES', false);
 require_once '/home/napalatt/vip.21napalatt.hu/wp-load.php';
+require_once ABSPATH . 'wp-admin/includes/plugin.php';
 error_reporting(E_ERROR | E_PARSE);
 function ki($s){ echo '@@ '.$s."\n"; }
 
@@ -133,5 +134,43 @@ ki('=== 7. MI ALL MOST az /ingyenes-kihivas/ uton ===');
 $pg = get_page_by_path('ingyenes-kihivas');
 ki($pg ? sprintf('  ID=%d  %s  (%s)', $pg->ID, $pg->post_title, $pg->post_status)
        : '  !! get_page_by_path("ingyenes-kihivas") NEM ad oldalt');
+ki('');
+ki('=== 8. DUPLIKALO PLUGIN: van-e tamogatott ut, es mit masol ===');
+$dup = 'wp-duplicate-page/index.php';
+ki('  wp-duplicate-page aktiv: '.(is_plugin_active($dup) ? 'IGEN' : 'NEM'));
+ki('  (A forrasat a lokalis masolatban olvastam: a copyPostMeta KIVETEL NELKUL masol MINDEN');
+ki('   meta-kulcsot -- tehat a generalt _elementor_css-t IS, ami a REGI poszt-ID-re mutat.');
+ki('   Ezert a CSS-cache ujrageneralas akkor is kell, ha a plugint hasznaljuk.');
+ki('   Tovabba: post_status=draft (jo), post_name=a FORRAS slugja -> a WP uniqueolja "-2"-re.)');
+foreach (array('wp_duplicate_page_settings','wpdp_settings','wp_duplicate_page_options') as $o) {
+    $v = get_option($o);
+    if ($v !== false) { ki('  opcio '.$o.': '.substr(wp_json_encode($v), 0, 300)); }
+}
+
+ki('');
+ki('=== 9. NOVA KERDESE: a bevlista/recept leckeket ez az importer vitte-e fel ===');
+ki('  (A kod szerint a bevlista tartalma [kihivas_bevlista] shortcode, es a tartalom az');
+ki('   INSERT-tel egyutt keszul -- kesleltetett iras NINCS. Ha ezeken a leckeken URES a');
+ki('   _km_key, akkor NEM ezen a vegponton keszultek, es a revizio-minta mas utat ir le.)');
+foreach (array(17491,17492,17494) as $lid) {
+    $lp = get_post($lid);
+    if (!$lp) { ki(sprintf('  ID=%-6d nem letezik', $lid)); continue; }
+    $kmk = get_post_meta($lid, '_km_key', true);
+    $kmt = get_post_meta($lid, '_km_type', true);
+    $kmh = get_post_meta($lid, '_km_gen_hash', true);
+    ki(sprintf('  ID=%-6d tipus=%-14s _km_key=%-28s _km_type=%-9s gen_hash=%s  content_hossz=%d',
+        $lid, $lp->post_type, ($kmk !== '' ? $kmk : '(URES)'), ($kmt !== '' ? $kmt : '-'),
+        ($kmh !== '' ? 'van' : 'nincs'), strlen($lp->post_content)));
+    ki(sprintf('        cim: %s', $lp->post_title));
+    ki(sprintf('        tartalom eleje: %s', substr(preg_replace('/\s+/', ' ', $lp->post_content), 0, 90)));
+}
+$osszLecke = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type='sfwd-lessons' AND post_status IN ('publish','future')");
+$kmKeyes  = $wpdb->get_var("SELECT COUNT(DISTINCT post_id) FROM {$wpdb->postmeta} WHERE meta_key='_km_key' AND meta_value<>''");
+$shortcodeos = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type='sfwd-lessons' AND post_content LIKE '%[kihivas_bevlista%'");
+ki(sprintf('  OSSZESITES: sfwd-lessons=%d   ebbol NEM URES _km_key=%d   [kihivas_bevlista] shortcode-os=%d',
+    (int)$osszLecke, (int)$kmKeyes, (int)$shortcodeos));
+ki('  (Ha a shortcode-os szam > 0 de a _km_key-es 0, akkor a bevlista-leckek generaltak,');
+ki('   csak nem EZEN a vegponton keresztul keletkeztek.)');
+
 ki('');
 ki('MERES VEGE. Semmit nem irtunk.');
