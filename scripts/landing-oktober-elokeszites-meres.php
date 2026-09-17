@@ -209,4 +209,65 @@ ki('  >>> DONTES EZ UTAN: ha a 13716 fejlece ES torzse UGYANAZT a platformot mon
 ki('      NEM nyulunk hozza (ugyanaz a hatar, mint a 15135-nel). Ha elternek, jelezni kell.');
 
 ki('');
+ki('=== 11. NOVA HAROM KERDESE: MELYIK UT VITTE FEL A SZEPTEMBERI BEVASARLOLISTAT ===');
+ki('  (A 9. szekcio 0 `[kihivas_bevlista]`-t talalt. DE A TU MEGVALASZTASA A MERES RESZE:');
+ki('   a telepitesen KET kulon bevasarlolista-mechanizmus van, kulon shortcode-nevvel.');
+ki('   A masikra -- `[bevlist]`, a hm-heti-menu plugine -- meg senki nem keresett ra.)');
+foreach (array('kihivas-manager/kihivas-manager.php', 'hm-heti-menu/hm-heti-menu.php',
+               'wp-duplicate-page/index.php', 'sfwd-lms/sfwd_lms.php') as $pl) {
+    ki(sprintf('  %-40s aktiv: %s', $pl, (is_plugin_active($pl) ? 'IGEN' : 'NEM')));
+}
+ki('');
+ki('  -- Shortcode-nyomok a leckekben (MINDKET nev, plusz a renderelt HTML alairasa) --');
+foreach (array('[kihivas_bevlista' => 'kihivas-manager shortcode',
+               '[bevlist'          => 'hm-heti-menu shortcode (EZ AZ UJ TU)',
+               'hm-bevlista__'     => 'a hm renderelo HTML-alairasa (=> BEMASOLT kimenet)',
+               '[hm_weekgrid'      => 'heti racs shortcode') as $tu => $mit) {
+    $db = $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type='sfwd-lessons' AND post_content LIKE %s",
+        '%' . $wpdb->esc_like($tu) . '%'));
+    $dbAkarmi = $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_content LIKE %s",
+        '%' . $wpdb->esc_like($tu) . '%'));
+    ki(sprintf('  %-18s %-44s leckeben=%-5d  barmely poszt-tipusban=%d', $tu, $mit, (int)$db, (int)$dbAkarmi));
+}
+ki('  (NEGATIV KONTROLL: ha MIND a negy nulla, az azt is jelentheti, hogy rossz helyen keresek.');
+ki('   Ezert alatta megnezzuk, van-e EGYALTALAN shortcode barmelyik leckeben.)');
+/* Az elso valtozat egy REGEXP-et hasznalt, amibol egy backslashsel tul sok maradt:
+   MySQL "unclosed bracket expression" hibat adott, a get_var NULL-t, a (int) pedig 0-t --
+   vagyis a NEGATIV KONTROLL ugy nezett ki, mintha semmilyen shortcode nem lenne SEHOL.
+   Pont az az allitas, aminek a kizarasara kitalaltam. Lokalis kontroll fogta meg.
+   Ezert most LIKE, es minden szamlalo melle odanezunk, jott-e DB-hiba. */
+$barmiShortcode = $wpdb->get_var(
+    "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type='sfwd-lessons' AND post_content LIKE '%[%'");
+if ($barmiShortcode === null) {
+    ki('  !! A szamlalo lekerdezes HIBAT adott, nem nullat: ' . $wpdb->last_error);
+} else {
+    ki(sprintf('  barmilyen [ jel egy leckeben: %d lecke  (ha ez 0, a fenti negy nullaja nem lelet,', (int)$barmiShortcode));
+    ki('   hanem annyit jelent, hogy ezen a peldanyon nincs mit talalni)');
+}
+ki('');
+ki('  -- A szeptemberi bevasarlolista-leckek: KI irta es MILYEN ALAKBAN --');
+foreach (array(17479, 17491, 17492, 17494) as $lid) {
+    $lp = get_post($lid);
+    if (!$lp) { ki(sprintf('  ID=%-6d nem letezik', $lid)); continue; }
+    $szerzo = get_userdata($lp->post_author);
+    $c = (string) $lp->post_content;
+    ki(sprintf('  ID=%-6d szerzo=%-16s letrehozva=%s  modositva=%s  hossz=%d',
+        $lid, ($szerzo ? $szerzo->user_login : ('#'.$lp->post_author)),
+        $lp->post_date, $lp->post_modified, strlen($c)));
+    ki(sprintf('        cim: %s', $lp->post_title));
+    ki(sprintf('        alak: gutenberg-blokk=%d  <table>=%d  <ul>=%d  hm-bevlista__=%d  [shortcode]=%d',
+        substr_count($c, '<!-- wp:'), substr_count($c, '<table'), substr_count($c, '<ul'),
+        substr_count($c, 'hm-bevlista__'), preg_match('/\[[a-z_]+/', $c)));
+    ki(sprintf('        eleje: %s', substr(preg_replace('/\s+/', ' ', $c), 0, 140)));
+}
+ki('');
+ki('  >>> OLVASAT: ha a `[bevlist` ES a `hm-bevlista__` IS nulla, akkor a szeptemberi listat');
+ki('      egyik generator sem tette be -- se a kihivas-manager, se a hm-heti-menu renderelője.');
+ki('      Akkor a valasz Nessanak: KEZZEL kell megirni (vagy egy heti-menu oldalrol atmasolni).');
+ki('      Ha a `hm-bevlista__` > 0: a lista a hm renderelo KIMENETE, csak kezzel BEMASOLVA --');
+ki('      akkor van generator, csak nem automata ut, es ezt Nessanak maskepp kell megmondani.');
+
+ki('');
 ki('MERES VEGE. Semmit nem irtunk.');
