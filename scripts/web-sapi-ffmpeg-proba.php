@@ -12,9 +12,14 @@
  *
  * ES AMI FONTOS AZ EREDMENY OLVASASAKOR: ha a web SAPI-bol az ffmpeg NEM erheto el,
  * az NEM kudarc es NEM akadaly. Az a HATTER-UT IGAZOLASA: pontosan ezert nem a
- * feltoltes keresében konvertalunk, hanem cronbol. Ha viszont elerheto, az sem ok
- * arra, hogy inline konvertaljunk -- egy 100 MB-os video a keresben akkor is rossz
- * alak. A proba a TENYT adja meg, nem a dontest.
+ * feltoltes keresében konvertalunk, hanem DETACHALT folyamatban. Ha viszont
+ * elerheto, az sem ok arra, hogy inline konvertaljunk -- egy 100 MB-os video a
+ * keresben akkor is rossz alak. A proba a TENYT adja meg, nem a dontest.
+ *
+ * (Ez a bekezdes eredetileg "cronbol"-t irt. Az a MI tervunk volt, nem a rendszere:
+ * ebben a repoban NINCS cron, ami job-tablat uritene -- a `JobDispatch` keres-idoben
+ * detachal. Javitva, mert egy fajl, ami ellentmond onmaganak, a sajat also felet is
+ * gyanussa teszi.)
  *
  * ================== MIRE VALASZOL, ES MIKOR KELL ==================
  *
