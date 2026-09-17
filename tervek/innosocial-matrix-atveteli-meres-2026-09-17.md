@@ -13,6 +13,22 @@ olvasás-váltás, GIF-konverzió.
 Zsolt kikötése: *„atomjaira tesztelve minden opcióra — csak Facebookkal, csak Instával,
 mindkettővel együtt, mindenfajta verzióban, képpel, videóval, GIF-fel."*
 
+## >>> A MÉRÉS FÁJA NEM VOLT DEFINIÁLT ÁLLAPOT — ezt utólag írom ide <<<
+
+Nova mérte vissza, és igaza van. A konténer, amelyen a **mentés-réteg** futott, nem `origin/dev`
+és nem is egy megnevezett commit: HEAD `ecb86939` (a #277), **hat committal elmaradva** dev-től,
+plusz egy részleges kézi overlay (7 fájl, +7/−254). A **média-réteghez** viszont én magam
+másoltam be a ma esti fájljaimat. Vagyis a mérés **kevert fán** futott.
+
+**Ami ettől függetlenül érvényes:** a platform-kikötés függvénye (`innosocialPlatformKikotes`)
+a két fán tartalmilag azonos — megmérve —, tehát az öt elutasítás és a tizenhárom elfogadás
+a függvény viselkedéséről igaz. Ez viszont **nem** ugyanaz, mint „a kimenő rendszer zöld".
+
+**A helyes rendszer-a-teszt-alatt** nem a tiszta `origin/dev` (abban a ma esti képességek nincsenek
+benne, a GIF-cellák mind elutasításra futnának), hanem **`origin/dev` + a ma esti commitok** =
+a `feat/halozatonkenti-tipus-es-gif` ág. **A mérés ezen még nem futott le.** Amíg nem fut le,
+ez a dokumentum a fenti korláttal olvasandó, és a jelentésbe a commit-sha kerül, nem az, hogy „dev".
+
 ## Amit ez a mérés ér, és amit nem
 
 **Három réteg, és cellánként megnevezem, melyik válaszolt.** A média a mentésnek **láthatatlan**
