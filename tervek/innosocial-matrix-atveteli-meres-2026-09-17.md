@@ -1,7 +1,14 @@
 # A 21 cellás átvételi mátrix — a kiváltott InnoSocial, mérve
 
-**Mérve 2026-09-17 este, a kiváltott dev-példányon** (`DB=innosocial`, API a 8001-es porton),
-a ma esti kóddal: per-hálózat oszlopok, olvasás-váltás, GIF-konverzió.
+**Mérve 2026-09-17 este, a kiváltott példány LOKÁLIS docker-stackjén** (`DB=innosocial`,
+API a 8001-es porton, client 900, meta account 900), a ma esti kóddal: per-hálózat oszlopok,
+olvasás-váltás, GIF-konverzió.
+
+> **EZ NEM A `dev.innosocial.hu`.** A távoli dev másik környezet, és ott jelenleg egyetlen
+> meta fiók van (acc 22, csak Facebook, IG nincs bekötve). A különbség a **mentés**-réteget nem
+> érinti: megmérve, a `save_post` nem nézi, van-e IG bekötve a fiókhoz — az `instagram` és a
+> `both` párokat a platform-kikötés alapján fogadja el vagy utasítja el. A **publikálás**-réteget
+> viszont érinti, azt viszont egyik környezetben sem mértem.
 
 Zsolt kikötése: *„atomjaira tesztelve minden opcióra — csak Facebookkal, csak Instával,
 mindkettővel együtt, mindenfajta verzióban, képpel, videóval, GIF-fel."*
