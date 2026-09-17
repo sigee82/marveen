@@ -369,6 +369,16 @@ if ($DUPLIKAL) {
     ujjlenyomatOsszevet($eles_elotte, $eles_utana);
     elesUrlProba($AKTIV_SLUG, $FORRAS);
 
+    /* AZ ALAPVONAL A PROBAOLDALRA KERUL, ES NEM AZ UZENETBE.
+     *
+     * A menetrend azt mondja: "ha az eles ujjlenyomat barmelyik mezoje elmozdult, ALLJ MEG,
+     * NE TAKARITS". Amig ez csak egy mondat egy uzenetben es a futtato fejeben, a betartasa es
+     * a mulasztasa kivulrol egyforma -- es a takaritas pont a NYOMOT vinne el. Ezert az itt mert
+     * allapot a probaoldal sajat metajaba kerul: a takarito fazis EBBOL dolgozik, es megtagadja
+     * a torlest, ha a forras kozben elmozdult. A meta a probaoldallal egyutt szunik meg. */
+    update_post_meta($uj, '_proba_forras_ujjlenyomat', wp_slash(json_encode($eles_utana)));
+    ki('  alapvonal rogzitve a probaoldalon (_proba_forras_ujjlenyomat) -- a takaritas ebbol dolgozik.');
+
     ki('');
     ki('KOVETKEZO LEPES: a szoveg es a kepek bevitele az Elementorban (ember), MAJD:');
     ki('  php -- --slugcsere --uj-id='.$uj);
@@ -462,6 +472,24 @@ if ($TAKARIT) {
 
     $eles_elotte = elesUjjlenyomat($FORRAS);
     ujjlenyomatKiir('ELES ELOTTE ', $eles_elotte);
+
+    /* KAPU 6: A DUPLIKALASKORI ALAPVONAL. Ez az egyetlen kapu, ami nem a torles CELPONTJAT
+     * nezi, hanem az ELES oldalt -- es a legfontosabb, mert a takaritas a nyomot is elvinne. */
+    $alap = get_post_meta($UJ_ID, '_proba_forras_ujjlenyomat', true);
+    if ($alap === '' || $alap === null) {
+        ki('!! Ezen a probaoldalon NINCS rogzitett alapvonal (_proba_forras_ujjlenyomat).');
+        ki('   Enelkul NEM tudom bizonyitani, hogy az eles oldal erintetlen, a torles viszont');
+        ki('   elvinne a nyomot. NEM TOROLOK. Nezd meg kezzel, es ha tiszta, torold a WP-bol.');
+        exit;
+    }
+    $alap = json_decode($alap, true);
+    ujjlenyomatKiir('ALAPVONAL   ', is_array($alap) ? $alap : array());
+    if (!ujjlenyomatOsszevet($alap, $eles_elotte)) {
+        ki('');
+        ki('!! AZ ELES OLDAL ELMOZDULT A DUPLIKALAS OTA. NEM TOROLOK, mert a probaoldal es a');
+        ki('   rajta levo alapvonal MAGA A BIZONYITEK. Szolj, es csak utana takaritsunk.');
+        exit;
+    }
     ki('');
 
     /* A PROBA SAJAT SZEMETE IS A PROBAE. A duplikalas generalt egy `post-<ID>.css`-t az
