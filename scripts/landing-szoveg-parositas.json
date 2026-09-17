@@ -1,0 +1,322 @@
+[
+ {
+  "cserelendo": true,
+  "sorszam": 1,
+  "blokk": "1. szekció -- Hero (heading + két text-editor + gomb)",
+  "mezo_cimke": "Heading",
+  "doksi_alak": "cimke-alatt",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "Indul a 7 napos egészséges reggeli kihívás"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 2,
+  "blokk": "1. szekció -- Hero (heading + két text-editor + gomb)",
+  "mezo_cimke": "Text-editor (bevezető + felsorolás)",
+  "doksi_alak": "cimke-alatt",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "Csatlakozz a kihíváshoz, és rakjuk össze együtt azt a reggelit, ami nem tíz perc alatt elszáll, hanem kitart délig.\n\nminden napra egy recept, 7 napon át\nheti bevásárlólista\ngluténmentes, tejmentes, hozzáadott cukor nélkül\niOS és Android applikáció"
+ },
+ {
+  "cserelendo": false,
+  "sorszam": 3,
+  "blokk": "1. szekció -- Hero (heading + két text-editor + gomb)",
+  "mezo_cimke": "Text-editor (állandó sor)",
+  "doksi_alak": "egy-soros",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "[VÁLTOZATLAN]"
+ },
+ {
+  "cserelendo": false,
+  "sorszam": 4,
+  "blokk": "1. szekció -- Hero (heading + két text-editor + gomb)",
+  "mezo_cimke": "Gomb 1",
+  "doksi_alak": "egy-soros",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "[VÁLTOZATLAN]"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 5,
+  "blokk": "2. szekció -- Ígéret-cím + a probléma jelenete",
+  "mezo_cimke": "Heading",
+  "doksi_alak": "cimke-alatt",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "Reggelizz úgy, hogy délig kitartson"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 6,
+  "blokk": "2. szekció -- Ígéret-cím + a probléma jelenete",
+  "mezo_cimke": "Text-editor",
+  "doksi_alak": "cimke-alatt",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "Reggel kapkodsz, és a végén marad a kávé meg valami gyors édesség - ismerős? Aztán tíz óra körül hirtelen megjön az éhség, és már a keksz után nyúlsz. Nem az akaraterővel van baj: az édesen indított reggeli után a vércukor felszalad, majd leesik, és ez a hullámvasút csinálja a délelőtti éhségrohamot.\n \nA 7 napos egészséges reggeli kihívás 7 napon át minden nap hoz egy kész receptet és a hozzá tartozó bevásárlólistát, hogy reggelente ne neked kelljen kitalálni, mi legyen.\n \nNem kell felforgatnod a reggeleidet. Elég egy hét, hogy kipróbálj hat laktató reggelit meg egy reggeli italt, és kiderüljön, melyik az a kettő-három, ami beleférne a Te hétköznapodba is."
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 7,
+  "blokk": "3. szekció -- Miért éppen 7 nap? [VÁLTOZATLAN, egy témaszó cserélve + a szerző neve javítva]",
+  "mezo_cimke": "Heading",
+  "doksi_alak": "cimke-alatt",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "Miért éppen 7 nap?"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 8,
+  "blokk": "3. szekció -- Miért éppen 7 nap? [VÁLTOZATLAN, egy témaszó cserélve + a szerző neve javítva]",
+  "mezo_cimke": "Text-editor",
+  "doksi_alak": "cimke-alatt",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "Brian Tracy gyakorlás törvénye kimondja, hogy ha egy tevékenységet elég sokszor ismételsz, akkor az szokássá válik. A megfelelő önfegyelemmel egy felnőtt embernek tizennégy és huszonegy nap közötti időre van szüksége ahhoz, hogy egy új szokást kialakítson. Ez idő alatt pedig rendszeresen kell ismételni az adott cselekvést. Az ingyenes kihívásban ehhez kapsz egy óriási lökést, és ha tetszik, folytasd tovább!\nNem az a cél, hogy egyik napról a másikra mindent megváltoztass, hanem az, hogy megtapasztald, működik-e neked ez a fajta reggeli, egyszerűbb-e így reggelente jól dönteni.\nA 21napalatt VIP Klubban nem állunk meg 7 napnál, további 14 napig építjük együtt a reggeli-rendszeredet a zárt klubban. Ha kedvet kapsz, Téged is sok szeretettel várunk, csatlakozz hozzánk!"
+ },
+ {
+  "cserelendo": false,
+  "sorszam": 9,
+  "blokk": "3. szekció -- Miért éppen 7 nap? [VÁLTOZATLAN, egy témaszó cserélve + a szerző neve javítva]",
+  "mezo_cimke": "Gomb 2",
+  "doksi_alak": "egy-soros",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "[VÁLTOZATLAN]"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 10,
+  "blokk": "4. szekció -- Mire számíthatsz?",
+  "mezo_cimke": "Heading",
+  "doksi_alak": "cimke-alatt",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "Mire számíthatsz?"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 11,
+  "blokk": "4. szekció -- Mire számíthatsz?",
+  "mezo_cimke": "Text-editor",
+  "doksi_alak": "cimke-alatt",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "A 7 napos egészséges reggeli kihívás alatt minden nap kapsz egy receptet, és hozzá a heti bevásárlólistát. Lesz köztük gyors serpenyős reggeli, tálban összerakható, kásás, és azt is megnézzük, mit érdemes inni a reggeli mellé.\nA recepteket úgy állítottam össze, hogy táplálóak, változatosak és reggel is reálisan elkészíthetőek legyenek. A hozzávalókat a piacokon, boltok polcain könnyen megtalálod. Nem kell hozzájuk különleges konyhai tudás, és nem kell semmilyen speciális eszköz sem. Mindegyik gluténmentes, tejmentes, és nincs bennük hozzáadott cukor.\nA kihívás teljesítésével egy csapásra két legyet is üthetsz: a 7. nap végén megveregetheted a válladat, hogy teljesítetted a tervet. De ami fontosabb, elindulhatsz az úton egy új, egészséges szokás kialakításához, amelyet csak folytatnod kell.\nA kihívás végére lesz 7 új recepted, amit később bármikor elővehetsz, amikor reggel nem jut eszedbe semmi."
+ },
+ {
+  "cserelendo": false,
+  "sorszam": 12,
+  "blokk": "4. szekció -- Mire számíthatsz?",
+  "mezo_cimke": "Gomb 3",
+  "doksi_alak": "egy-soros",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "[VÁLTOZATLAN]"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 13,
+  "blokk": "5. szekció -- Mit kapsz még? + ikonos lista + a kizárás",
+  "mezo_cimke": "Heading",
+  "doksi_alak": "cimke-alatt",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "Mit kapsz még?"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 14,
+  "blokk": "5. szekció -- Mit kapsz még? + ikonos lista + a kizárás",
+  "mezo_cimke": "Text-editor",
+  "doksi_alak": "cimke-alatt",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "Az egészséges reggeli abban segít, hogy ne a nap legrosszabb döntésével indítsd a napot, és ne délelőtt tízkor kelljen helyrehozni.\nA kihívás alatt megtapasztalhatod, hogy"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 15,
+  "blokk": "5. szekció -- Mit kapsz még? + ikonos lista + a kizárás",
+  "mezo_cimke": "Ikonos lista (4 elem)",
+  "doksi_alak": "cimke-alatt",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "kitarthat a jóllakottság délig, és elmaradhat a délelőtti éhségroham\nmilyen egyszerű sósan indítani a napot\nnéhány perc is elég lehet egy laktató reggelihez\nmennyivel nyugodtabb egy reggel, ha nem kell kitalálni, mi legyen"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 16,
+  "blokk": "5. szekció -- Mit kapsz még? + ikonos lista + a kizárás",
+  "mezo_cimke": "Text-editor (a kizárás -- a korpusz funkciója megtartva)",
+  "doksi_alak": "cimke-alatt",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "Ez nem egy méregtelenítő- vagy fogyókúra. A kihívás alatt nem kell semmit sem kihagynod a táplálkozásodból, nyugodtan eheted és ihatod ugyanazokat, amiket korábban is, mindössze a reggelidet rakjuk össze együtt egy kicsit másképp."
+ },
+ {
+  "cserelendo": false,
+  "sorszam": 17,
+  "blokk": "5. szekció -- Mit kapsz még? + ikonos lista + a kizárás",
+  "mezo_cimke": "Gomb 4",
+  "doksi_alak": "egy-soros",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "[VÁLTOZATLAN]"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 18,
+  "blokk": "6. szekció -- Imádni fogod a kihívást, ha",
+  "mezo_cimke": "Heading",
+  "doksi_alak": "cimke-alatt",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "Imádni fogod a kihívást, ha"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 19,
+  "blokk": "6. szekció -- Imádni fogod a kihívást, ha",
+  "mezo_cimke": "Ikonos lista (8 elem)",
+  "doksi_alak": "cimke-alatt",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "reggelente kapkodsz, és a végén marad a kávé meg valami gyors édesség,\ndélelőtt tízkor már a keksz után nyúlsz, pedig reggeliztél,\nunod a megszokott reggeliket, és nem jut eszedbe semmi új,\nszeretnél egészségesebben reggelizni, de reggel nincs időd főzni,\nkezdő életmódváltó vagy, és valami egyszerűvel kezdenél,\ngluténmentesen vagy tejmentesen étkezel, és elfogytak az ötleteid,\nmunka és család mellett jól jönne egy kis segítség a reggelekhez,\nvagy egyszerűen kíváncsi vagy, mitől lesz laktató egy reggeli."
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 20,
+  "blokk": "6. szekció -- Imádni fogod a kihívást, ha",
+  "mezo_cimke": "Text-editor (záró vágykép)",
+  "doksi_alak": "cimke-alatt",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "Remélem, a hét végére Te is úgy nézel majd erre a hétre, hogy volt közte legalább két olyan reggeli, amit tényleg meg akarsz tartani - és közben arra gondolsz, hogy ezt miért nem kezdtem el hamarabb?"
+ },
+ {
+  "cserelendo": false,
+  "sorszam": 21,
+  "blokk": "6. szekció -- Imádni fogod a kihívást, ha",
+  "mezo_cimke": "Gomb 5",
+  "doksi_alak": "egy-soros",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "[VÁLTOZATLAN]"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 22,
+  "blokk": "7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN]",
+  "mezo_cimke": "Heading",
+  "doksi_alak": "egy-soros",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "A kihívás menete"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 23,
+  "blokk": "7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN]",
+  "mezo_cimke": "7. Heading",
+  "doksi_alak": "egy-soros",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "Regisztrálj a kihívásra"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 24,
+  "blokk": "7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN]",
+  "mezo_cimke": "Text",
+  "doksi_alak": "egy-soros",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "Utána máris be tudsz lépni a kihívás felületére."
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 25,
+  "blokk": "7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN]",
+  "mezo_cimke": "8. Heading",
+  "doksi_alak": "egy-soros",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "Töltsd le az applikációt"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 26,
+  "blokk": "7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN]",
+  "mezo_cimke": "Text",
+  "doksi_alak": "egy-soros",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "iOS vagy Android készülékedre és lépj be!"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 27,
+  "blokk": "7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN]",
+  "mezo_cimke": "9. Heading",
+  "doksi_alak": "egy-soros",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "Keresd a bevásárlólistát"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 28,
+  "blokk": "7-10. szekció -- A kihívás menete (3 lépés) [VÁLTOZATLAN]",
+  "mezo_cimke": "Text",
+  "doksi_alak": "egy-soros",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "és szerezd be a hozzávalókat!"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 29,
+  "blokk": "11. szekció -- Nyereményjáték (platform: FACEBOOK)",
+  "mezo_cimke": "Heading",
+  "doksi_alak": "cimke-alatt",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "Nyerj 1 hónap 21napalatt VIP Klub előfizetést Facebook nyereményjátékunkon"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 30,
+  "blokk": "11. szekció -- Nyereményjáték (platform: FACEBOOK)",
+  "mezo_cimke": "Text-editor",
+  "doksi_alak": "cimke-alatt",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "Készíts fotót az elkészült reggelidről.\nPosztold a kihívás Facebook csoportjában a @21napalatt_kihivas hashtaggel\nOktóber 8-án a legalább 1 képet feltöltők között kisorsolunk egy szerencsés résztvevőt,\naki 1 hónapos 21napalatt VIP Klub előfizetést nyer.\nA 21napalatt VIP Klubtagság teljes hozzáférést ad a klub minden tartalmához: 21 napos életmódprogramhoz, a hetente frissülő menütervekhez, 500+ tej-, cukor- és gluténmentes recepthez, 21 napos kihívásokhoz, tudásanyagokhoz, a zárt Facebook csoporthoz. [VÁLTOZATLAN]"
+ },
+ {
+  "cserelendo": false,
+  "sorszam": 31,
+  "blokk": "11. szekció -- Nyereményjáték (platform: FACEBOOK)",
+  "mezo_cimke": "Gomb 6",
+  "doksi_alak": "egy-soros",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "[VÁLTOZATLAN]"
+ },
+ {
+  "cserelendo": true,
+  "sorszam": 32,
+  "blokk": "12. szekció -- Űrlap-cím",
+  "mezo_cimke": "Heading",
+  "doksi_alak": "cimke-alatt",
+  "elem_id": "",
+  "elem_mezo": "",
+  "uj_szoveg": "Jelentkezem a 7 napos egészséges reggeli kihívásra"
+ }
+]
