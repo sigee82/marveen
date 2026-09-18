@@ -60,12 +60,29 @@ foreach ($in as $item) {
         $proposal['_meta'] = ['account_id' => $id, 'page_name' => $account['page_name'],
                               'website' => $siteUrl, 'seconds' => round(microtime(true)-$t0, 1)];
         file_put_contents("$OUT/fiok-$id.json", json_encode($proposal, JSON_UNESCAPED_UNICODE));
-        printf("#%-4s %-30s OK  oldal:%-2s poszt:%-3s tema:%-2s tag:%-3s dropped:%-3s usd:%.4f  %ss\n",
+        /* A DOBOTT TEMAK A JAVASLATBAN ALLNAK (`themes_dropped`), NEM A PARSE KIMENETEBEN.
+         * Mert 2026-09-19 02:0x: ez az oszlop `$parsed['dropped']`-et szamolt -- olyan kulcsot,
+         * ami ott SOSEM letezett -- tehat mind a 12 fiokra 0-t irt, mikozben a fiok-30-on HAROM,
+         * a fiok-33-on EGY tema esett ki a plafon miatt. A `?? []` miatt a HIANYZO kulcs pontosan
+         * ugy nez ki, mint az URES lista, es a nulla igy meresnek latszott. Ezert all itt most
+         * `-` ott, ahol a kulcs NINCS MEG: a "nem merve" es a "merve, es nulla" nem lehet egyforma.
+         * A dobas OKA is szamit: a plafon (`a felso korlat`) mast jelent, mint a padlo. */
+        $dropList = $proposal['themes_dropped'] ?? null;
+        $dropOszlop = $dropList === null ? '-' : (string) count($dropList);
+        if ($dropList) {
+            $plafon = 0;
+            foreach ($dropList as $dd) if (str_contains((string) ($dd['why'] ?? ''), 'felso korlat')) $plafon++;
+            $dropOszlop .= '(plafon:' . $plafon . ')';
+        }
+        /* A `tag:` OSZLOP KIVEVE (2026-09-18 19:0x-kor mar kimondtam, es ott maradt egy futasra).
+         * A `$proposal['themes']` a TARTALMI temak, a hashtag-javaslat kulon action
+         * (`suggest_hashtags`), amit a `generate` nem is termel -- az oszlop tehat rossz
+         * szerkezetben keresett, es allando "nulla tag" latszatot gyartott. */
+        printf("#%-4s %-30s OK  oldal:%-2s poszt:%-3s tema:%-2s dropped:%-10s usd:%.4f  %ss\n",
             $id, mb_substr($account['page_name'],0,30),
             count($site['pages'] ?? []), $posts['chars'] > 0 ? count($posts['facebook'] ?? []) + count($posts['instagram'] ?? []) : 0,
             count($proposal['themes'] ?? []),
-            array_sum(array_map(fn($t) => count($t['tags'] ?? []), $proposal['themes'] ?? [])),
-            count($parsed['dropped'] ?? []), $cost, round(microtime(true)-$t0,1));
+            $dropOszlop, $cost, round(microtime(true)-$t0,1));
     } catch (Throwable $e) {
         printf("#%-4s %-30s KIVETEL: %s\n", $id, mb_substr($account['page_name'],0,30), mb_substr($e->getMessage(),0,70));
     }
