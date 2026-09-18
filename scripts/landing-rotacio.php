@@ -7,6 +7,9 @@
  *                     EZ KELL AHHOZ, hogy a szoveg-behelyettesitest VALODI adatra lehessen irni.
  *   --duplikal        Letrehozza az UJ oldalt a 17153 masolatakent, DRAFT statuszban, IDEIGLENES
  *                     slugon. A generalt metakat NEM masolja, a CSS-cache-t nem viszi at.
+ *   --proba           CSAK a `--duplikal` mellett: a keletkezo oldalt ELDOBHATONAK jeloli.
+ *                     Enelkul a `--proba-takarit` megtagadja a torleset -- mert a proba es az
+ *                     ELES uj oldal minden mas jegyben azonos (draft, ugyanaz a slug, alapvonal).
  *   --slugcsere       A KET atnevezes, a KOTELEZO sorrendben. Kulon fazis, mert ez a nap, amikor
  *                     az URL atall -- es ezt nem akarjuk a duplikalassal egy mozdulatban.
  *
@@ -139,6 +142,15 @@ $ARGV = $argv ?: array();
 $DUPLIKAL  = in_array('--duplikal', $ARGV, true);
 $SLUGCSERE = in_array('--slugcsere', $ARGV, true);
 $TAKARIT   = in_array('--proba-takarit', $ARGV, true);
+/* AZ ELDOBHATOSAG NEM KOVETKEZTETHETO KI AZ OLDALBOL. A probaoldal es az ELES uj oldal
+ * ugyanabbol a `--duplikal`-bol szuletik: mindketto draft, mindketto ugyanazt az ideiglenes
+ * slugot kapja, es mindkettore rakerul az alapvonal-meta. A takarito fazis osszes eddigi kapuja
+ * (nem publikus / a nevesitett slug / van alapvonal / a forras nem mozdult) ezert MINDKETTORE
+ * igazat ad -- vagyis az eles oktoberi landinget is torolne, veglegesen.
+ * Ezert az eldobhatosag KULON, KIMONDOTT dontes a duplikalaskor, es a lap SAJAT metajaban
+ * utazik. Ugyanaz az elv, mint a hashtag-szettek `origin` oszlopanal: ami azonossagot hordoz,
+ * az nem lehet olyasmi, amit egy masik, jogos mukodes is eloallit. */
+$PROBA     = in_array('--proba', $ARGV, true);
 $UJ_ID = 0;
 foreach ($ARGV as $a) { if (strpos($a, '--uj-id=') === 0) { $UJ_ID = (int) substr($a, 8); } }
 
@@ -385,11 +397,23 @@ if ($DUPLIKAL) {
     update_post_meta($uj, '_proba_forras_ujjlenyomat', wp_slash(json_encode($eles_utana)));
     ki('  alapvonal rogzitve a probaoldalon (_proba_forras_ujjlenyomat) -- a takaritas ebbol dolgozik.');
 
+    if ($PROBA) {
+        update_post_meta($uj, '_proba_eldobhato', '1');
+        ki('  ELDOBHATO-jelolo rogzitve (_proba_eldobhato) -- CSAK ezt az oldalt takarithatja a szkript.');
+    }
+
     ki('');
-    ki('KOVETKEZO LEPES: a szoveg es a kepek bevitele az Elementorban (ember), MAJD:');
-    ki('  php -- --slugcsere --uj-id='.$uj);
-    ki('PROBAFUTASNAL viszont NEM a slugcsere jon, hanem a takaritas:');
-    ki('  php -- --proba-takarit --uj-id='.$uj);
+    if ($PROBA) {
+        ki('EZ ELDOBHATO PROBAOLDAL. A slugcsere ra NEM ervenyes; a menete a takaritas:');
+        ki('  php -- --proba-takarit --uj-id='.$uj);
+    } else {
+        ki('KOVETKEZO LEPES: a szoveg es a kepek bevitele az Elementorban (ember), MAJD:');
+        ki('  php -- --slugcsere --uj-id='.$uj);
+        ki('');
+        ki('EZ NEM PROBAOLDAL: `--proba` nelkul keszult, tehat ELES oldalkent kezeljuk, es a');
+        ki('takarito fazis MEG FOGJA TAGADNI a torleset. Ha eldobhato masolat kellett volna,');
+        ki('indits ujat a `--proba` kapcsoloval -- ezt az oldalt NE probald letakaritani.');
+    }
     exit;
 }
 
@@ -475,6 +499,20 @@ if ($TAKARIT) {
     }
     /* Kapu 3: az aktiv slug soha. */
     if ($cel->post_name === $AKTIV_SLUG) { ki('!! Ez az AKTIV slug. ALLJ MEG.'); exit; }
+
+    /* KAPU 4: AZ ELDOBHATOSAG KIMONDOTT JELOLESE.
+     * Ez a kapu all a tobbi ELE, mert a tobbi mindegyike igazat ad az ELES uj oldalra is:
+     * az is draft, az is a nevesitett ideiglenes slugon ul, azon is ott az alapvonal-meta.
+     * A megkulonboztetest CSAK a duplikalaskor hozott kimondott dontes hordozza. Ha az hianyzik,
+     * a helyes valasz a megtagadas, nem a talalgatas: egy teves torles itt veglegesen elvinne
+     * az eles landinget, es a `wp_delete_post($id, true)` nem a kukaba tesz. */
+    if (get_post_meta($UJ_ID, '_proba_eldobhato', true) !== '1') {
+        ki('!! EZ AZ OLDAL NINCS ELDOBHATONAK JELOLVE (_proba_eldobhato hianyzik).');
+        ki('   A `--duplikal` `--proba` NELKUL keszitette, tehat ELES oldalkent kezelem.');
+        ki('   NEM TOROLOK. Ha tenyleg szemet, torold a WP admin feluleterol, kezzel --');
+        ki('   ott legalabb a kukaba kerul, es visszahozhato.');
+        exit;
+    }
 
     $eles_elotte = elesUjjlenyomat($FORRAS);
     ujjlenyomatKiir('ELES ELOTTE ', $eles_elotte);
