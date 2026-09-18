@@ -58,7 +58,7 @@ function ki($s){ echo '@@ '.$s."\n"; }
  * fuggetlen allitas: egy szep masolat mellett is elmozdulhat a forras, ha egy hook hozzanyul,
  * es a szep masolat latvanya pont elnyomna a kerdest. Ezert a szam megy a kepernyore, nem a verdikt.
  *
- * A `post_modified` a legerzekenyebb mezo: a WP minden `wp_update_post`-nal frissiti, tehat egy
+ * A `post_modified_gmt` a legerzekenyebb mezo: a WP minden `wp_update_post`-nal frissiti, tehat egy
  * veletlen erintes MEG AKKOR IS nyomot hagy, ha a tartalom valtozatlan maradt.
  */
 function elesUjjlenyomat($id) {
@@ -165,8 +165,14 @@ ki('');
 
 $forras = get_post($FORRAS);
 if (!$forras) { ki('!! A forras-oldal ('.$FORRAS.') NEM LETEZIK. Allj meg.'); exit; }
-ki(sprintf('FORRAS: ID=%d  slug=%s  statusz=%s  modositva=%s', $forras->ID, $forras->post_name,
-    $forras->post_status, $forras->post_modified));
+/* GMT, ES A CIMKE IS EZT MONDJA. Ez a sor korabban `post_modified`-ot (LOKALIS ido) irt ki,
+ * ugyanazzal a `modositva=` cimkevel, amit az `ujjlenyomatKiir()` a `post_modified_gmt`-re
+ * hasznal. Ket ora kulonbseg (CEST), ket kulonbozo mezo, egy cimke -- es az atveteli feltetel
+ * EPP ezeknek az osszevetese ("az eles oldal valtozatlan: merd meg elotte es utana").
+ * Igy egy VALTOZATLAN oldal ket ora elmozdulasnak latszott, es ami rosszabb: egy pontosan
+ * ket oraval kesobb modositott oldal VALTOZATLANNAK latszott volna. */
+ki(sprintf('FORRAS: ID=%d  slug=%s  statusz=%s  modositva(GMT)=%s', $forras->ID, $forras->post_name,
+    $forras->post_status, $forras->post_modified_gmt));
 ki(sprintf('        cim: %s', $forras->post_title));
 
 /* ---------------------------------------------------------------- MERES */
