@@ -41,8 +41,23 @@ HASZNALAT
 EXIT-KODOK
 ----------
     0 = minden hivatkozas AZONOS a hivatkozo sajat uzenetevel (vagy nincs hivatkozas)
-    1 = van GYANUS hivatkozas -- ez a RIASZTAS, nem hiba
+    1 = AZONOSSAG-HIBA: idegen sor / nem letezo id / hamis irany-jeloles. EZ A VALODI ALAK.
     2 = a kapu maga nem tudott merni (nincs DB) -- ez LELET, nem "szabad"
+    3 = CSAK ABLAK-GYANU: minden talalat sajat sor, de valamelyik az ablakon kivulrol valo
+
+MIERT KULON A 3-AS (Nova merese a sajat oldalan, agent_msg 14165 [nova->signal], 2026-09-20)
+-------------------------------------------------------------------------------------------
+Az 1909 nova-emlekbol 21 tartalmaz `agent_msg` hivatkozast, es a kapu KETTOT jelolt meg --
+MINDKETTO ugyanaz a legitim, sajat `agent_msg 6437` (nova -> signal, 34 napos), amit KIZAROLAG
+az ablak-ag fogott meg. Fuggetlenul visszamerve: a sor tenyleg nova -> signal es tenyleg 34 napos.
+Vagyis TORTENELMI sopresnel az ablak-ag az EGYETLEN, ami tuzel, es ott 2/2-ben hamis volt.
+
+Ha ez a ket ag azonos exit-kodot ad, egy HIVO (a kesobbi PreToolUse hook) nem tudja megkulonboztetni
+a valodi azonossag-hibat egy regi, jogos hivatkozastol -- es a hook epp az, ami nem olvas szoveget,
+csak kodot. Ugyanaz az alak, mint az irany-agnal: egy hamisan riaszto figyelo leszoktat magarol.
+
+PRECEDENCIA: ha egyszerre van azonossag-hiba ES ablak-gyanu, a kimenet **1**. A kemenyebb lelet
+nyeri, kulonben egy regi hivatkozas elfedne egy valodit.
 
 A kimenet MINDIG kiirja a NEVEZOT (hany hivatkozast vizsgalt), mert egy le nem
 futott kapu es egy tiszta kor kulonben egyforman nez ki.
@@ -150,9 +165,18 @@ def ellenoriz(szoveg, agens, db_ut=DB, ablak_nap=ALAP_ABLAK_NAP, most=None):
     return egyedi, gyanus
 
 
+def exit_kod(gyanus):
+    """A verdikt -> exit-kod lekepezes. EGY helyen all, mert a main() ES az onteszt
+    is ezt hasznalja -- egy onteszt, ami ujraimplementalja a szabalyt, nem a szabalyt
+    teszteli, hanem a masolatat."""
+    if not gyanus:
+        return 0
+    return 3 if all(f == "ABLAKON KIVUL" for _, f, _ in gyanus) else 1
+
+
 def _onteszt():
-    """POZITIV KONTROLL, harom eset. A 2-es a lenyeg: egy 'letezik-e' kapu MIND A
-    HARMAT atengedne, mert mindharom ID letezik."""
+    """POZITIV KONTROLL. A 2-es a lenyeg: egy 'letezik-e' kapu MIND A HARMAT atengedne,
+    mert mindharom ID letezik. A 6-7. az ablak-ag es a PRECEDENCIA (kemenyebb nyer)."""
     import tempfile
 
     db_ut = os.path.join(tempfile.mkdtemp(), "onteszt.db")
@@ -168,32 +192,39 @@ def _onteszt():
             [
                 (14155, "signal", "nova", "a valodi jelentes", "delivered", most - 600),
                 (13781, "nova", "bit", "IDEGEN: letezik, de masrol szol", "delivered", most - 90000),
+                # Sajat sor, de REGI: ez az ablak-ag bemenete. A mert elopelda a
+                # `agent_msg 6437` (nova -> signal, 34 napos) Nova sopresebol.
+                (6437, "signal", "nova", "sajat, de 34 napos", "delivered", most - 34 * 86400),
             ],
         )
 
     esetek = [
-        ("1. LETEZO, signal->nova sor", "Jelentes: agent_msg 14155.", False),
-        ("2. LETEZO, de IDEGEN sor", "Jelentes: agent_msg 13781.", True),
-        ("3. NEM LETEZO ID", "Jelentes: agent_msg 9999999.", True),
+        ("1. LETEZO, signal->nova sor", "Jelentes: agent_msg 14155.", 0),
+        ("2. LETEZO, de IDEGEN sor", "Jelentes: agent_msg 13781.", 1),
+        ("3. NEM LETEZO ID", "Jelentes: agent_msg 9999999.", 1),
         ("4. JELOLT idegen sor, HELYES iranyt allit",
-         "A context-guard sora: agent_msg 13781 [nova->bit].", False),
+         "A context-guard sora: agent_msg 13781 [nova->bit].", 0),
         ("5. JELOLT idegen sor, HAMIS iranyt allit",
-         "A context-guard sora: agent_msg 13781 [nova->signal].", True),
+         "A context-guard sora: agent_msg 13781 [nova->signal].", 1),
+        ("6. SAJAT sor, de az ABLAKON KIVUL (34 napos) -> CSAK ablak-gyanu",
+         "Korabban ezt irtam: agent_msg 6437.", 3),
+        ("7. PRECEDENCIA: ablak-gyanu ES idegen sor egyutt -> a KEMENYEBB nyer",
+         "agent_msg 6437 es agent_msg 13781.", 1),
     ]
-    print("POZITIV KONTROLL -- 5 eset, agens='signal', ablak=30 nap\n")
+    print("POZITIV KONTROLL -- 7 eset, agens='signal', ablak=30 nap")
+    print("exit: 0=rendben | 1=azonossag-hiba | 3=csak ablak-gyanu\n")
     bukott = 0
     naiv_atengedne = 0
-    for cim, szoveg, megall_e in esetek:
+    for cim, szoveg, vart_kod in esetek:
         talalat, gyanus = ellenoriz(szoveg, "signal", db_ut=db_ut, most=most)
-        tenyleg = bool(gyanus)
-        ok = tenyleg == megall_e
+        kod = exit_kod(gyanus)
+        ok = kod == vart_kod
         bukott += 0 if ok else 1
         # Mit adna egy puszta "letezik-e" kapu? Csak a NEM LETEZIK agat nezne.
         if not any(f == "NEM LETEZIK" for _, f, _ in gyanus):
             naiv_atengedne += 1
         print(f"  [{'OK ' if ok else 'BUKO'}] {cim}")
-        print(f"         vizsgalt: {len(talalat)} | verdikt: "
-              f"{'MEGALL' if tenyleg else 'atmegy'} (vart: {'MEGALL' if megall_e else 'atmegy'})")
+        print(f"         vizsgalt: {len(talalat)} | exit: {kod} (vart: {vart_kod})")
         for i, fajta, indok in gyanus:
             print(f"         -> agent_msg {i}: {fajta} -- {indok}")
     print()
@@ -240,14 +271,25 @@ def main():
               else "NINCS agent_msg hivatkozas a szovegben -- a kapu lefutott, nem volt mit merni.")
         return 0
 
-    print(f"\n!! GYANUS: {len(gyanus)} a {len(talalat)}-bol", file=sys.stderr)
+    # A KET AG SZETVALASZTASA. Egy hivo (hook) csak a kodot latja, tehat a kodnak kell
+    # megmondania, melyik hibaosztalyrol van szo. Precedencia: a kemenyebb nyer.
+    kod = exit_kod(gyanus)
+    csak_ablak = kod == 3
+    fejlec = "ABLAK-GYANU" if csak_ablak else "GYANUS"
+    print(f"\n!! {fejlec}: {len(gyanus)} a {len(talalat)}-bol", file=sys.stderr)
     for i, fajta, indok in gyanus:
         print(f"   agent_msg {i}: {fajta} -- {indok}", file=sys.stderr)
+    if csak_ablak:
+        print("\n   NINCS AZONOSSAG-HIBA: minden hivatkozas a sajat sorodra mutat, csak "
+              "regebbi az ablaknal.", file=sys.stderr)
+        print("   Tortenelmi sopresnel ez a VART alak -- ilyenkor `--ablak 0` a helyes hivas.",
+              file=sys.stderr)
+        return kod
     print("\n   A LEPES: NE talald ki a helyes ID-t. Kuldd el az uzenetet, es a POST",
           file=sys.stderr)
     print("   VALASZABOL vedd az azonositot -- a `<PENDING>` helykitolto ezt varja.",
           file=sys.stderr)
-    return 1
+    return kod
 
 
 if __name__ == "__main__":
