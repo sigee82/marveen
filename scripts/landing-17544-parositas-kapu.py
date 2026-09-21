@@ -45,6 +45,35 @@ ORVOSI = ['vércuk', 'inzulin', 'hormon', 'anyagcser', 'glikém', 'ketóz', 'gyu
           'immunrendszer', 'IR-barát', 'rezisztenc', 'glükóz', 'ketogén']
 
 
+# --- ELETTANI FORDULAT: JELZES, NEM TILTAS (2026-09-21, Nova/Eszter dontese) ---------------
+# Eszter 13:10-kor KERTE az IR-pozicionalast ("sokkal fontosabb, hogy IR barat es a cel a
+# vercukor egyensuly megtartasa"), tehat a keret SZANDEKOS. A mintak MEGIS bennmaradnak:
+# ha kivennenk oket, a kapu a MECHANIZMUS-magyarazatra is vakka valna, az pedig tovabbra is
+# tiltott. A hatar HAROM AGU, es a kozepso ketto nem dontes kerdese:
+#   POZICIONALAS   IGEN  -- "IR-barát", "segítsen egyensúlyban tartani a vércukrodat"
+#   MECHANIZMUS    NEM   -- "a vércukor felszalad, majd leesik" (reggel epp kivettuk)
+#   IGERT EREDMENY NEM   -- felteteles alak kell ("segítsen", nem "le fog menni")
+# A ketto gepileg nem valaszthato szet megbizhatoan (ugyanazokat a szotoveket hasznaljak),
+# az ember viszont ranezesre eldonti. Ezert a kimenet a MONDATOKAT adja at, nem verdiktet:
+# "amit a kapu kikenyszerit, az csak olyan allitas lehet, ami nem dontes kerdese".
+# A `\w+` ELOL KOTELEZO: igy a "hetente"/"hetven" nem illeszkedik (azok "het"-tel KEZDODNEK),
+# az "elkeszithetoek" viszont igen. A `\w*` HATUL azert kell, mert a kepzo utan meg jon szoveg.
+# ES NEM NYERS STRINGBEN, EKEZETTEL: az elso valtozat r'' -ben irt \u00ed-t hasznalt, ami NEM
+# karakter, hanem hat betu -- a 'segit' ag ezert SOSEM illeszkedett volna. Megmerve alul.
+FELTETELES = re.compile('\\w+(hat|het)\\w*|\\b(segít\\w*|lehet\\w*|támogat\\w*|hozzájárul\\w*)\\b', re.I)
+
+
+def elettani_mondatok(szoveg):
+    """A szotoveket tartalmazo MONDATOK, jelzesekkel egyutt. Nem minosit, atad."""
+    ki = []
+    for mondat in re.split(r'(?<=[.!?])\s+', szoveg):
+        talalt = [k for k in ORVOSI if re.search(re.escape(k), mondat, re.I)]
+        if talalt:
+            ki.append({'mondat': mondat.strip(), 'szotovek': talalt,
+                       'felteteles': bool(FELTETELES.search(mondat))})
+    return ki
+
+
 def norm(s):
     return re.sub(r'\s+', ' ', s.replace(' ', ' ')).strip()
 
@@ -128,9 +157,10 @@ def main():
 
     # 3. allando szabalyok
     egyben = '\n'.join(tagtalan(p['uj']) for p in parok)
+    # Az elettani szokincs NEM tilto szabaly: Eszter KERTE a pozicionalast.
+    # Kulon, JELZESKENT megy ki, a mondatokkal egyutt (lasd lentebb).
     szabalyok = [('nagykotojel', r'[–—]'),
                  ('nagybetus "Neked"', r'\bNeked\b'),
-                 ('elettani szokincs', '|'.join(ORVOSI)),
                  ("'allitottam ossze'", 'állítottam össze')]
     for nev, minta in szabalyok:
         n = len(re.findall(minta, egyben))
@@ -141,7 +171,7 @@ def main():
     # POZITIV KONTROLL A DETEKTOROKRA: negy nulla ugyanugy nez ki, mint negy vak minta.
     # A PROBASZOVEG RAGOZOTT alakot hasznal: a regi, teljes szavas lista EZEN BUKOTT
     # meg 2026-09-21-en az elo lapon.
-    proba = 'ez egy – teszt, ahol Neked szol, es a vércukrodat is emliti, meg állítottam össze'
+    proba = 'ez egy – teszt, ahol Neked szol, meg állítottam össze'
     fog = sum(1 for _, m in szabalyok if re.search(m, proba))
     if fog != len(szabalyok):
         print(f'  !! POZITIV KONTROLL BUKOTT: {len(szabalyok)}-bol {fog} minta fogott.')
@@ -149,6 +179,14 @@ def main():
         return 2
     print(f'  (pozitiv kontroll: mind a {len(szabalyok)} minta fog a probaszovegen)')
     print()
+    mondatok = elettani_mondatok(egyben)
+    if mondatok:
+        print(f'DONTENDO, NEM HIBA: {len(mondatok)} elettani fordulat a bevitelben.')
+        print('  POZICIONALAS igen | MECHANIZMUS nem | IGERT EREDMENY nem (felteteles alak kell)')
+        for m in mondatok:
+            print(f"    [{'felteteles' if m['felteteles'] else 'NEM FELTETELES'}] "
+                  f"({', '.join(k + '*' for k in m['szotovek'])}) {m['mondat'][:120]}")
+        print()
 
     # 4. mi valtozik -- SZAMOLVA, nem beirva
     elo = json.load(io.open(ELO, encoding='utf-8'))['mezok']

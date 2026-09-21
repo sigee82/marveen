@@ -54,6 +54,55 @@ ALLANDO = {
 }
 
 
+# --- ELETTANI FORDULAT: JELZES, NEM TILTAS (2026-09-21, Nova/Eszter dontese) ---------------
+# Eszter 13:10-kor KERTE az IR-pozicionalast ("sokkal fontosabb, hogy IR barat es a cel a
+# vercukor egyensuly megtartasa"), tehat a keret SZANDEKOS. A mintak MEGIS bennmaradnak:
+# ha kivennenk oket, a kapu a MECHANIZMUS-magyarazatra is vakka valna, az pedig tovabbra is
+# tiltott. A hatar HAROM AGU, es a kozepso ketto nem dontes kerdese:
+#   POZICIONALAS   IGEN  -- "IR-barát", "segítsen egyensúlyban tartani a vércukrodat"
+#   MECHANIZMUS    NEM   -- "a vércukor felszalad, majd leesik" (reggel epp kivettuk)
+#   IGERT EREDMENY NEM   -- felteteles alak kell ("segítsen", nem "le fog menni")
+# A ketto gepileg nem valaszthato szet megbizhatoan (ugyanazokat a szotoveket hasznaljak),
+# az ember viszont ranezesre eldonti. Ezert a kimenet a MONDATOKAT adja at, nem verdiktet:
+# "amit a kapu kikenyszerit, az csak olyan allitas lehet, ami nem dontes kerdese".
+# A `\w+` ELOL KOTELEZO: igy a "hetente"/"hetven" nem illeszkedik (azok "het"-tel KEZDODNEK),
+# az "elkeszithetoek" viszont igen. A `\w*` HATUL azert kell, mert a kepzo utan meg jon szoveg.
+# ES NEM NYERS STRINGBEN, EKEZETTEL: az elso valtozat r'' -ben irt \u00ed-t hasznalt, ami NEM
+# karakter, hanem hat betu -- a 'segit' ag ezert SOSEM illeszkedett volna. Megmerve alul.
+FELTETELES = re.compile('\\w+(hat|het)\\w*|\\b(segít\\w*|lehet\\w*|támogat\\w*|hozzájárul\\w*)\\b', re.I)
+
+
+# A FELTETELES-DETEKTOR SAJAT KONTROLL-KESZLETE. Minden futasnal lefut, mert egy regex,
+# ami SEMMIT nem fog, pontosan ugy nez ki, mint egy szoveg, amiben nincs felteteles alak.
+# (Az elso valtozatom r'' -ben irt `\u00ed`-t, ami hat betu es nem karakter -- a "segit" ag
+# SOSEM illeszkedett volna, es ez a kimeneten sehol nem latszott volna.)
+FELTETELES_KONTROLL = [
+    ('segítsen egyensúlyban tartani a vércukrodat', True),
+    ('hogy IR-barátok, táplálóak és reggel is reálisan elkészíthetőek legyenek', True),
+    ('a vércukor felszalad, majd leesik, és ez a hullámvasút csinálja', False),
+    ('a vércukrod le fog menni és megszűnik az éhségroham', False),
+    ('hetente kapsz egy hetven perces videót', False),
+]
+
+
+def felteteles_kontroll_ok():
+    """(rendben?, hibas esetek). A pozitiv ES a negativ ag is szerepel benne."""
+    rossz = [sz for sz, vart in FELTETELES_KONTROLL
+             if bool(FELTETELES.search(sz)) != vart]
+    return not rossz, rossz
+
+
+def elettani_mondatok(szoveg):
+    """A szotoveket tartalmazo MONDATOK, jelzesekkel egyutt. Nem minosit, atad."""
+    ki = []
+    for mondat in re.split(r'(?<=[.!?])\s+', szoveg):
+        talalt = [k for k in ORVOSI if re.search(re.escape(k), mondat, re.I)]
+        if talalt:
+            ki.append({'mondat': mondat.strip(), 'szotovek': talalt,
+                       'felteteles': bool(FELTETELES.search(mondat))})
+    return ki
+
+
 def szoveg_urlbol(url):
     """(olvashato szoveg, NYERS html) -- a nyerset a nagykotojel-szetvalasztas hasznalja.
 
@@ -94,6 +143,14 @@ def main():
     # horgonyait, akkor a lenti nullak nem leletek, hanem romlott meres.
     if korp.count("gyakorlás törvénye kimondja") < 3 or korp.count("Én is kipróbálom") < 3:
         print("VAK MERES: a korpusz nem hordozza a sajat horgonyait -- a mero romlott el.")
+        return 2
+
+    ok, rossz = felteteles_kontroll_ok()
+    if not ok:
+        print('VAK MERES: a felteteles-detektor kontroll-keszlete elbukott ezeken:')
+        for x in rossz:
+            print(f'  - {x}')
+        print('  A lenti elettani jelzes ezert nem megbizhato.')
         return 2
 
     print(f"FORRAS: {forras}   ({len(t)} karakter)")
@@ -150,13 +207,20 @@ def main():
                   f"Ez nem lelet itt, de az elo oldalon annyival tobb '–' fog latszani.")
             print()
 
-    # 2. elettani szokincs
-    talalt = [(k, t.count(k)) for k in ORVOSI if k in t]
-    if talalt:
-        reszlet = ", ".join(f"{k}* ({n}x)" for k, n in talalt)
-        leletek.append(f"ELETTANI/ORVOSI SZOKINCS (szotovek, a * ragozott alakot is fed): {reszlet}. A korpuszon mindegyik NULLA. "
-                       f"A hang-profil 6. pontja: a landing nem ad orvosi tanacsot; a problema "
-                       f"az olvaso SAJAT JELENETE legyen, ne mechanizmus-magyarazat.")
+    # 2. elettani szokincs -- JELZES, NEM LELET (lasd a FELTETELES melletti szakaszt)
+    mondatok = elettani_mondatok(t)
+    if mondatok:
+        print(f">>> DONTENDO, NEM HIBA: {len(mondatok)} elettani fordulat all a lapon.")
+        print("    Eszter 2026-09-21-en KERTE az IR-pozicionalast, tehat a keret szandekos.")
+        print("    A hatar: POZICIONALAS igen | MECHANIZMUS-magyarazat nem | IGERT EREDMENY nem")
+        print("    (az utobbi kettohoz felteteles alak kell). Nezd at, melyik agon all:")
+        for m in mondatok:
+            print(f"      [{'felteteles' if m['felteteles'] else 'NEM FELTETELES'}] "
+                  f"({', '.join(k + '*' for k in m['szotovek'])})")
+            print(f"        {m['mondat'][:150]}")
+        print("    A 'NEM FELTETELES' jelzes NEM verdikt: a minta szuk (-hat/-het, segit,")
+        print("    lehet, tamogat, hozzajarul), tehat mas felteteles alakot nem ismer fel.")
+        print()
 
     # 2/b. HOMOGLIFA -- 2026-09-21-en adtam hozza (Nova), Copy leletebol.
     #
