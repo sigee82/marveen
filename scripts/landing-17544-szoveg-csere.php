@@ -36,29 +36,10 @@ $TILTOTT = 17153;
 $MENTES_DIR = '/home/napalatt/vip.21napalatt.hu';
 
 $PAROK = array(
-  array('elem_id' => 'b3e8629', 'ut' => 'editor', 'horgony' => 'Csatlakozz a kihíváshoz, és rakjuk össze együtt azt a reggelit', 'uj' => 'Csatlakozz a kihíváshoz, és rakjuk össze együtt azt a reggelit, ami nem tíz perc alatt elszáll, hanem kitart délig.
-
-6 laktató reggeli és 1 reggeli ital
-heti bevásárlólista
-könnyen elkészíthető receptek
-iOS és Android applikáció', 'valtozik' => true),
-  array('elem_id' => '370bdfea', 'ut' => 'editor', 'horgony' => 'Reggel kapkodsz, és a végén marad a kávé meg valami gyors édesség', 'uj' => 'Reggel kapkodsz, és a végén marad a kávé meg valami gyors édesség. Ismerős? Aztán tíz óra körül megjön az éhség, és már a keksz után nyúlsz, pedig reggeliztél.
-
-Nem a jó recept hiányzik. Reggel van a legkevesebb idő, és pont olyankor a legnehezebb kitalálni, mi legyen.
-
-Ebben segít a 7 napos egészséges reggeli kihívás: minden nap kapsz egy kész receptet és hozzá a heti bevásárlólistát, hogy reggelente ne Neked kelljen ötletelni.
-
-Nem kell felforgatnod a reggeleidet. Egy hét alatt kipróbálunk hat laktató reggelit meg egy reggeli italt, és kiderül, melyik az a kettő-három, ami beleférne a Te hétköznapodba is.', 'valtozik' => true),
-  array('elem_id' => '17c1f49', 'ut' => 'editor', 'horgony' => 'A 7 napos egészséges reggeli kihívás alatt minden nap kapsz egy receptet', 'uj' => 'A 7 napos egészséges reggeli kihívás alatt minden nap kapsz egy receptet, és hozzá a heti bevásárlólistát. Lesz köztük gyors serpenyős reggeli, tálban összerakható, kásás, és azt is megnézzük, mit érdemes inni a reggeli mellé.
-
-A recepteket úgy válogattam össze, hogy táplálóak, változatosak és reggel is reálisan elkészíthetőek legyenek. A hozzávalókat a piacokon, boltok polcain könnyen megtalálod. Nem kell hozzájuk különleges konyhai tudás, és nem kell semmilyen speciális eszköz sem. Mindegyik gluténmentes, tejmentes, és nincs bennük hozzáadott cukor.
-
-A kihívás teljesítésével egy csapásra két legyet is üthetsz: a 7. nap végén megveregetheted a válladat, hogy teljesítetted a tervet. De ami fontosabb, elindulhatsz az úton egy új, egészséges szokás kialakításához, amelyet csak folytatnod kell.
-
-A kihívás végére lesz 7 új recepted, amit később bármikor elővehetsz, amikor reggel nem jut eszedbe semmi.', 'valtozik' => true),
-  array('elem_id' => 'c927586', 'ut' => 'editor', 'horgony' => 'Az egészséges reggeli abban segít, hogy ne a nap legrosszabb döntésével', 'uj' => 'Az egészséges reggeli kihívás abban segít, hogy a nap első étkezését ne kelljen minden reggel kapkodva kitalálni. Legyen reggelre kész terved, amit csak elő kell venned.
-
-A kihívás alatt megtapasztalhatod, hogy', 'valtozik' => true),
+  array('elem_id' => 'b3e8629', 'ut' => 'editor', 'horgony' => 'Csatlakozz a kihíváshoz, és rakjuk össze együtt azt a reggelit', 'uj' => '<p>Csatlakozz a kihíváshoz, és rakjuk össze együtt azt a reggelit, ami nem tíz perc alatt elszáll, hanem kitart délig.</p><ul><li>6 laktató reggeli és 1 reggeli ital</li><li>heti bevásárlólista</li><li>könnyen elkészíthető receptek</li><li>iOS és Android applikáció</li></ul>', 'valtozik' => true),
+  array('elem_id' => '370bdfea', 'ut' => 'editor', 'horgony' => 'Reggel kapkodsz, és a végén marad a kávé meg valami gyors édesség', 'uj' => '<p>Reggel kapkodsz, és a végén marad a kávé meg valami gyors édesség. Ismerős? Aztán tíz óra körül megjön az éhség, és már a keksz után nyúlsz, pedig reggeliztél.</p><p>Nem a jó recept hiányzik. Reggel van a legkevesebb idő, és pont olyankor a legnehezebb kitalálni, mi legyen.</p><p>Ebben segít a 7 napos egészséges reggeli kihívás: minden nap kapsz egy kész receptet és hozzá a heti bevásárlólistát, hogy reggelente ne Neked kelljen ötletelni.</p><p>Nem kell felforgatnod a reggeleidet. Egy hét alatt kipróbálunk hat laktató reggelit meg egy reggeli italt, és kiderül, melyik az a kettő-három, ami beleférne a Te hétköznapodba is.</p>', 'valtozik' => true),
+  array('elem_id' => '17c1f49', 'ut' => 'editor', 'horgony' => 'A 7 napos egészséges reggeli kihívás alatt minden nap kapsz egy receptet', 'uj' => '<p>A 7 napos egészséges reggeli kihívás alatt minden nap kapsz egy receptet, és hozzá a heti bevásárlólistát. Lesz köztük gyors serpenyős reggeli, tálban összerakható, kásás, és azt is megnézzük, mit érdemes inni a reggeli mellé.</p><p>A recepteket úgy válogattam össze, hogy táplálóak, változatosak és reggel is reálisan elkészíthetőek legyenek. A hozzávalókat a piacokon, boltok polcain könnyen megtalálod. Nem kell hozzájuk különleges konyhai tudás, és nem kell semmilyen speciális eszköz sem. Mindegyik gluténmentes, tejmentes, és nincs bennük hozzáadott cukor.</p><p>A kihívás teljesítésével egy csapásra két legyet is üthetsz: a 7. nap végén megveregetheted a válladat, hogy teljesítetted a tervet. De ami fontosabb, elindulhatsz az úton egy új, egészséges szokás kialakításához, amelyet csak folytatnod kell.</p><p>A kihívás végére lesz 7 új recepted, amit később bármikor elővehetsz, amikor reggel nem jut eszedbe semmi.</p>', 'valtozik' => true),
+  array('elem_id' => 'c927586', 'ut' => 'editor', 'horgony' => 'Az egészséges reggeli abban segít, hogy ne a nap legrosszabb döntésével', 'uj' => '<p>Az egészséges reggeli kihívás abban segít, hogy a nap első étkezését ne kelljen minden reggel kapkodva kitalálni. Legyen reggelre kész terved, amit csak elő kell venned.</p><p>A kihívás alatt megtapasztalhatod, hogy</p>', 'valtozik' => true),
   array('elem_id' => '360da42', 'ut' => 'icon_list.0.text', 'horgony' => 'kitarthat a jóllakottság délig, és elmaradhat a délelőtti éhségroham', 'uj' => 'kitarthat a jóllakottság délig, és elmaradhat a délelőtti éhségroham', 'valtozik' => false),
   array('elem_id' => '360da42', 'ut' => 'icon_list.1.text', 'horgony' => 'milyen egyszerű sósan indítani a napot', 'uj' => 'milyen egyszerű sósan indítani a napot', 'valtozik' => false),
   array('elem_id' => '360da42', 'ut' => 'icon_list.2.text', 'horgony' => 'néhány perc is elég lehet egy laktató reggelihez', 'uj' => 'néhány perc is elég lehet egy laktató reggelihez', 'valtozik' => false),
@@ -71,7 +52,7 @@ A kihívás alatt megtapasztalhatod, hogy', 'valtozik' => true),
   array('elem_id' => 'bb2a697', 'ut' => 'icon_list.5.text', 'horgony' => 'gluténmentesen vagy tejmentesen étkezel, és elfogytak az ötleteid', 'uj' => 'gluténmentesen vagy tejmentesen étkezel, és elfogytak az ötleteid,', 'valtozik' => true),
   array('elem_id' => 'bb2a697', 'ut' => 'icon_list.6.text', 'horgony' => 'munka és család mellett jól jönne egy kis segítség a reggelekhez', 'uj' => 'munka és család mellett jól jönne egy kis segítség a reggelekhez,', 'valtozik' => true),
   array('elem_id' => 'bb2a697', 'ut' => 'icon_list.7.text', 'horgony' => 'vagy egyszerűen kíváncsi vagy, mitől lesz laktató egy reggeli.', 'uj' => 'vagy egyszerűen kíváncsi vagy, hogy mitől lesz laktató egy reggeli.', 'valtozik' => true),
-  array('elem_id' => 'be0d9b5', 'ut' => 'editor', 'horgony' => 'Remélem, a hét végére Te is úgy nézel majd erre a hétre', 'uj' => 'Remélem, a hét végére Te is úgy nézel majd a reggeli asztalon álló tányérodra, hogy ezt miért nem csináltam eddig?', 'valtozik' => true)
+  array('elem_id' => 'be0d9b5', 'ut' => 'editor', 'horgony' => 'Remélem, a hét végére Te is úgy nézel majd erre a hétre', 'uj' => '<p>Remélem, a hét végére Te is úgy nézel majd a reggeli asztalon álló tányérodra, hogy ezt miért nem csináltam eddig?</p>', 'valtozik' => true)
 );
 
 ki('LANDING 17544 SZOVEG-CSERE  '.gmdate('c').' UTC   DB='.DB_NAME);
@@ -122,7 +103,13 @@ function km_ut_ir(&$settings, $ut, $ertek) {
     $p = $ertek;
     return true;
 }
-function km_tiszta($s) { return trim(preg_replace('/\s+/u', ' ', wp_strip_all_tags($s))); }
+function km_tiszta($s) {
+    /* A blokk-tagek HATART jelentenek: nelkuluk a "</p><p>" hatarbol "…vegeEleje…" lesz,
+       es a jelentes olvashatatlan. A horgony-osszevetest ez nem billenti el: a MAI ertekek
+       tag-mentesek (2026-09-21-en megmerve: a 13 text-editor widgetbol 9 nulla tagot hordoz). */
+    $s = preg_replace('#<(/p|/li|br\s*/?|/h[1-6])\s*>#i', ' ', $s);
+    return trim(preg_replace('/\s+/u', ' ', wp_strip_all_tags($s)));
+}
 
 $rendben = 0; $hiba = 0; $valtozik = 0;
 foreach ($PAROK as $par) {

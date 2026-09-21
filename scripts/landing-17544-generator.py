@@ -72,10 +72,32 @@ def alszekcio(torzs, cim):
     return None if not m else m.group(1).strip('\n')
 
 
-def bekezdesek(blokk):
-    """Ures sorral elvalasztott bekezdesek, '\\n\\n'-nel osszefuzve (a prod alakja)."""
-    r = [b.strip() for b in re.split(r'\n\s*\n', blokk) if b.strip()]
-    return '\n\n'.join(r)
+def bekezdes_lista(blokk):
+    return [b.strip() for b in re.split(r'\n\s*\n', blokk) if b.strip()]
+
+
+def html_bekezdesek(blokk):
+    """Bekezdesenkent <p>. A text-editor widget a tarolt erteket NYERSEN adja ki: ami
+    nincs tagbe teve, az egyetlen folyo szovegge olvad ossze."""
+    return ''.join('<p>' + h(b) + '</p>' for b in bekezdes_lista(blokk))
+
+
+def html_hero(blokk):
+    """Hero: elso bekezdes <p>, a maradek sorok <ul><li>. A 2026.08-as landing (16884)
+    pontosan ezt az alakot hordozza ugyanezen az elem-azonositon."""
+    r = bekezdes_lista(blokk)
+    if len(r) != 2:
+        raise SystemExit(f'HIBA: a hero {len(r)} blokkos, 2-t vartam (bevezeto + lista).')
+    tetelek = [s.strip() for s in r[1].split('\n') if s.strip()]
+    if len(tetelek) != 4:
+        raise SystemExit(f'HIBA: a hero listaja {len(tetelek)} soros, nem 4.')
+    return ('<p>' + h(r[0]) + '</p><ul>'
+            + ''.join('<li>' + h(t) + '</li>' for t in tetelek) + '</ul>')
+
+
+def h(s):
+    """Csak a szerkezeti karaktereket entitasozzuk -- ekezetet, irasjelet nem."""
+    return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
 
 
 def sorok(blokk):
@@ -93,22 +115,22 @@ def main():
     parok = []
 
     def fel(elem_id, ut, uj):
-        h = HORGONY.get((elem_id, ut))
-        if h is None:
+        hg = HORGONY.get((elem_id, ut))
+        if hg is None:
             raise SystemExit(f'HIBA: nincs mert horgony ehhez: {elem_id} {ut}')
         if not uj or not uj.strip():
             raise SystemExit(f'HIBA: ures uj ertek: {elem_id} {ut}')
-        parok.append({'elem_id': elem_id, 'ut': ut, 'horgony': h, 'uj': uj,
-                      'valtozik': uj.strip() != h.strip()})
+        parok.append({'elem_id': elem_id, 'ut': ut, 'horgony': hg, 'uj': uj,
+                      'valtozik': re.sub(r'<[^>]+>', ' ', uj).strip() != hg.strip()})
 
     # (b) hero: bevezeto + negysoros lista, egyben
-    fel('b3e8629', 'editor', bekezdesek(sz['b']))
+    fel('b3e8629', 'editor', html_hero(sz['b']))
     # (a) 2. szekcio torzse  (a CIM valtozatlan, ezert nincs benne a parositasban)
-    fel('370bdfea', 'editor', bekezdesek(alszekcio(sz['a'], 'Törzs')))
+    fel('370bdfea', 'editor', html_bekezdesek(alszekcio(sz['a'], 'Törzs')))
     # (c) "Mire szamithatsz?" torzse
-    fel('17c1f49', 'editor', bekezdesek(sz['c']))
+    fel('17c1f49', 'editor', html_bekezdesek(sz['c']))
     # (d) "Mit kapsz meg?" bevezeto + negy ikonos pont
-    fel('c927586', 'editor', bekezdesek(alszekcio(sz['d'], 'Bevezető')))
+    fel('c927586', 'editor', html_bekezdesek(alszekcio(sz['d'], 'Bevezető')))
     negy = sorok(alszekcio(sz['d'], 'A négy pont'))
     if len(negy) != 4:
         raise SystemExit(f'HIBA: a "negy pont" {len(negy)} soros, nem 4.')
@@ -121,14 +143,14 @@ def main():
     for i, s in enumerate(nyolc):
         fel('bb2a697', f'icon_list.{i}.text', s)
     # (f) zaro vagykep
-    fel('be0d9b5', 'editor', bekezdesek(sz['f']))
+    fel('be0d9b5', 'editor', html_bekezdesek(sz['f']))
 
     if len(parok) != len(HORGONY):
         raise SystemExit(f'HIBA: {len(parok)} par keszult, {len(HORGONY)} horgonyhoz.')
 
     # ONELLENORZES, ami a kapu sajat leleteire nez: a bevitt szoveg ne hozza vissza
     # azt, amit epp javitunk. Nem velemeny, hanem szamlalas.
-    egyben = '\n'.join(p['uj'] for p in parok)
+    egyben = re.sub(r'<[^>]+>', ' ', '\n'.join(p['uj'] for p in parok))
     bajok = []
     if '–' in egyben or '—' in egyben:
         bajok.append('nagykotojel van az UJ szovegben')
@@ -138,7 +160,7 @@ def main():
             bajok.append(f'elettani szokincs az UJ szovegben: {szo}')
     if 'állítottam össze' in egyben:
         bajok.append("'allitottam ossze' az UJ szovegben")
-    imadni = [p['uj'] for p in parok if p['elem_id'] == 'bb2a697']
+    imadni = [p['uj'] for p in parok if p['elem_id'] == 'bb2a697']  # ezek tag nelkuliek
     vesszos = sum(1 for x in imadni if x.endswith(','))
     if vesszos < 7:
         bajok.append(f'az "Imadni fogod" 8 pontjabol csak {vesszos} vesszos')
@@ -241,7 +263,13 @@ function km_ut_ir(&$settings, $ut, $ertek) {
     $p = $ertek;
     return true;
 }
-function km_tiszta($s) { return trim(preg_replace('/\s+/u', ' ', wp_strip_all_tags($s))); }
+function km_tiszta($s) {
+    /* A blokk-tagek HATART jelentenek: nelkuluk a "</p><p>" hatarbol "…vegeEleje…" lesz,
+       es a jelentes olvashatatlan. A horgony-osszevetest ez nem billenti el: a MAI ertekek
+       tag-mentesek (2026-09-21-en megmerve: a 13 text-editor widgetbol 9 nulla tagot hordoz). */
+    $s = preg_replace('#<(/p|/li|br\s*/?|/h[1-6])\s*>#i', ' ', $s);
+    return trim(preg_replace('/\s+/u', ' ', wp_strip_all_tags($s)));
+}
 
 $rendben = 0; $hiba = 0; $valtozik = 0;
 foreach ($PAROK as $par) {
