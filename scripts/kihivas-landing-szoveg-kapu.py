@@ -37,9 +37,15 @@ ELO_URL = "https://vip.21napalatt.hu/ingyenes-kihivas/"
 # Mind a hat CTA, szo szerint, a mert sorrendben. Ezek ALLANDOK.
 CTA = ["Én is kipróbálom", "Már megyek is", "Vágjunk bele, csatlakozom",
        "Wow, erre rámegyek", "Naná, regisztrálok is", "Itt a helyem, regisztrálok"]
-# Elettani/orvosi mechanizmus-szokincs. A korpusz OT landingjen MIND NULLA (megmerve).
-ORVOSI = ["vércukor", "inzulin", "hormon", "anyagcsere", "glikémiás", "ketózis",
-          "gyulladás", "immunrendszer"]
+# Elettani/orvosi mechanizmus-szokincs, SZOTOKENT. A korpusz ot landingjen MIND NULLA
+# (ujramerve 2026-09-21: a lenti tizenketto egyike sem fordul elo benne).
+#
+# MIERT SZOTO ES NEM TELJES SZO (2026-09-21, az elo lap fogta meg a kaput, nem forditva):
+# a lap "vércukrodat"-ot ir, es a magyar ragozas KIEJTI a tovegi o-t -- a "vércukor" tehat
+# NEM reszsztringje. Mind a nyolc regi minta NULLAT adott egy olyan szovegen, amiben ket
+# elettani fordulat all ("vércukrodat", "IR-barátok"). A nulla nem lelet volt, hanem vaksag.
+ORVOSI = ['vércuk', 'inzulin', 'hormon', 'anyagcser', 'glikém', 'ketóz', 'gyullad',
+          'immunrendszer', 'IR-barát', 'rezisztenc', 'glükóz', 'ketogén']
 ALLANDO = {
     "Miert eppen 7 nap blokk": "gyakorlás törvénye kimondja",
     "VIP Klub leiras": "teljes hozzáférést ad a klub minden tartalmához",
@@ -147,10 +153,38 @@ def main():
     # 2. elettani szokincs
     talalt = [(k, t.count(k)) for k in ORVOSI if k in t]
     if talalt:
-        reszlet = ", ".join(f"{k} ({n}x)" for k, n in talalt)
-        leletek.append(f"ELETTANI/ORVOSI SZOKINCS: {reszlet}. A korpuszon mindegyik NULLA. "
+        reszlet = ", ".join(f"{k}* ({n}x)" for k, n in talalt)
+        leletek.append(f"ELETTANI/ORVOSI SZOKINCS (szotovek, a * ragozott alakot is fed): {reszlet}. A korpuszon mindegyik NULLA. "
                        f"A hang-profil 6. pontja: a landing nem ad orvosi tanacsot; a problema "
                        f"az olvaso SAJAT JELENETE legyen, ne mechanizmus-magyarazat.")
+
+    # 2/b. HOMOGLIFA -- 2026-09-21-en adtam hozza (Nova), Copy leletebol.
+    #
+    # MIERT ITT, ES MIERT NEM "ELEG ODAFIGYELNI": a landing szovege HOSSZU LANCON
+    # utazik, mielott kikerul (Eszter hangja -> Nessa briefje -> Copy fajlja ->
+    # inter-agent uzenet -> Bit csere-szkriptje -> _elementor_data). 2026-09-21-en
+    # Copy sajat maga vette eszre, hogy az INTER-AGENT UZENETE torzseben a
+    # "belefernе" szo vegere CIRILL 'е' (U+0435) kerult, mikozben a LEADOTT FAJLJA
+    # tiszta volt. A hiba tehat nem a szovegben keletkezett, hanem az ATADASBAN --
+    # es aki az uzenetbol masol, azt viszi ki az elo lapra.
+    #
+    # ES AMIERT EZ ROSSZABB EGY ELGEPELESNEL: a cirill betu KINEZETRE azonos, tehat
+    # az atolvasas nem fogja meg; a grep viszont NEM TALALJA MEG, vagyis utana sem a
+    # kapu, sem egy kesobbi csere-szkript nem lat ra ra. A hianyzo talalat pedig NEM
+    # hibanak latszik, hanem NULLANAK -- "nincs ilyen sor, nincs mit javitani".
+    #
+    # A KAPU TEHAT NEM A SZOVEGET VEDI, HANEM AZ ATADAST. Ha ez tuzel, a javitas
+    # SOSEM az, hogy atirjuk a szot: a kihelyezes forrasa a FAJL legyen, amin ez a
+    # kapu lefutott, soha nem az uzenet, amiben emlitettuk.
+    import unicodedata as _ud
+    homo = []
+    for _i, _ch in enumerate(t):
+        if _ch.isalpha() and ord(_ch) > 127 and not _ud.name(_ch, "?").startswith("LATIN"):
+            homo.append((_ch, hex(ord(_ch)), _ud.name(_ch, "?"), t[max(0, _i - 30):_i + 30]))
+    if homo:
+        reszlet = "; ".join(f"{c} ({k}, {n}) itt: ...{sz.strip()}..." for c, k, n, sz in homo[:5])
+        leletek.append(f"HOMOGLIFA ({len(homo)} nem-latin betu latin szo kozepen): {reszlet}. "
+                       "NE a szoveget javitsd: a kihelyezes forrasa a FAJL legyen, ne az uzenet.")
 
     # 3. a szerzo sajat szava
     if "állítottam össze" in t and "válogattam össze" not in t:

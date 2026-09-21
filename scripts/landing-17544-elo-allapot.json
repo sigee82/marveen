@@ -1,22 +1,22 @@
 {
- "mikor_utc": "2026-09-21T10:04:41Z",
+ "mikor_utc": "2026-09-21T11:27:22Z",
  "forras": "https://vip.21napalatt.hu/ingyenes-kihivas/",
- "hogyan": "Playwright, a RENDERELT DOM-bol, data-id szerint. Editor-mezo: a .elementor-widget-container innerText-je; icon_list: az egyes .elementor-icon-list-text elemek. Mindketto nbsp->szokoz es whitespace-osszevonas utan. A tag_db a mezo HTML-tagjainak szama -- a 2026-09-21 09:27-es deploy utan mind az ot editor-mezo tagolt (12/8/8/4/2), az icon_list tetelek nullaval, ahogy a referencia-landingen is. FRISSITVE a 2026-09-21 12:0x-es (10:04 UTC) deploy UTAN: ez a snapshot mindig a LEGUTOBBI iras utani allapotot hordozza, kulonben a kovetkezo generalas a sajat deployunktol avult horgonyokkal indulna.",
+ "hogyan": "Playwright, a RENDERELT DOM-bol, data-id szerint. Editor-mezo: a .elementor-widget-container innerText-je; icon_list: az egyes .elementor-icon-list-text elemek. Mindketto nbsp->szokoz es whitespace-osszevonas utan. A tag_db a mezo HTML-tagjainak szama -- a 2026-09-21 09:27-es deploy utan mind az ot editor-mezo tagolt (12/8/8/4/2), az icon_list tetelek nullaval, ahogy a referencia-landingen is. FRISSITVE a 2026-09-21 12:0x-es (10:04 UTC) deploy UTAN: ez a snapshot mindig a LEGUTOBBI iras utani allapotot hordozza, kulonben a kovetkezo generalas a sajat deployunktol avult horgonyokkal indulna. 2026-09-21 11:16 UTC: felvéve a 9a135ee|title (heading-widget) is -- Copy harmadik kore ATNEVEZI ezt a szekcio-cimet, es addig EGYETLEN cim sem volt a parositasban. A tag_db itt 2, mert a heading sajat <h3>-at hordozza; ez nem a mezo tartalmanak markupja, hanem a widget kerete. Es felveve a 6c78b0f2|title is: a lefedettseg-kapu talalta meg, hogy ez az EGYETLEN forras-sor, ami sehol nem jelenik meg a parositasban. Eddig azzal maradt ki, hogy \"ugysem valtozik\" -- pontosan az az indok, ami a 9a135ee cimet is kihagyta, es azt Eszter harmadik kore atirta. 2026-09-21 13:2x: frissitve a masodik-negyedik kor deployja UTAN. A 19 ertek a kihelyezett parositasbol jon (a PHP 19/19-et olvasott vissza), es HAROM mezon fuggetlenul, a bongeszobol is ellenorizve -- ha azok nem egyeztek volna, ez a frissites megall.",
  "mezok": {
   "b3e8629|editor": {
-   "szoveg": "Csatlakozz a kihíváshoz, és készíts velünk laktató reggeliket egyszerű alapanyagokból, amelyek délig is kitarthatnak. 7 laktató reggeli heti bevásárlólista könnyen elkészíthető receptek iOS és Android applikáció",
+   "szoveg": "Csatlakozz a kihíváshoz, és készíts velünk hét laktató reggelit egyszerű alapanyagokból! Olyanokat, amik délig is kitarthatnak. 7 laktató reggeli heti bevásárlólista könnyen elkészíthető receptek iOS és Android applikáció",
    "tag_db": 12
   },
   "370bdfea|editor": {
-   "szoveg": "Reggel kapkodsz, és a végén marad a kávé meg valami gyors édesség. Ismerős? Aztán tíz óra körül megjön az éhség, és már a keksz után nyúlsz, pedig reggeliztél. Nem a jó recept hiányzik. Reggel van a legkevesebb idő, és pont olyankor a legnehezebb kitalálni, mi legyen. Az egészséges reggeli kihívás segít megismerni, mitől lesz egy reggeli igazán laktató, és hogyan kerülheted el, hogy tíz óra körül újra rád törjön az éhség. A kihívásban 7 különböző receptet készítünk el, és pontos bevásárlólistát is kapsz, így nem neked kell kitalálni, mit egyél reggel, egyszerűen csak készítsd el és élvezd. Nem kell felforgatnod a reggeleidet. Egy hét alatt kipróbálunk hét laktató reggelit, és kiderül, melyik az a kettő-három, ami beleférne a Te hétköznapodba is.",
+   "szoveg": "Reggel kapkodsz, és a végén marad a kávé meg valami gyors édesség. Ismerős? Aztán tíz óra körül megjön az éhség, és már a keksz után nyúlsz, pedig reggeliztél. Nem a jó recept hiányzik. Reggel van a legkevesebb időd, és pont olyankor a legnehezebb kitalálni, mi kerüljön az asztalra. Az egészséges reggeli kihívás segít megismerni, mitől lesz egy reggeli igazán laktató, és hogyan kerülheted el, hogy tíz óra körül újra rád törjön az éhség. A kihívásban 7 különböző receptet készítünk el, és pontos bevásárlólistát is kapsz, így nem neked kell kitalálni, mit egyél reggel, egyszerűen csak készítsd el és élvezd. És nem kell felforgatnod a reggeleidet! Nem az a cél, hogy holnaptól mindent másképp csinálj, hanem hogy egy hét alatt kipróbálj hét reggelit, és kiderüljön, melyik az a kettő-három, ami tényleg belefér a Te hétköznapodba.",
    "tag_db": 8
   },
   "17c1f49|editor": {
-   "szoveg": "A 7 napos egészséges reggeli kihívás alatt minden nap kapsz egy receptet, és hozzá a heti bevásárlólistát. Hét különböző reggeli, és mind a hét sós. A recepteket úgy válogattam össze, hogy táplálóak, változatosak és reggel is reálisan elkészíthetőek legyenek. A hozzávalókat a piacokon, boltok polcain könnyen megtalálod. Nem kell hozzájuk különleges konyhai tudás, és nem kell semmilyen speciális eszköz sem. Mindegyik gluténmentes, tejmentes, és nincs bennük hozzáadott cukor. A kihívás teljesítésével egy csapásra két legyet is üthetsz: a 7. nap végén megveregetheted a válladat, hogy teljesítetted a tervet. De ami fontosabb, elindulhatsz az úton egy új, egészséges szokás kialakításához, amelyet csak folytatnod kell. A kihívás végére lesz 7 új recepted, amit később bármikor elővehetsz, amikor reggel nem jut eszedbe semmi.",
+   "szoveg": "Minden reggel ott vár egy recept, és hozzá a heti bevásárlólista, hogy ne a hűtő előtt állva kelljen döntened. Hét reggelit próbálunk ki egy hét alatt, és mindet úgy raktuk össze, hogy segítsen egyensúlyban tartani a vércukrodat. A recepteket úgy válogattam össze, hogy IR-barátok, táplálóak és reggel is reálisan elkészíthetőek legyenek. A hozzávalókat a piacokon, boltok polcain könnyen megtalálod. Nem kell hozzájuk különleges konyhai tudás, és nem kell semmilyen speciális eszköz sem. Mindegyik sós, gluténmentes, tejmentes, és nincs bennük hozzáadott cukor. A kihívás teljesítésével egy csapásra két legyet is üthetsz: a 7. nap végén megveregetheted a válladat, hogy teljesítetted a tervet. De ami fontosabb, elindulhatsz az úton egy új, egészséges szokás kialakításához, amelyet csak folytatnod kell. A kihívás végére lesz 7 új recepted, amit később bármikor elővehetsz, amikor reggel nem jut eszedbe semmi.",
    "tag_db": 8
   },
   "c927586|editor": {
-   "szoveg": "Az egészséges reggeli kihívás abban segít, hogy a nap első étkezését ne kelljen minden reggel kapkodva kitalálni. Legyen reggelre kész terved, amit csak elő kell venned. A kihívás alatt megtapasztalhatod, hogy",
+   "szoveg": "Ebben a hétben nem kell reggelente kapkodva döntened. Reggelre ott a terv, neked már csak elő kell venned. A kihívás alatt megtapasztalhatod, hogy",
    "tag_db": 4
   },
   "be0d9b5|editor": {
@@ -36,7 +36,7 @@
    "tag_db": 0
   },
   "360da42|icon_list.3.text": {
-   "szoveg": "mennyivel nyugodtabb egy reggel, ha nem neked kell kitalálni, mi legyen",
+   "szoveg": "mennyivel nyugodtabb egy reggel, ha már kész a terv",
    "tag_db": 0
   },
   "bb2a697|icon_list.0.text": {
@@ -70,6 +70,14 @@
   "bb2a697|icon_list.7.text": {
    "szoveg": "vagy egyszerűen kíváncsi vagy, hogy mitől lesz laktató egy reggeli.",
    "tag_db": 0
+  },
+  "9a135ee|title": {
+   "szoveg": "Mi változhat a reggeleidben?",
+   "tag_db": 2
+  },
+  "6c78b0f2|title": {
+   "szoveg": "Reggelizz úgy, hogy délig kitartson",
+   "tag_db": 2
   }
  }
 }
