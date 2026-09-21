@@ -19,8 +19,13 @@ Bit, 2026-08-07. Card 9176b492. Prod deploy is Nova's (Bit has no SSH to vip.21n
 > -bol indultam, es ott NINCS `kor` -- abbol az kovetkezett volna, hogy a mezo nem is letezik a
 > connectorban. A kihelyezett fajl a `prod` ag, nem ez a mappa.
 >
-> Ez a hash a PROD AGON merve van, nem a futo fajlon. A ketto egyezeset egy `md5sum` mondja meg
-> a szerveren -- az SSH Novae.
+> **A FUTO FAJLON IS MERVE, 2026-09-21 (Nova, SSH):**
+> `/home/napalatt/vip.21napalatt.hu/wp-content/mu-plugins/vip-meta-capi.php` -- 26279 byte,
+> mtime Sep 15 17:10, md5 `5368b618b6e060c9402c6bf57085da5f`. Ugyanaz, mint a `prod` agon, es a
+> `kor`-szamitas harom sora ott all a futo fajlban (239., 246., 248.). A checkout tehat NEM tert
+> el az agtol, es az mtime datalja a fbc-jelzes kihelyezeset (09-15).
+> Ez a ket meres kulon lepes marad: a `gh api ...?ref=prod` az AGAT adja, az `md5sum` a FUTO
+> fajlt. Aki a jovoben connector-kodot idez, mondja meg, melyikrol beszel.
 
 ## PENDING: v4 + the shared event_id (not deployed as of 2026-08-07 13:00)
 
