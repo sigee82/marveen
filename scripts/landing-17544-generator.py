@@ -28,7 +28,7 @@ generalja a prodon futtathato PHP-t.
 FUTTATAS:
   python3 scripts/landing-17544-generator.py
 """
-import io, json, os, re
+import argparse, html, io, json, os, re, subprocess
 
 COPY_MD = ('/Users/macmini/marveen/agents/copy/workspace/landing/'
            'ingyenes-kihivas-2026-10-reggeli/landing-2026-10-reggeli-JAVITOTT.md')
@@ -42,6 +42,46 @@ ELO_ALLAPOT = '/Users/macmini/marveen/scripts/landing-17544-elo-allapot.json'
 KOCKAZATOS = '\u2013\u2014\u2018\u2019\u201c\u201d\u201e\u2026'
 HORGONY_MAX = 80
 HORGONY_MIN = 25
+
+
+def elo_szoveg():
+    """Az ELO lap olvashato szovege. Ugyanaz a fetch-ut, amit a szoveg-kapu hasznal."""
+    r = subprocess.run(['curl', '-sL', 'https://vip.21napalatt.hu/ingyenes-kihivas/'],
+                       capture_output=True, text=True, timeout=120)
+    if r.returncode != 0 or not r.stdout:
+        return None
+    t = re.sub(r'(?is)<(script|style|noscript)[^>]*>.*?</\1>', ' ', r.stdout)
+    t = html.unescape(re.sub(r'(?s)<[^>]+>', ' ', t))
+    return re.sub(r'\s+', ' ', t.replace('\u00a0', ' ')).strip()
+
+
+def frissesseg_kapu(parok, meta):
+    """A MERES FRISSESSEGE, mert a mert allapot ugyanugy elavul, mint a kezi tabla volt.
+
+    A snapshot egy PILLANATOT rogzit, es a sajat deployunk irja felul. Ha valaki kesobb
+    ujragenéral anelkul, hogy ujramerne, pontosan az a hiba jon vissza, amit a kezi tabla
+    kivetelevel megszuntettunk -- csak eggyel feljebb. Ezert a generator megnezi, hogy a
+    horgonyok MA is ott allnak-e az elo lapon.
+
+    Nem a teljes erteket veti ossze, hanem a HORGONYT: az a resz, amit a PHP-oldali kapu
+    tenylegesen hasznal. Ami a horgony UTAN valtozott, az nem is erdekli a kaput.
+    """
+    t = elo_szoveg()
+    if t is None:
+        raise SystemExit('HIBA: az elo lap nem toltodott le, a frissesseg nem merheto.\n'
+                         '  A --meres-nelkul kapcsoloval atlephetsz rajta, de akkor a\n'
+                         '  horgonyok korarol NINCS allitasunk.')
+    hianyzo = [f"{p['elem_id']}|{p['ut']}" for p in parok
+               if re.sub(r'\s+', ' ', p['horgony']).strip() not in t]
+    if hianyzo:
+        raise SystemExit(
+            'HIBA -- A MERT ALLAPOT ELAVULT. {} horgony nincs meg az elo lapon:\n  - {}\n\n'
+            '  A meres ideje: {}\n'
+            '  Azota irt valaki az oldalra (tipikusan MI, egy korabbi deployjal).\n'
+            '  TEENDO: merd ujra az elo oldalt es frissitsd a {} fajlt.\n'
+            '  NE a horgonyt igazitsd a szkripthez -- a horgony a VILAG allapota.'
+            .format(len(hianyzo), '\n  - '.join(hianyzo), meta['mikor_utc'], ELO_ALLAPOT))
+    print(f'@@ frissesseg-kapu: mind a {len(parok)} horgony megvan az elo lapon.')
 
 
 def elo_allapot():
@@ -129,6 +169,10 @@ def sorok(blokk):
 
 
 def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--meres-nelkul', action='store_true',
+                    help='a frissesseg-kapu kihagyasa (halozat nelkul)')
+    a = ap.parse_args()
     if not os.path.exists(COPY_MD):
         raise SystemExit(f'HIBA: nincs meg Copy fajlja: {COPY_MD}')
     sz = szekciok(io.open(COPY_MD, encoding='utf-8').read())
@@ -186,6 +230,12 @@ def main():
         hiany = sorted(set(mert) - {f"{p['elem_id']}|{p['ut']}" for p in parok})
         raise SystemExit(f'HIBA: {len(parok)} par keszult, {len(mert)} mert mezohoz.\n'
                          f'  Parositatlan: {", ".join(hiany) or "(nincs)"}')
+
+    if a.meres_nelkul:
+        print('@@ FIGYELEM: a frissesseg-kapu KIHAGYVA (--meres-nelkul).')
+        print(f"@@   A horgonyok a {meta['mikor_utc']}-i meresbol valok, es azota barmi tortenhetett.")
+    else:
+        frissesseg_kapu(parok, meta)
 
     # ONELLENORZES, ami a kapu sajat leleteire nez: a bevitt szoveg ne hozza vissza
     # azt, amit epp javitunk. Nem velemeny, hanem szamlalas.

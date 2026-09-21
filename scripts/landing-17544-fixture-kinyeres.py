@@ -20,7 +20,7 @@ import io, json, re, subprocess, sys
 
 ELO = '/Users/macmini/marveen/scripts/landing-17544-elo-allapot.json'
 KI = '/Users/macmini/marveen/scripts/landing-17544-fixture.json'
-ALAP_REF = '3d75c40'   # a 09:27-es deployt hordozo parositas utolso allapota
+ALAP_REF = 'd1362da'   # a 2026-09-21 12:0x-es deployt hordozo parositas
 UT = 'scripts/landing-17544-parositas.json'
 
 
