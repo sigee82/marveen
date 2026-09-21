@@ -212,7 +212,12 @@ clean_post_cache($OLDAL);
 /* MIERT MEGY A PURGE_ALL IS, pedig durvabb: Nova a retegeket EGYSZERRE uritette, tehat hogy
    melyik oldotta meg, az NINCS izolalva. Egy szukebb reszhalmaz ezert tipp lenne; ez a sor
    azt csinalja, amirol MERES van. A szkript evente parszor fut: egy ujraepulo cache olcsobb,
-   mint egy landing, ami az inditas napjan valtozatlannak latszik. */
+   mint egy landing, ami az inditas napjan valtozatlannak latszik.
+   ES A HOROG LETEZIK, nem remeny: a kihelyezett LiteSpeed 7.5.0.1 `src/api.cls.php` `init()`-je
+   a 110. es 111. soran regisztralja a `litespeed_purge_all`-t ES a `litespeed_purge_post`-ot,
+   egymas mellett, feltétel nelkul. A `purge_post` agat 2026-09-21-en HAROM eles futas kiirta
+   ("kiadva"), ami csak a has_action IGAZ againal tortenhet -- tehat az `init()` lefutott, es
+   vele a szomszedos sor is. (A plugint a `prod` agrol olvastam, nem a futo fajlbol.) */
 if (has_action('litespeed_purge_post')) {
     do_action('litespeed_purge_post', $OLDAL); ki('litespeed_purge_post: kiadva');
 } else {
