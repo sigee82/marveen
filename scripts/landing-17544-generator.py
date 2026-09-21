@@ -5,16 +5,25 @@ MIT CSINAL: Copy leadott markdownjabol KIOLVASSA az uj szovegeket (nem en gepele
 osszeparositja oket a 17544 Elementor-elem-azonositoival, kiirja a parositast JSON-be, es
 generalja a prodon futtathato PHP-t.
 
->>> A `jelenlegi` HORGONYOK MERVE VANNAK, NEM FELTETELEZVE (Bit, 2026-09-21): az elo
->>> oldal DOM-jabol olvastam ki mind a 17 mezo aktualis erteket (playwright, data-id
->>> szerint). Ezert a horgony nem a korabbi generalt szkript `uj` oszlopa -- az csak azt
->>> mondana meg, mit AKARTUNK odairni, nem azt, mi ALL ott ma.
+>>> A HORGONYOK NEM ALLNAK EBBEN A FAJLBAN, HANEM MERESBOL JONNEK:
+>>> `landing-17544-elo-allapot.json`, az ELO oldal renderelt DOM-jabol, data-id szerint.
+>>>
+>>> MIERT NEM KEZI TABLA, PEDIG ELOSZOR AZ VOLT (Nova fogta meg, 2026-09-21 delben):
+>>> a tabla ertekeit a 09:27-es deploy ELOTT vettem fel, a deploy meg atirta a mezoket --
+>>> vagyis a horgonyok a SAJAT MUNKANKTOL avultak el, par ora alatt. Egy kezzel felvett
+>>> horgony pontosan addig ervenyes, amig senki nem ir az oldalra, tehat egy DEPLOY-
+>>> szkriptben a legrosszabb helyen all: az elso sikeres futasa teszi ervenytelenne a
+>>> sajat kovetkezo futasat. Es a bukas nem hangos: a PHP oldal "elcsuszott"-nak
+>>> minositi az erintett mezoket es NEM ir, a kimenet pedig alacsonyabb darabszamot
+>>> mutat -- amit konnyu "csak ennyi valtozott"-kent olvasni.
 
 >>> ES EZERT ROVID A HORGONY: a WordPress `wptexturize` a MEGJELENITESKOR alakit at
->>> karaktereket -- a tarolt " - " az elo oldalon " – " (nagykotojel). Ha a teljes
->>> rendereltszoveget hasznalnam horgonynak, a PHP-oldali osszevetes (ami a TAROLT
->>> erteket nezi) minden ilyen mezot "elcsuszott"-nak minositene, es a szkript nem irna.
->>> A horgony ezert texturizalatlan reszlet: nincs benne kotojel, idezojel, harompont.
+>>> karaktereket -- a tarolt " - " az elo oldalon " – " (nagykotojel), a ' pedig ’.
+>>> A renderelt szoveg tehat NEM egyezik a tarolttal, es a PHP-oldali osszevetes a
+>>> TAROLTAT nezi. Ezert a horgony a mert ertek olyan prefixe, amit a texturize nem
+>>> erinthetett: a `horgony()` levagja az elso kockazatos karakter elott. Ha ettol 25
+>>> karakternel rovidebb maradna, a generator MEGALL -- egy tul rovid horgony nem
+>>> azonosit, csak atengedne barmit.
 
 FUTTATAS:
   python3 scripts/landing-17544-generator.py
@@ -26,26 +35,41 @@ COPY_MD = ('/Users/macmini/marveen/agents/copy/workspace/landing/'
 KI_JSON = '/Users/macmini/marveen/scripts/landing-17544-parositas.json'
 KI_PHP = '/Users/macmini/marveen/scripts/landing-17544-szoveg-csere.php'
 
-# elem_id -> (ut, horgony)  A horgony a 2026-09-21-en az ELO oldalrol mert ertek prefixe.
-HORGONY = {
-    ('b3e8629', 'editor'): 'Csatlakozz a kihíváshoz, és rakjuk össze együtt azt a reggelit',
-    ('370bdfea', 'editor'): 'Reggel kapkodsz, és a végén marad a kávé meg valami gyors édesség',
-    ('17c1f49', 'editor'): 'A 7 napos egészséges reggeli kihívás alatt minden nap kapsz egy receptet',
-    ('c927586', 'editor'): 'Az egészséges reggeli abban segít, hogy ne a nap legrosszabb döntésével',
-    ('be0d9b5', 'editor'): 'Remélem, a hét végére Te is úgy nézel majd erre a hétre',
-    ('360da42', 'icon_list.0.text'): 'kitarthat a jóllakottság délig, és elmaradhat a délelőtti éhségroham',
-    ('360da42', 'icon_list.1.text'): 'milyen egyszerű sósan indítani a napot',
-    ('360da42', 'icon_list.2.text'): 'néhány perc is elég lehet egy laktató reggelihez',
-    ('360da42', 'icon_list.3.text'): 'mennyivel nyugodtabb egy reggel, ha nem kell kitalálni, mi legyen',
-    ('bb2a697', 'icon_list.0.text'): 'reggelente kapkodsz, és a végén marad a kávé meg valami gyors édesség',
-    ('bb2a697', 'icon_list.1.text'): 'délelőtt tízkor már a keksz után nyúlsz, pedig reggeliztél',
-    ('bb2a697', 'icon_list.2.text'): 'unod a megszokott reggeliket, és nem jut eszedbe semmi új',
-    ('bb2a697', 'icon_list.3.text'): 'szeretnél egészségesebben reggelizni, de reggel nincs időd főzni',
-    ('bb2a697', 'icon_list.4.text'): 'kezdő életmódváltó vagy, és valami egyszerűvel kezdenél',
-    ('bb2a697', 'icon_list.5.text'): 'gluténmentesen vagy tejmentesen étkezel, és elfogytak az ötleteid',
-    ('bb2a697', 'icon_list.6.text'): 'munka és család mellett jól jönne egy kis segítség a reggelekhez',
-    ('bb2a697', 'icon_list.7.text'): 'vagy egyszerűen kíváncsi vagy, mitől lesz laktató egy reggeli.',
-}
+ELO_ALLAPOT = '/Users/macmini/marveen/scripts/landing-17544-elo-allapot.json'
+
+# Amit a wptexturize a MEGJELENITESKOR eloallithat. A horgony ezek ELSO elofordulasa
+# elott ervenyet ver -- azon tul a renderelt es a tarolt szoveg elterhet.
+KOCKAZATOS = '\u2013\u2014\u2018\u2019\u201c\u201d\u201e\u2026'
+HORGONY_MAX = 80
+HORGONY_MIN = 25
+
+
+def elo_allapot():
+    """A ma MERT elo ertekek. A fajl fejlece mondja meg, mikor es hogyan keszult."""
+    if not os.path.exists(ELO_ALLAPOT):
+        raise SystemExit(f'HIBA: nincs meg a mert elo allapot: {ELO_ALLAPOT}\n'
+                         f'  Ez NEM potolhato a korabbi generalt szkriptbol: az azt mondja meg,\n'
+                         f'  mit AKARTUNK odairni, nem azt, mi ALL ott most.')
+    d = json.load(io.open(ELO_ALLAPOT, encoding='utf-8'))
+    return d['mezok'], d
+
+
+def horgony(ertek):
+    """A mert ertek texturize-biztos prefixe."""
+    vag = len(ertek)
+    for ch in KOCKAZATOS:
+        i = ertek.find(ch)
+        if i != -1:
+            vag = min(vag, i)
+    h = ertek[:min(vag, HORGONY_MAX)]
+    if len(h) == HORGONY_MAX and ' ' in h:
+        h = h[:h.rfind(' ')]
+    h = h.strip()
+    if len(h) < HORGONY_MIN:
+        raise SystemExit(f'HIBA: a horgony {len(h)} karakterre rovidult ("{h}").\n'
+                         f'  A mert ertek eleje kockazatos karaktert tartalmaz, tehat innen\n'
+                         f'  nem lehet texturize-biztos horgonyt vagni. Kezi dontes kell.')
+    return h
 
 
 def szekciok(szoveg):
@@ -112,16 +136,29 @@ def main():
     if hianyzo:
         raise SystemExit(f'HIBA: Copy fajljabol hianyzik: {", ".join(hianyzo)}')
 
+    mert, meta = elo_allapot()
     parok = []
+    tagtalan = []
 
     def fel(elem_id, ut, uj):
-        hg = HORGONY.get((elem_id, ut))
-        if hg is None:
-            raise SystemExit(f'HIBA: nincs mert horgony ehhez: {elem_id} {ut}')
+        kulcs = f'{elem_id}|{ut}'
+        m = mert.get(kulcs)
+        if m is None:
+            raise SystemExit(f'HIBA: a {kulcs} mezorol NINCS mert elo ertek.\n'
+                             f'  Ne talald ki: merd ujra az elo oldalt, es frissitsd a\n'
+                             f'  {ELO_ALLAPOT} fajlt.')
         if not uj or not uj.strip():
-            raise SystemExit(f'HIBA: ures uj ertek: {elem_id} {ut}')
-        parok.append({'elem_id': elem_id, 'ut': ut, 'horgony': hg, 'uj': uj,
-                      'valtozik': re.sub(r'<[^>]+>', ' ', uj).strip() != hg.strip()})
+            raise SystemExit(f'HIBA: ures uj ertek: {kulcs}')
+        # A MARKUP-REGRESSZIO ORSZEME: a 09-17-i eset ota tudjuk, hogy egy sima szoveges
+        # iras nemán leszedi a tageket az editor-mezokrol. Ha a MERT elo ertek ma nulla
+        # taget hordoz egy editor-mezon, azt ki kell mondani -- nem allitjuk meg a
+        # generalast (ez a szkript epp javitani fogja), de ne csendben mulion el.
+        if ut == 'editor' and m.get('tag_db', 0) == 0:
+            tagtalan.append(kulcs)
+        tiszta_uj = re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', ' ', uj)).strip()
+        parok.append({'elem_id': elem_id, 'ut': ut,
+                      'horgony': horgony(m['szoveg']), 'uj': uj,
+                      'valtozik': tiszta_uj != m['szoveg'].strip()})
 
     # (b) hero: bevezeto + negysoros lista, egyben
     fel('b3e8629', 'editor', html_hero(sz['b']))
@@ -145,8 +182,10 @@ def main():
     # (f) zaro vagykep
     fel('be0d9b5', 'editor', html_bekezdesek(sz['f']))
 
-    if len(parok) != len(HORGONY):
-        raise SystemExit(f'HIBA: {len(parok)} par keszult, {len(HORGONY)} horgonyhoz.')
+    if len(parok) != len(mert):
+        hiany = sorted(set(mert) - {f"{p['elem_id']}|{p['ut']}" for p in parok})
+        raise SystemExit(f'HIBA: {len(parok)} par keszult, {len(mert)} mert mezohoz.\n'
+                         f'  Parositatlan: {", ".join(hiany) or "(nincs)"}')
 
     # ONELLENORZES, ami a kapu sajat leleteire nez: a bevitt szoveg ne hozza vissza
     # azt, amit epp javitunk. Nem velemeny, hanem szamlalas.
@@ -171,8 +210,17 @@ def main():
     json.dump(parok, io.open(KI_JSON, 'w', encoding='utf-8'),
               ensure_ascii=False, indent=1)
     io.open(KI_PHP, 'w', encoding='utf-8').write(FEJ + '\n$PAROK = ' + php_tomb(parok) + ';\n' + TORZS)
-    valtozik = sum(1 for p in parok if p['valtozik'])
-    print(f'@@ {len(parok)} mezo ({valtozik} valtozik, {len(parok)-valtozik} valtozatlan) -> {KI_PHP}')
+    valtozik = [p for p in parok if p['valtozik']]
+    print(f"@@ mert elo allapot: {meta['mikor_utc']}  ({meta['forras']})")
+    print(f'@@ {len(parok)} mezo ({len(valtozik)} valtozik, {len(parok)-len(valtozik)} valtozatlan)'
+          f' -> {KI_PHP}')
+    for p in valtozik:
+        print(f"@@   CSERE {p['elem_id']} {p['ut']}")
+    if tagtalan:
+        print(f'@@ FIGYELEM: {len(tagtalan)} editor-mezo MA nulla HTML-taget hordoz '
+              f'({", ".join(tagtalan)}).')
+        print('@@   Ez a markup-veszteses hibaosztaly nyoma. Ez a szkript HTML-t ir vissza,')
+        print('@@   tehat javitja -- de ha ez UJ, valami megint sima szoveget irt a mezobe.')
     print(f'@@ parositas: {KI_JSON}')
 
 

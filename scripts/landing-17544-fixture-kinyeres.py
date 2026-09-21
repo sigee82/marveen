@@ -1,76 +1,62 @@
 #!/usr/bin/env python3
-"""A 17544 MAI tarolt ertekeit allitja elo fixture-kent a lokalis probahoz.
+"""A 17544 MAI TAROLT ertekeit allitja elo fixture-kent, KET FUGGETLEN FORRASBOL.
 
-FORRAS ES MIERT AZ: a tarolt (`_elementor_data`-beli) alakot NEM lehet az elo oldalrol
-kiolvasni -- a WordPress `wptexturize` a megjeleniteskor atalakit (a tarolt " - "-bol
-" – " lesz). A ma ervenyes tarolt ertek az elozo generalt szkript `uj` oszlopa: azt irta
-be a 2026-09-17-i eles menet, es az elo DOM (ma megmerve, data-id szerint) mind a 17
-mezoben ezzel egyezik, a texturizalt karaktereket leszamitva.
+A tarolt ertek (HTML-lel egyutt) kivulrol nem olvashato: a renderelt oldal texturizalt es
+a tagok az innerText-bol eltunnek. Ket forrasunk van ra, es EGYIKET SEM HISSZUK EL MAGABAN:
+
+  1. A 2026-09-21 09:27-es deploy parositasa a git-bol (`git show <ref>:...parositas.json`).
+     Azok a `uj` ertekek mentek be, es a PHP mezonkent vissza is olvasta oket (17/17).
+  2. Az ELO oldal ma mert renderelt szovege (`landing-17544-elo-allapot.json`).
+
+A KETTOT OSSZEVETJUK: az 1-es ertekbol tagokat szedve, whitespace-t osszevonva PONTOSAN a
+2-es szoveget kell kapni. Ha nem, akkor vagy az oldal mozdult el azota, vagy a git-ref
+rossz -- mindket esetben LELET, es nem szabad fixture-t epiteni ra.
+(A texturize itt nem zavar: a mert ertekekben nincs olyan karakter, amit atalakitana. Ha
+egyszer lesz, ez az osszevetes fog elhasalni, es az a helyes viselkedes -- nem a csend.)
+
+FUTTATAS:  python3 scripts/landing-17544-fixture-kinyeres.py [git-ref]
 """
-import io, json, re, sys
+import io, json, re, subprocess, sys
 
-REGI_PHP = '/Users/macmini/marveen/scripts/landing-szoveg-behelyettesites.php'
-PAROSITAS = '/Users/macmini/marveen/scripts/landing-17544-parositas.json'
+ELO = '/Users/macmini/marveen/scripts/landing-17544-elo-allapot.json'
 KI = '/Users/macmini/marveen/scripts/landing-17544-fixture.json'
+ALAP_REF = '3d75c40'   # a 09:27-es deployt hordozo parositas utolso allapota
+UT = 'scripts/landing-17544-parositas.json'
 
 
-def php_stringek(sor):
-    """A generalt PHP sajat idezesenek inverze: \\' -> ' , \\\\ -> \\ ."""
-    ki, i, akt, benn = [], 0, [], False
-    while i < len(sor):
-        c = sor[i]
-        if not benn:
-            if c == "'":
-                benn, akt = True, []
-            i += 1
-            continue
-        if c == '\\' and i + 1 < len(sor):
-            akt.append(sor[i + 1]); i += 2; continue
-        if c == "'":
-            ki.append(''.join(akt)); benn = False; i += 1; continue
-        akt.append(c); i += 1
-    return ki
+def tiszta(s):
+    s = re.sub(r'<(/p|/li|br\s*/?|/h[1-6])\s*>', ' ', s, flags=re.I)
+    return re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', '', s)).strip()
 
 
 def main():
-    php = io.open(REGI_PHP, encoding='utf-8').read()
-    m = re.search(r'\$PAROK = array\((.*?)\n\);', php, re.S)
-    if not m:
-        raise SystemExit('HIBA: nem talalom a $PAROK tombot a regi generalt PHP-ban.')
-    regi = {}
-    for darab in re.findall(r'array\((.*?)\)(?=,\n|\n\))', m.group(1), re.S):
-        s = php_stringek(darab)
-        # sorrend: elem_id, <ertek>, ut, <ertek>, jelenlegi, <ertek>, uj, <ertek>
-        d = {s[i]: s[i + 1] for i in range(0, len(s) - 1, 2)}
-        if 'elem_id' in d and 'ut' in d and 'uj' in d:
-            regi[(d['elem_id'], d['ut'])] = d['uj']
+    ref = sys.argv[1] if len(sys.argv) > 1 else ALAP_REF
+    r = subprocess.run(['git', 'show', f'{ref}:{UT}'], capture_output=True, text=True,
+                       cwd='/Users/macmini/marveen')
+    if r.returncode != 0:
+        raise SystemExit(f'HIBA: a {ref}:{UT} nem olvashato ki.\n  {r.stderr.strip()}')
+    deploy = {f"{p['elem_id']}|{p['ut']}": p['uj'] for p in json.loads(r.stdout)}
+    elo = json.load(io.open(ELO, encoding='utf-8'))['mezok']
 
-    parok = json.load(io.open(PAROSITAS, encoding='utf-8'))
-    fixture, hianyzo = {}, []
-    for p in parok:
-        k = (p['elem_id'], p['ut'])
-        if k not in regi:
-            hianyzo.append(f"{k[0]} {k[1]}")
-            continue
-        fixture[f"{k[0]}|{k[1]}"] = regi[k]
-    if hianyzo:
-        raise SystemExit('HIBA: a regi generalt PHP nem hordozza: ' + ', '.join(hianyzo))
+    hiba = []
+    for kulcs, mert in elo.items():
+        if kulcs not in deploy:
+            hiba.append(f'{kulcs}: nincs a {ref} parositasaban'); continue
+        a, b = tiszta(deploy[kulcs]), mert['szoveg'].strip()
+        if a != b:
+            hiba.append(f'{kulcs}:\n      deploy: {a[:110]}\n      elo:    {b[:110]}')
+    tobblet = sorted(set(deploy) - set(elo))
+    if tobblet:
+        hiba.append(f'a {ref} parositasaban van, az elo meresben nincs: {", ".join(tobblet)}')
+    if hiba:
+        raise SystemExit('HIBA -- a ket forras NEM egyezik, fixture-t nem epitek:\n  - '
+                         + '\n  - '.join(hiba))
 
-    # POZITIV KONTROLL: a kinyert ertek kezdodjon a MERT horgonnyal. Ha nem, akkor vagy a
-    # parsolas romlott el, vagy az oldal azota elmozdult -- mindketto lelet, nem nulla.
-    rossz = []
-    for p in parok:
-        v = fixture[f"{p['elem_id']}|{p['ut']}"]
-        tiszta = re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', '', v)).strip()
-        if not tiszta.startswith(re.sub(r'\s+', ' ', p['horgony']).strip()):
-            rossz.append(f"{p['elem_id']} {p['ut']}: '{tiszta[:60]}'")
-    if rossz:
-        raise SystemExit('HIBA -- a kinyert ertek nem a mert horgonnyal kezdodik:\n  - '
-                         + '\n  - '.join(rossz))
-
-    json.dump(fixture, io.open(KI, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
-    print(f'@@ {len(fixture)} mezo mai tarolt erteke -> {KI}')
-    print('@@ mind a 17 a mert horgonnyal kezdodik (pozitiv kontroll rendben).')
+    json.dump(deploy, io.open(KI, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+    print(f'@@ {len(deploy)} mezo tarolt erteke -> {KI}')
+    print(f'@@ ket fuggetlen forras EGYEZIK: git {ref} parositas  ==  az elo oldal mai meresе')
+    tagos = sum(1 for k, v in deploy.items() if k.endswith('|editor') and re.search(r'<[^>]+>', v))
+    print(f'@@ az ot editor-mezobol {tagos} hordoz HTML-taget (a markup a helyen van).')
 
 
 if __name__ == '__main__':
