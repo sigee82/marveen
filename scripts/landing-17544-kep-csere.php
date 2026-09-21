@@ -156,10 +156,28 @@ if (!is_string($uj)) { ki('!! a JSON ujrakodolasa elbukott -- NEM IRUNK.'); exit
 update_post_meta($OLDAL, '_elementor_data', wp_slash($uj));
 delete_post_meta($OLDAL, '_elementor_css');
 delete_post_meta($OLDAL, '_elementor_page_assets');
+/* A NEGYEDIK RETEG, es Nova merte meg 2026-09-21-en: a szkript visszameresé ZOLD volt, a
+   `litespeed_purge_post` KIADVA, es a lap MEGIS a regit adta -- cache-kerulo query-vel is.
+   A tarolt `_elementor_data` ekozben mar az ujat hordozta, tehat NEM az iras bukott, hanem a
+   KISZOLGALAS. A hianyzo meta az `_elementor_element_cache`: ez a RENDERELT HTML cache-e.
+   Ujragenralodik, a torlese biztonsagos.
+   ES EZ A LEGROSSZABB ALAKBAN JELENTKEZIK: minden nyugta zold, es a lap valtozatlan --
+   vagyis pont ugy nez ki, mint egy elbukott iras, es oda kuldi a keresest, ahol nincs semmi. */
+delete_post_meta($OLDAL, '_elementor_element_cache');
+clean_post_cache($OLDAL);
+/* MIERT MEGY A PURGE_ALL IS, pedig durvabb: Nova a retegeket EGYSZERRE uritette, tehat hogy
+   melyik oldotta meg, az NINCS izolalva. Egy szukebb reszhalmaz ezert tipp lenne; ez a sor
+   azt csinalja, amirol MERES van. A szkript evente parszor fut: egy ujraepulo cache olcsobb,
+   mint egy landing, ami az inditas napjan valtozatlannak latszik. */
 if (has_action('litespeed_purge_post')) {
     do_action('litespeed_purge_post', $OLDAL); ki('litespeed_purge_post: kiadva');
 } else {
-    ki('litespeed_purge_post: NINCS ilyen action -- a lap-cache-t kezzel kell uriteni.');
+    ki('litespeed_purge_post: NINCS ilyen action.');
+}
+if (has_action('litespeed_purge_all')) {
+    do_action('litespeed_purge_all'); ki('litespeed_purge_all: kiadva');
+} else {
+    ki('litespeed_purge_all: NINCS ilyen action -- a lap-cache-t kezzel kell uriteni.');
 }
 
 ki('');
@@ -179,7 +197,9 @@ foreach ($KEPEK_TERV as $t) {
     }
 }
 ki(sprintf('  %d/3 kep-mezo a vart uj erteket adja.', $ok));
-ki('  _elementor_css eldobva: '.(get_post_meta($OLDAL,'_elementor_css',true) === '' ? 'igen' : '!! MEGVAN'));
+foreach (array('_elementor_css', '_elementor_page_assets', '_elementor_element_cache') as $mk) {
+    ki('  '.$mk.' eldobva: '.(get_post_meta($OLDAL, $mk, true) === '' ? 'igen' : '!! MEGVAN'));
+}
 ki('');
 ki($rossz === 0 ? 'ELES MENET VEGE. Mind a harom kep a helyen.'
                 : '!! ELES MENET VEGE, DE VOLT ELTERES -- olvasd vissza a fentit.');

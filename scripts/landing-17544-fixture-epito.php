@@ -79,6 +79,10 @@ $id = $meglevo ? $meglevo->ID : wp_insert_post(array(
 if (!$id || is_wp_error($id)) { ki('!! az oldal letrehozasa elbukott'); exit(2); }
 update_post_meta($id, '_elementor_data', wp_slash(wp_json_encode($elemek, JSON_UNESCAPED_SLASHES)));
 update_post_meta($id, '_elementor_css', 'proba-cache-ertek');
+/* A HARMADIK CACHE-META IS FEL VAN TOLTVE, hogy a torlese POZITIV KONTROLL legyen:
+   egy sosem letezo meta ugyanugy ures sztringet ad vissza, mint egy epp most torolt,
+   es akkor az 'eldobva: igen' minden agon igaz lenne. */
+update_post_meta($id, '_elementor_element_cache', 'proba-element-cache-ertek');
 update_post_meta($id, '_elementor_page_assets', 'proba-assets-ertek');
 
 ki(sprintf('fixture: %d widget, %d mezo, %d erintetlen szomszed', count($widgetek), count($mezok), $i));

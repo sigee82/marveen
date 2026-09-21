@@ -38,4 +38,8 @@ $meg = get_page_by_title($cim, OBJECT, 'page');
 $id = $meg ? $meg->ID : wp_insert_post(array('post_title'=>$cim,'post_type'=>'page','post_status'=>'draft'));
 update_post_meta($id, '_elementor_data', wp_slash(wp_json_encode($elemek, JSON_UNESCAPED_SLASHES)));
 update_post_meta($id, '_elementor_css', 'proba-cache-ertek');
+/* A HARMADIK CACHE-META IS FEL VAN TOLTVE, hogy a torlese POZITIV KONTROLL legyen:
+   egy sosem letezo meta ugyanugy ures sztringet ad vissza, mint egy epp most torolt,
+   es akkor az 'eldobva: igen' minden agon igaz lenne. */
+update_post_meta($id, '_elementor_element_cache', 'proba-element-cache-ertek');
 ki('OLDAL='.$id);
