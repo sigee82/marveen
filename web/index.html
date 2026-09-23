@@ -643,6 +643,7 @@
 
       <!-- Memory list (for hot/warm/cold/shared) -->
       <div class="mem-tier-view" id="memTierView">
+        <div class="mem-search-label" id="memSearchLabel" hidden></div>
         <div class="mem-list" id="memList"></div>
         <div class="mem-empty" id="memEmpty" hidden>
           <p data-i18n="memories.empty">Nincs emlék ebben a kategóriában</p>
@@ -2256,8 +2257,9 @@
             <select id="agentModel">
               <option value="inherit" data-i18n="agents.model.inherit">Öröklött (alapértelmezett)</option>
               <optgroup label="☁️ Claude (felhő)">
-                <option value="claude-fable-5" data-i18n="agents.model.fable5">Fable 5 (legújabb)</option>
-                <option value="claude-opus-5" data-i18n="agents.model.opus5">Opus 5 (legújabb Opus)</option>
+                <option value="claude-fable-5-1" data-i18n="agents.model.fable51">Fable 5.1 (legújabb Fable)</option>
+                <option value="claude-fable-5" data-i18n="agents.model.fable5">Fable 5</option>
+                <option value="claude-opus-5" data-i18n="agents.model.opus5">Opus 5</option>
                 <option value="claude-opus-4-8[1m]" data-i18n="agents.model.opus48">Opus 4.8 (1M kontextus, alapértelmezett)</option>
                 <option value="claude-sonnet-5" data-i18n="agents.model.sonnet5">Sonnet 5 (legújabb Sonnet, Opus-közeli)</option>
                 <option value="claude-sonnet-4-6" data-i18n="agents.model.sonnet46">Sonnet 4.6 (gyors és okos)</option>
@@ -2429,8 +2431,9 @@
             <label for="editAgentModel" data-i18n="agents.detail.model_label">Modell</label>
             <select id="editAgentModel">
               <optgroup label="☁️ Claude (felhő)">
-                <option value="claude-fable-5" data-i18n="agents.model.fable5">Fable 5 (legújabb)</option>
-                <option value="claude-opus-5" data-i18n="agents.model.opus5">Opus 5 (legújabb Opus)</option>
+                <option value="claude-fable-5-1" data-i18n="agents.model.fable51">Fable 5.1 (legújabb Fable)</option>
+                <option value="claude-fable-5" data-i18n="agents.model.fable5">Fable 5</option>
+                <option value="claude-opus-5" data-i18n="agents.model.opus5">Opus 5</option>
                 <option value="claude-opus-4-8[1m]" data-i18n="agents.model.opus48">Opus 4.8 (1M kontextus, alapértelmezett)</option>
                 <option value="claude-sonnet-5" data-i18n="agents.model.sonnet5">Sonnet 5 (legújabb Sonnet, Opus-közeli)</option>
                 <option value="claude-sonnet-4-6" data-i18n="agents.model.sonnet46">Sonnet 4.6 (gyors és okos)</option>

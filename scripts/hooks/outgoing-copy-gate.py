@@ -663,13 +663,19 @@ def _hit_context(prose: str, pos: int, length: int) -> str:
 # ("8:09-es", "2-es", "17:06-kor") a szobontonal puszta "es"/"kor" tokenne esik
 # szet, amit a szotar hibanak lat -- pedig ott toldalek, nem szo. A javitas nem a szotarbol
 # vesz ki (az elrontana a valodi talalatokat is), hanem a technikai regiokat
-# vagja ki a vizsgalt szovegbol. A gondolatjel- es nev-ellenorzes NEM ezen fut.
+# vagja ki a vizsgalt szovegbol. A gondolatjel-ellenorzes NEM ezen fut (az a nyers
+# szovegen mer), a nev-ellenorzes pedig a SAJAT, szukebb maszkjan -- lasd NAME_MASK.
+#
 # 2026-09-18: a kiszolgalt build-id (git sha elso 12 jegye) magyar SZOKENT bukott meg:
 # az `5b64afa545e9` kozepen ott az `afa`, es a kapu `afa -> afa` ekezet-hianyt jelentett.
 # Ez minden deploy-jelentesnel visszaterne, es a hex-alfabeta (a-f) tele van magyar
 # szotoredekkel (afa, ede, fade, bab, def). A maszk ezert kivagja a legalabb 8 jegyu
 # hex futamokat -- de CSAK azokat, amikben van szamjegy IS es betu IS, hogy egy nyolc
 # betus magyar szo (pl. 'befedded') ne essen ki veletlenul.
+# A hex-ag a _TECH_COMMON-ba kerult, nem a _TECH_SUFFIXED-be (merge, 2026-09-23): az
+# alabbi kriterium szerint oda tartozik, mert egyertelmuen technikai ES nem tud egy
+# tulajdonnevet a toldalekaval egyutt elnyelni (nincs benne kotojel). Igy a
+# nev-ellenorzes sem riaszt egy git sha belsejere.
 # A DOMAIN-AG A TOLDALEKOT IS ELNYELI, ES EZ NEM KOZMETIKA (2026-09-22, mert eset).
 # Toldalek nelkul a maszk a `gmail.com-ot`-bol kivagta a domaint es OTTHAGYTA a ` -ot`
 # darabot -- amit az ekezet-ellenorzes magyar szokent olvasott, es "ot -> ot" hianyt
@@ -677,26 +683,53 @@ def _hit_context(prose: str, pos: int, length: int) -> str:
 # toredeken riasztott, nem a szerzo szovegen. A tulajdonnev-ag (Drive-ra, Chrome-ot)
 # ezt mar kezelte; a domain-ag nem, holott nalunk a domain+toldalek a gyakoribb alak.
 # Merve a javitas elott/utan: `gmail.com-ot` -> ' -ot' / ' ', es a magyar kontrollszavak
-# (befedded, ot, haz-ban) egyik alakban sem esnek ki.
-TECHNICAL = re.compile(
-    r"""https?://\S+                # URL
+# (befedded, ot, haz-ban) egyik alakban sem esnek ki. Upstream ugyanezt a toldalek-
+# csoportot fuggetlenul felvette, ezert a ket javitas itt egybeesik.
+#
+# GATENEVSTRIP921 (kulso bejelentes 2026-09-21, sajat visszameres 2026-09-22):
+# KET SZABALY, AMI UGYANARRA A SZOVEGRE NEZ, NEM UGYANAZT A MASZKOT AKARJA.
+# A bejelentes az volt, hogy a nev-szabaly a NYERS szovegen fut, ezert URL-ben,
+# kod-spanban vagy utvonalban allo nevalak is megallitja a teljes uzenetet
+# (harom ilyen hamis pozitiv reprodukalva). A kezenfekvo javitas -- a nev-szabaly
+# athelyezese a strip_technical UTANRA -- viszont LYUKAT NYIT, mert az alabbi ket
+# alternativa a NEVET magat vagja ki a szovegbol a toldalekaval egyutt:
+#   "Nev-val" / "Nev-nak" / "Nev-fele"  ->  a tulajdonnev+toldalek ag eszi meg
+# Merve a sajat mintankon (kartya-komment 17237): harom prozai alakbol harom tunt
+# el a strip utan, vagyis csendben ATMENTEK volna. Ezert a nev-szabaly a kozos,
+# egyertelmuen technikai regiokat kapja meg maszknak (_TECH_COMMON), a toldalek-
+# es azonosito-agakat NEM. Ezek az agak a token- es ekezet-vizsgalatnak kellenek,
+# ahol epp az a dolguk, hogy a toldalek-toredeket ne nezzek onallo szonak.
+#
+# A KET MASZK EGY FORRASBOL EPUL, hogy ne drifteljenek szet: ha valaki uj
+# technikai regiot vesz fel, a _TECH_COMMON-ba irva MINDKET ellenorzes latja.
+_TECH_COMMON = r"""
+        https?://\S+                # URL
       | [\w.+-]+@[\w-]+\.[\w.]+     # email
       | `[^`]*`                     # kod-span
       | \b\w+(?:_\w+)+\b            # snake_case azonosito
-      | \b\w+\.[A-Za-z]{2,10}(?:-[a-záéíóöőúüű]{1,4})?\b   # fajlnev / domain, toldalekkal egyutt (marveen.io-ra)
+      | \b\w+\.[A-Za-z]{2,10}(?:-[a-záéíóöőúüű]{1,4})?\b   # fajlnev / domain, magyar toldalekkal (video.mp4, marveen.io, Mail.app-ot)
+      | \b(?=[0-9a-f]*[0-9])(?=[0-9a-f]*[a-f])[0-9a-f]{8,}\b  # hex azonosito (git sha, build-id, token-elotag)
       | \b[\w-]*/[\w/-]+            # utvonal / slug
-      | \d+(?:[.:,]\d+)*-[^\W\d_]+   # szam + magyar toldalek (8:09-es, 2-es, 17:06-kor)
+"""
+# CSAK a token-/ekezet-vizsgalat vaghatja ki ezeket: mindharom ag kepes egy
+# tulajdonnevet a toldalekaval egyutt elnyelni, ezert a nev-szabaly nem kapja meg.
+_TECH_SUFFIXED = r"""
+        \d+(?:[.:,]\d+)*-[^\W\d_]+   # szam + magyar toldalek (8:09-es, 2-es, 17:06-kor)
       | \b[A-ZÁÉÍÓÖŐÚÜŰ][^\W\d_]*-[a-záéíóöőúüű]{1,4}\b   # tulajdonnev + toldalek (Chrome-ot, Drive-ra)
       | \blevel\s+\d+\b            # angol "level 1" (autonomia-szint, log-szint)
       | \b[a-z]+(?:-[a-z]+){1,4}\b    # kotojeles kisbetus azonosito (feladat- es skill-nevek)
-      | \b(?=[0-9a-f]*[0-9])(?=[0-9a-f]*[a-f])[0-9a-f]{8,}\b  # hex azonosito (git sha, build-id, token-elotag)
-    """,
-    re.X,
-)
+"""
+TECHNICAL = re.compile(_TECH_COMMON + "|" + _TECH_SUFFIXED, re.X)
+NAME_MASK = re.compile(_TECH_COMMON, re.X)
 
 
 def strip_technical(text: str) -> str:
     return TECHNICAL.sub(" ", text)
+
+
+def strip_for_name(text: str) -> str:
+    """A nev-ellenorzes maszkja: csak az egyertelmuen technikai regiok esnek ki."""
+    return NAME_MASK.sub(" ", text)
 
 
 def is_hungarian(text: str) -> bool:
@@ -842,7 +875,11 @@ def audit(text: str):
         problems.append(
             f"GONDOLATJEL (em dash, U+2014) {plain.count(EM_DASH)} helyen -- allo szabaly, soha nem mehet ki."
         )
-    bad = BAD_NAME.search(plain) if BAD_NAME else None
+    # GATENEVSTRIP921: a nev-szabaly a SAJAT maszkjan fut (NAME_MASK), nem a
+    # nyers szovegen es nem a strip_technical kimeneten -- lasd a NAME_MASK
+    # feletti indoklast. Igy a kod-spanban/URL-ben allo nevalak atmegy, a
+    # toldalekos prozai alak ("Nev-val") viszont tovabbra is bukik.
+    bad = BAD_NAME.search(strip_for_name(plain)) if BAD_NAME else None
     if bad:
         problems.append(
             f"HELYTELEN NEV: {bad.group(0)!r} -- a lokal nev-szabaly (store/outgoing-copy-gate-rules.json) szerint helytelen alak; a helyes irast a szabaly-fajl correction mezoje adja." + _name_correction()
@@ -912,9 +949,14 @@ MANAGE_EMAIL_OUTBOUND_OPS = {"send", "reply", "replyall", "forward"}
 # Dedicated (non-multiplexed) outbound tools: the draft tools and the Gmail
 # connector's three separate send-shaped tools. Kept in step with the matcher
 # this hook is registered under in settings.json.
+# GMAILCONNECTOR914: the server segment is NOT always exactly "gmail" -- the
+# claude.ai connector is mcp__claude_ai_Gmail__send_message, one underscore
+# before Gmail, and `(^|__)gmail__` never matched it, so its sends fell through
+# to sys.exit(0) with no audit (measured 2026-08-30, 2026-09-08). Anything
+# ending in "gmail__<send-shaped tool>" is a send now, whatever the prefix.
 EMAIL_TOOL_RE = re.compile(
     r"(send_email|create_draft|draft_email|update_draft"
-    r"|(^|__)gmail__(reply|reply_all|send_message|forward)$)",
+    r"|gmail__(reply|reply_all|send_message|forward)$)",
     re.I,
 )
 

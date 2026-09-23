@@ -25,6 +25,21 @@ export const MEMORY_UPDATE_FIELDS = [
   'tier',
 ] as const
 
+// Keys that are RECOGNISED but do not by themselves constitute an edit.
+//
+// MEMIRASNYOM915 (upstream, merged 2026-09-23) added `updated_by`: the writer's
+// self-reported identity, stored as a write-trace. It has to pass the
+// unknown-key rule, or the trace field would 400 -- but it must NOT satisfy the
+// "something is actually being updated" rule, because a body carrying only
+// `updated_by` is exactly the no-op write this module exists to reject: content
+// would be backfilled from the existing row and written back unchanged, and the
+// caller would read ok:true.
+//
+// Two lists, because the two questions are different: "do I recognise this
+// key?" and "is anything being changed?". One list answered both, and that is
+// why adding a field to it would have quietly reopened the hole.
+export const MEMORY_UPDATE_TRACE_FIELDS = ['updated_by'] as const
+
 export type MemoryUpdateFieldCheck =
   | { ok: true }
   | { ok: false; message: string }
@@ -42,15 +57,21 @@ export function checkMemoryUpdateFields(body: unknown): MemoryUpdateFieldCheck {
   if (body === null || typeof body !== 'object' || Array.isArray(body)) {
     return { ok: false, message: 'Request body must be a JSON object.' }
   }
+  // `known` = substantive (what counts as an edit); `recognised` = substantive
+  // plus trace (what the endpoint will not reject).
   const known = new Set<string>(MEMORY_UPDATE_FIELDS)
+  const recognised = new Set<string>([
+    ...MEMORY_UPDATE_FIELDS,
+    ...MEMORY_UPDATE_TRACE_FIELDS,
+  ])
   const keys = Object.keys(body as Record<string, unknown>)
-  const rejected = keys.filter(k => !known.has(k))
+  const rejected = keys.filter(k => !recognised.has(k))
   if (rejected.length) {
     return {
       ok: false,
       message:
         `Unknown field(s) for this endpoint: ${rejected.join(', ')}. ` +
-        `Accepted: ${MEMORY_UPDATE_FIELDS.join(', ')}.`,
+        `Accepted: ${[...recognised].join(', ')}.`,
     }
   }
   if (!keys.some(k => known.has(k))) {
