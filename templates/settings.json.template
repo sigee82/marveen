@@ -50,6 +50,16 @@
             "timeout": 15
           }
         ]
+      },
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c '[ -f {{PROJECT_ROOT}}/scripts/hooks/memoria-index-meret-kapu.py ] && exec python3 {{PROJECT_ROOT}}/scripts/hooks/memoria-index-meret-kapu.py; exit 0'",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "SessionEnd": [
@@ -139,11 +149,20 @@
             "type": "command",
             "command": "bash -c '[ -f {{PROJECT_ROOT}}/scripts/hooks/claude-usage.py ] && exec python3 {{PROJECT_ROOT}}/scripts/hooks/claude-usage.py; exit 0'",
             "timeout": 45
-          }
-          ,{
+          },
+          {
             "type": "command",
             "command": "bash -c '[ -f {{PROJECT_ROOT}}/scripts/hooks/telegram_progress.py ] && exec python3 {{PROJECT_ROOT}}/scripts/hooks/telegram_progress.py; exit 0'",
             "timeout": 15
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c '[ -f {{PROJECT_ROOT}}/scripts/hooks/telegram-ack.py ] && exec python3 {{PROJECT_ROOT}}/scripts/hooks/telegram-ack.py; exit 0'",
+            "timeout": 10
           }
         ]
       }
@@ -165,6 +184,116 @@
           {
             "type": "command",
             "command": "bash -c '[ -f {{PROJECT_ROOT}}/scripts/hooks/memory-frontmatter-gate.py ] && exec python3 {{PROJECT_ROOT}}/scripts/hooks/memory-frontmatter-gate.py; exit 0'",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c '[ -f {{PROJECT_ROOT}}/scripts/hooks/cso-exit-kod-kapu.py ] && exec python3 {{PROJECT_ROOT}}/scripts/hooks/cso-exit-kod-kapu.py; exit 0'",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c '[ -f {{PROJECT_ROOT}}/scripts/hooks/idobelyeg-gate.py ] && exec python3 {{PROJECT_ROOT}}/scripts/hooks/idobelyeg-gate.py; exit 0'",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c '[ -f {{PROJECT_ROOT}}/scripts/hooks/interagent-homoglifa-kapu.py ] && exec python3 {{PROJECT_ROOT}}/scripts/hooks/interagent-homoglifa-kapu.py; exit 0'",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c '[ -f {{PROJECT_ROOT}}/scripts/hooks/record-overwrite-gate.py ] && exec python3 {{PROJECT_ROOT}}/scripts/hooks/record-overwrite-gate.py; exit 0'",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c '[ -f {{PROJECT_ROOT}}/scripts/hooks/delegalt-iras-tiltas-kapu.py ] && exec python3 {{PROJECT_ROOT}}/scripts/hooks/delegalt-iras-tiltas-kapu.py; exit 0'",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c '[ -f {{PROJECT_ROOT}}/scripts/hooks/bash-safety-gate.mjs ] && exec node {{PROJECT_ROOT}}/scripts/hooks/bash-safety-gate.mjs; exit 0'",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c '[ -f {{PROJECT_ROOT}}/scripts/hooks/read-safety-gate.mjs ] && exec node {{PROJECT_ROOT}}/scripts/hooks/read-safety-gate.mjs; exit 0'",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c '[ -f {{PROJECT_ROOT}}/scripts/hooks/edit-safety-gate.mjs ] && exec node {{PROJECT_ROOT}}/scripts/hooks/edit-safety-gate.mjs; exit 0'",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Monitor|TaskOutput|TaskStop",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c '[ -f {{PROJECT_ROOT}}/scripts/hooks/orchestration-safety-gate.mjs ] && exec node {{PROJECT_ROOT}}/scripts/hooks/orchestration-safety-gate.mjs; exit 0'",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c '[ -f {{PROJECT_ROOT}}/scripts/hooks/mcp-permission-gate.mjs ] && exec node {{PROJECT_ROOT}}/scripts/hooks/mcp-permission-gate.mjs; exit 0'",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__plugin_telegram_telegram__reply|mcp__plugin_telegram_telegram__edit_message",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c '[ -f {{PROJECT_ROOT}}/scripts/hooks/telegram-text-gate.mjs ] && exec node {{PROJECT_ROOT}}/scripts/hooks/telegram-text-gate.mjs; exit 0'",
             "timeout": 10
           }
         ]

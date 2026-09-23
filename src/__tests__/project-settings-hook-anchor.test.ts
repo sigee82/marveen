@@ -84,7 +84,18 @@ const LOCAL_ADDITIONS: Record<string, string[]> = {
   PreToolUse: [
     'delegalt-iras-tiltas-kapu.py', 'record-overwrite-gate.py',
     'interagent-homoglifa-kapu.py', 'idobelyeg-gate.py', 'cso-exit-kod-kapu.py',
+    // The five governance gates + the Telegram text gate. Upstream ships all of
+    // them UNWIRED, and on this install they were registered only in the ten
+    // agents' own (gitignored) settings files -- so they existed on exactly one
+    // machine, were absent for nova and nessa, and no fresh install reproduced
+    // them. They are now on the seeding template AND here, so the main agent is
+    // covered too. Measured 2026-09-23: mcp-permission-gate.mjs, the ads write
+    // gate, was wired for 8 agents and for the main session NOWHERE.
+    'bash-safety-gate.mjs', 'read-safety-gate.mjs', 'edit-safety-gate.mjs',
+    'orchestration-safety-gate.mjs', 'mcp-permission-gate.mjs',
+    'telegram-text-gate.mjs',
   ],
+  SessionStart: ['memoria-index-meret-kapu.py'],
 }
 
 // What THIS install must register: upstream's set plus the local additions.
