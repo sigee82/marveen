@@ -74,7 +74,17 @@ const EXPECTED: Record<string, string[]> = {
 // decision about what runs in the main session -- the same bar EXPECTED sets.
 const LOCAL_ADDITIONS: Record<string, string[]> = {
   UserPromptSubmit: ['telegram-ack.py'],
-  PreToolUse: ['delegalt-iras-tiltas-kapu.py', 'record-overwrite-gate.py'],
+  // MERGE 2026-09-23: three more local PreToolUse gates were wired in
+  // .claude/settings.json but never listed here, so the anchor did not protect
+  // them -- and two of the three (interagent-homoglifa-kapu.py,
+  // cso-exit-kod-kapu.py) were not even under version control, which is why a
+  // fresh checkout wired two hooks whose files did not exist. Both are tracked
+  // as of this merge. Listing them is the second half of that fix: a name here
+  // is what makes a silent DROP fail the build.
+  PreToolUse: [
+    'delegalt-iras-tiltas-kapu.py', 'record-overwrite-gate.py',
+    'interagent-homoglifa-kapu.py', 'idobelyeg-gate.py', 'cso-exit-kod-kapu.py',
+  ],
 }
 
 // What THIS install must register: upstream's set plus the local additions.

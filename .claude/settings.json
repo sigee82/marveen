@@ -8,6 +8,7 @@
       { "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/ledger-capture.py\"", "timeout": 15 } ] },
       { "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/inbox-drain.py\"", "timeout": 15 } ] },
       { "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/telegram-reply-directive.py\"", "timeout": 10 } ] },
+      { "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/telegram-ack.py\"", "timeout": 10 } ] },
       { "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/provenance-gate.py\"", "timeout": 10 } ] },
       { "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/staleness-guard.py\"", "timeout": 10 } ] },
       { "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/channel-inbox-drain.py\"", "timeout": 5 } ] },

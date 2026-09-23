@@ -43,7 +43,12 @@ function run(root: string): { status: number; out: string } {
 describe('build stamps dist/.built-commit (BUILTSTAMPKEZI920)', () => {
   it('STATIC: the build script chains the stamp behind tsc with &&, so a failed compile never stamps', () => {
     const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { scripts: Record<string, string> }
-    expect(pkg.scripts.build).toBe('tsc && node scripts/write-built-commit.cjs')
+    // MERGE 2026-09-23: a build a BOVEBB write-built-commit.mjs-t hivja. Az .mjs
+    // ketsoros markert ir (sha + "dirty=<0|1> built=<iso>"), amit a
+    // built-commit-check.mjs olvas, es amin a frissites-verify.sh PISZKOS-build
+    // felismerese all -- az .cjs egysoros markere ezt az agat vakon hagyna.
+    // Az .cjs szkript megmarad, es a fajl tobbi allitasa tovabbra is rajta fut.
+    expect(pkg.scripts.build).toBe('tsc && node scripts/write-built-commit.mjs')
     // `;` or `||` here would stamp a half-built dist as fresh -- the blinding case.
     expect(pkg.scripts.build).not.toMatch(/tsc\s*;/)
   })

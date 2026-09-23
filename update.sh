@@ -849,7 +849,14 @@ if [ "$OLD_VERSION" = "$NEW_VERSION" ]; then
   # build-marker: dist/.built-commit records the commit dist was built from.
   # If it is missing or != HEAD (or --rebuild was passed), the dist is stale,
   # so we fall through to the normal build + restart instead of exiting.
-  BUILT_COMMIT="$(cat "$BUILT_COMMIT_FILE" 2>/dev/null || echo "")"
+  # Az ELSO SORT olvassuk, nem az egesz fajlt: a marker formatuma
+  # "<sha>\ndirty=<0|1> built=<iso>", es a masodik sor a PISZKOS fabol keszult
+  # build jelzese (scripts/built-commit-check.mjs ugyanigy olvassa: lines[0] a
+  # marker, lines[1] a kontextus). Egesz-fajlos osszehasonlitassal a BUILT_COMMIT
+  # soha nem egyezhetne $NEW_VERSION_FULL-lal, tehat DIST_STALE mindig 1 lenne, es
+  # minden frissites ujraforditana a distet -- csendben, mert a kimenet ilyenkor is
+  # a normalis "ongyogyito ujraforditas" sor.
+  BUILT_COMMIT="$(head -n 1 "$BUILT_COMMIT_FILE" 2>/dev/null || echo "")"
   DIST_STALE=0
   if [ ! -d "$INSTALL_DIR/dist" ] || [ "$BUILT_COMMIT" != "$NEW_VERSION_FULL" ]; then
     DIST_STALE=1

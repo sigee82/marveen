@@ -100,20 +100,30 @@ def is_artifact(target, in_code):
     """Prose that only looks like a link. Deliberately conservative: anything
     matching here is dropped from the repair queue, so keep it narrow.
 
-    ONE BRANCH FOR ONE CLASS. There used to be a POSIX-specific test here
-    (target starts or ends with ":", for [[:space:]]), and the code-span rule was
-    about to be added NEXT to it -- two mechanisms deciding the same question,
-    which is how the second one ends up being the one nobody re-measures. The
-    POSIX case is a code example like the others, so it is the SAME class: the
-    general rule replaces the special one rather than joining it.
+    THE POSIX BRANCH IS BACK, AND THIS PARAGRAPH IS THE REASON -- read it before
+    removing it again (merge with upstream, 2026-09-23).
 
-    Measured before removing the POSIX line: the vault's only [[:space:]] sits
-    inside backticks (uj-minta-elso-futasa-hatarhiba.md), so the general rule
-    already covers it -- verified by the bucket counts being identical after.
+    It was removed here under "one branch for one class": the POSIX test (target
+    starts or ends with ":", for [[:space:]]) looked like a second mechanism next
+    to the code-span rule, and the vault's only [[:space:]] sat inside backticks,
+    so the bucket counts were identical without it. That measurement was correct
+    and it is still correct. It just answers a question about THE VAULT'S CURRENT
+    CONTENTS, not about the rule: "a case the vault does not have" is a fact that
+    any future memory can falsify, and nothing would announce it.
 
-    STATED CONSEQUENCE: a POSIX class written OUTSIDE backticks would now land in
-    UNRESOLVED. That is deliberate. It is loud, one backtick fixes it, and it
-    beats carrying a second branch for a case the vault does not have.
+    Two things decided it the other way:
+      1. The two are not one question in two mechanisms. `[[:space:]]` and a
+         backtick span are different SYNTAXES; the code-span rule asks "is this
+         quoted?", the POSIX rule asks "is this a character class?". A POSIX class
+         is not a memory slug under any spelling, quoted or not.
+      2. The stated consequence is worse than it reads. UNRESOLVED is the repair
+         queue, so the tool would be asking the author to add backticks to PROSE
+         to satisfy the linter -- the same "checker that teaches its own override"
+         shape that code_spans() below exists to remove.
+
+    Upstream's scripts/__tests__/memory-link-audit.test.py pins the restored
+    behaviour, so this is no longer a preference either way: removing the branch
+    now turns that suite red.
 
     AND THE SAME ANSWER FOR THE "!" MARKER, so nobody re-adds a branch for it: the
     vault marks some example links with a leading "!" (a convention from
@@ -124,6 +134,8 @@ def is_artifact(target, in_code):
     exists to prevent."""
     if in_code:
         return True  # an example of the syntax, not a use of it
+    if target.startswith(":") or target.endswith(":"):
+        return True  # POSIX character class, e.g. [[:space:]] -- see the docstring
     if " " in target:
         return True  # phrases are never memory slugs
     return target in {"link", "name", "their-name"}
