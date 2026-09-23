@@ -155,3 +155,12 @@ transcripts/
 #   supabase/.temp/  -> ignores a real directory, MISSES the symlink (it shows in
 #                       `git status`, so the next CLI run commits it again)
 supabase/.temp
+
+# Idobelyeges mentes-fajlok, amiket a szerkeszto-kapuk hagynak maguk utan
+# (pl. src/web/message-router.ts.bak-1790075675). NEM build-bemenetek: a tsc a
+# *.ts-t forditja, egy *.ts.bak-<epoch> nem illeszkedik ra. Kovetve viszont
+# MEGMERGEZIK a dirty-jelzest: a write-built-commit.mjs a `git status --porcelain
+# -- src tsconfig.json package.json` alapjan dontт, tehat EGY ilyen fajl minden
+# buildet PISZKOSNAK jelol, es a frissites-verify dirty-agat allando zajja teszi.
+# Merve 2026-09-23: egyetlen 09-22-i .bak tette a mai buildet dirty=1-re.
+*.bak-[0-9]*

@@ -63,12 +63,23 @@ const EXEMPT: Record<string, string> = {
     'shared library imported by outgoing-copy-gate.py (and the level-2 email approval gate, EMAILKAPU901 PR2); not itself a hook',
   'memory-save.sh':
     'legacy: referenced only by a historical rebuild prompt, wired nowhere; kept pending a maintainer decision to remove it',
-  // telegram-ack.py is deliberately NOT exempt on this install. Upstream ships it
-  // unregistered, so the exemption is true there; here 81470de wired it into
-  // .claude/settings.json, which makes "unreferenced anywhere in the repo" false
-  // and trips the stale-exemption check -- exactly as this file's header
-  // prescribes. A local divergence, and it will surface again on the next
-  // upgrade: the fix then is still to keep it out, or to unregister the hook.
+  // OWNER DECISION, 2026-09-23: telegram-ack.py and telegram_progress.py are OFF
+  // on this install, by Zsolt's explicit request -- the auto-like on his inbound
+  // messages and the "working on it" progress reply are unwanted. He had turned
+  // them off the day before; this merge put them back (telegram_progress.py
+  // looked like accidental collateral because nine agents still carried it, and
+  // telegram-ack.py had never actually been wired anywhere despite its own
+  // docstring claiming ~/.claude/settings.json). Both are now unregistered on
+  // every surface, so they are exempt here.
+  //
+  // The previous note said telegram-ack.py was deliberately NOT exempt because
+  // 81470de had wired it. That is no longer true, and the reason is a product
+  // decision rather than drift -- so this exemption is not a stale one to clean
+  // up on the next upgrade. Re-registering either hook needs Zsolt to ask for it.
+  'telegram-ack.py':
+    'OFF by owner request (2026-09-23): the auto-like on inbound Telegram messages is unwanted; unregistered on every surface, see the note above',
+  'telegram_progress.py':
+    'OFF by owner request (2026-09-23): the "working on it" progress reply is unwanted; unregistered on every surface, and its two clear-hooks are left in place because they only clear state',
   'telegram_fallback_send.py':
     'agent-invoked CLI (manual Bot API fallback sender, see scripts/lib/send-telegram.sh), not a settings hook; since #1305 the progress installer no longer copies or names it',
   'channel-process-gate.py':

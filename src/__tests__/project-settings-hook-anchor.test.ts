@@ -72,8 +72,22 @@ const EXPECTED: Record<string, string[]> = {
 // AND IF YOU ADD A NEW LOCAL HOOK: this test will fail until you list it here.
 // That is the gate working, not a regression. Adding a name is a reviewed
 // decision about what runs in the main session -- the same bar EXPECTED sets.
+// OWNER DECISION, 2026-09-23: the two "the agent noticed you" niceties are OFF.
+// Zsolt had them turned off the day before and they came back when this merge
+// restored telegram_progress.py (its absence looked like collateral damage,
+// because nine agents still carried it) and wired telegram-ack.py for the first
+// time. His words: the auto-like on his messages and the "working on it" reply
+// are not wanted. Both are now absent from every surface, this file included.
+//
+// telegram_progress.py sits in upstream's EXPECTED above, which is kept byte for
+// byte, so it is subtracted here rather than edited out of that list -- the
+// divergence stays visible and survives the next upgrade instead of being
+// silently re-merged.
+const LOCAL_REMOVALS: Record<string, string[]> = {
+  UserPromptSubmit: ['telegram_progress.py'],
+}
+
 const LOCAL_ADDITIONS: Record<string, string[]> = {
-  UserPromptSubmit: ['telegram-ack.py'],
   // MERGE 2026-09-23: three more local PreToolUse gates were wired in
   // .claude/settings.json but never listed here, so the anchor did not protect
   // them -- and two of the three (interagent-homoglifa-kapu.py,
@@ -102,7 +116,8 @@ const LOCAL_ADDITIONS: Record<string, string[]> = {
 const EXPECTED_HERE: Record<string, string[]> = Object.fromEntries(
   [...new Set([...Object.keys(EXPECTED), ...Object.keys(LOCAL_ADDITIONS)])].map((event) => [
     event,
-    [...(EXPECTED[event] ?? []), ...(LOCAL_ADDITIONS[event] ?? [])],
+    [...(EXPECTED[event] ?? []), ...(LOCAL_ADDITIONS[event] ?? [])]
+      .filter((name) => !(LOCAL_REMOVALS[event] ?? []).includes(name)),
   ]),
 )
 
