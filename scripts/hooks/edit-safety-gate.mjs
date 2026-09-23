@@ -31,11 +31,31 @@ const ALLOWED_ROOTS = [
   '/private/tmp/',            // agent patching src/ under Nova's explicit approval).
   '/Users/macmini/.claude/skills/', // self-improvement: agents auto-generate/patch
 ]                            // SKILL.md files here (core fleet behavior) -> silent.
-// The SECRET_PATH denylist below still hard-gates creds anywhere.
+// The denylists below still hard-gate creds anywhere.
 // Never silently write to secret/credential material even inside the sandbox.
-// Broadened vs read-gate parity: ANY .secrets dir, the dashboard token/vault/db
-// under store/, and .env files -> defer (prompt), never silent overwrite.
-const SECRET_PATH = /(?:\/\.ssh\/|\/\.aws\/|\/\.gnupg\/|id_rsa|id_ed25519|\.pem$|\/\.secrets\/|\/marveen\/store\/|\.dashboard-token|\.vault-key|\/vault\.json|(?:^|\/)\.env(?:\.|$))/i
+const CRED_PATH = /(?:\/\.ssh\/|\/\.aws\/|\/\.gnupg\/|id_rsa|id_ed25519|\.pem$|\/\.secrets\/|\/marveen\/store\/|\.dashboard-token|\.vault-key|\/vault\.json)/i
+
+// .env is its own case, and the previous rule got it WRONG IN BOTH DIRECTIONS
+// (measured 2026-09-23, owner-authorised model switch):
+//
+//   * The comment above this line used to promise ".env files -> defer
+//     (prompt), never silent overwrite", but .env sat in the same regex as the
+//     SSH keys, so the code DENIED. Contract and implementation disagreed, and
+//     the refusal text ("SSH/AWS/GPG kulcs, .pem") never even named .env, so
+//     the message did not describe the rule that fired.
+//   * A blanket defer is no better: under bypass-permissions there IS no
+//     prompt, so "defer" degrades to a SILENT whole-file overwrite -- exactly
+//     what the comment set out to prevent.
+//
+// So .env is split by the SHAPE of the write, not by trust:
+//   Write/NotebookEdit -> replaces the whole file -> still DENY.
+//   Edit               -> replaces one named string -> allowed to defer, UNLESS
+//                         either side of the replacement mentions a credential
+//                         key, which keeps token/key lines untouchable.
+// Reading .env stays blocked by bash-safety-gate/read-safety-gate, so an agent
+// cannot learn a secret's current value to put in old_string in the first place.
+const ENV_PATH = /(?:^|\/)\.env(?:\.|$)/i
+const CRED_KEY = /(?:TOKEN|KEY|SECRET|PASSWORD|PASSWD|CREDENTIAL|_PW\b)/i
 
 // Pure decision. Returns { decision: 'allow'|'deny'|'defer', reason? }.
 // allow -> silent approve; deny -> block; defer -> no opinion (normal prompt).
@@ -44,7 +64,13 @@ export function gateDecision(toolName, toolInput) {
   const p = toolInput?.file_path ?? toolInput?.notebook_path ?? toolInput?.path
   if (typeof p !== 'string' || !p) return { decision: 'defer' }
   const norm = normalize(p)
-  if (SECRET_PATH.test(norm)) return { decision: 'deny', reason: SECRET_MSG }
+  if (CRED_PATH.test(norm)) return { decision: 'deny', reason: SECRET_MSG }
+  if (ENV_PATH.test(norm)) {
+    if (String(toolName) !== 'Edit') return { decision: 'deny', reason: ENV_WRITE_MSG }
+    const touched = `${toolInput?.old_string ?? ''}\n${toolInput?.new_string ?? ''}`
+    if (CRED_KEY.test(touched)) return { decision: 'deny', reason: ENV_CRED_MSG }
+    return { decision: 'defer' }
+  }
   if (norm.startsWith('/')) {
     if (ALLOWED_ROOTS.some((r) => norm.startsWith(r))) return { decision: 'allow' }
     return { decision: 'defer' } // absolute path outside sandbox -> normal prompt
@@ -58,6 +84,17 @@ export function gateDecision(toolName, toolInput) {
 const SECRET_MSG =
   'Titok-anyagba iras (SSH/AWS/GPG kulcs, .pem) TILTOTT. Ha hitelesito adatot kell ' +
   'tarolni, kerd a Nova Fonoktol a biztonsagos tarolas modjat.'
+
+const ENV_WRITE_MSG =
+  'Egy .env EGESZENEK feluliras (Write/NotebookEdit) TILTOTT: az a fajl hitelesito ' +
+  'adatot is hordoz, es egy teljes visszairas a tobbi sort NYOMTALANUL eldobja. ' +
+  'LEGITIM UT: celzott Edit egyetlen kulcsra (old_string/new_string). Ha tenyleg a ' +
+  'teljes fajl kell, az a gazda dontese, ne kerulout.'
+
+const ENV_CRED_MSG =
+  'Ez az Edit egy .env HITELESITO kulcsat erinti (TOKEN/KEY/SECRET/PASSWORD/' +
+  'CREDENTIAL szerepel a cserelt szovegben). Ez TILTOTT agens-oldalrol. Nem-titok ' +
+  'konfigkulcs (pl. MAIN_AGENT_MODEL) celzott Edittel szabadon allithato.'
 
 function emitAllow() {
   process.stdout.write(JSON.stringify({
