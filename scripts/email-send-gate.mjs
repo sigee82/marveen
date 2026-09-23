@@ -276,6 +276,30 @@ export function gateDecision(toolName, toolInput, isVerified = null) {
   // entrypoint reads send_email-shaped fields (threadId/to), which a connector
   // reply does not carry, so the connector stays fully gated for every agent.
   if (/gmail__(reply|reply_all|send_message|forward)$/i.test(name)) return { deny: true, kind: 'connector-send' }
+  // DESTRUCTIVE MAILBOX OPERATIONS. Not a "send", which is exactly why this gate
+  // -- named for sends -- let them through. Measured 2026-09-23:
+  // mcp__gmail__delete_emails produced NO decision at all, on this commit and on
+  // the pre-merge one alike, so this is not a merge regression. What it is:
+  // scripts/frissites-verify.sh has asserted this deny for longer than the gate
+  // has implemented it, and prints "ATENGEDTE, ALLJ MEG" while still exiting 0 --
+  // a warning inside a wall of output, which is not a gate. Its own comment says
+  // every input there "was denied before the merge too"; for this line that was
+  // false.
+  //
+  // WHY IT CANNOT STAY OPEN: a deletion is silent and unrecoverable, and unlike a
+  // send it has no draft-shaped middle ground to route through the main agent for
+  // approval. It is strictly worse than what this file already refuses, so it
+  // must not be the one operation left open.
+  //
+  // Name-agnostic verb+noun, like this file's other patterns: a customer install's
+  // server may not be called gmail. Reads stay allowed (list_emails, get_email
+  // carry no destructive verb), and so do label/archive moves.
+  // NOT \b at the front: in mcp__gmail__delete_emails the char before `delete`
+  // is `_`, which is a word character, so \b never matches there. The controls
+  // caught it on the first run -- the pattern looked right and matched nothing.
+  if (/(?:^|[^a-z0-9])(delete|trash|remove|purge)_(emails?|messages?|threads?|mail)\b/i.test(name)) {
+    return { deny: true, kind: 'destructive-mailbox' }
+  }
   // Drafting is allowed, but only to an address with a recorded source.
   if (DRAFT_TOOL_RE.test(name)) {
     const bad = unverifiedRecipients(toolInput, verify)
@@ -558,6 +582,15 @@ if (isInvokedDirectly()) {
     // vouch for an unsourced recipient.
     if (kind === 'unverified-recipient') deny(buildUnverifiedRecipientMsg(addresses ?? []))
     if (kind === 'draft-required') deny(buildDraftOnlyMsg(ownerName))
+    if (kind === 'destructive-mailbox') {
+        deny(
+          `${botName}: levelet TOROLNI nem lehet ezen az uton. A torles nema es ` +
+            `visszafordithatatlan, es nincs piszkozat-alaku kozeput, amit ${ownerName} ` +
+            `jova tudna hagyni. Ha tenylegesen torolni kell, ${ownerName} tegye meg a ` +
+            `sajat postafiokjaban. Archivalasra hasznalj cimke- vagy archive-muveletet, ` +
+            `az nem esik ide.`,
+        )
+      }
     // Thread-scoped narrowing: only when the scaffold wired this agent's hook
     // command with the flag (capability-driven, regenerated on every spawn),
     // and only for the direct send_email tool. Bash send routes and
