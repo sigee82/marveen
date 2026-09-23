@@ -11,7 +11,7 @@
 // forgotten drift seed, a context-threshold split would make suggestions flap
 // around the boundary, and this module's own cost table prices the variants
 // identically.
-import { DISTRIBUTION_DEFAULT_AGENT_MODEL } from '../config-registry.js'
+import { DEFAULT_AGENT_MODEL } from '../config.js'
 
 // Human label for the reason texts, derived from the constant so a future
 // model bump rewrites the prose too: 'claude-opus-5[1m]' -> 'Opus 5 (1M)'.
@@ -27,7 +27,10 @@ export function humanModelLabel(model: string): string {
   return oneM ? `${label} (1M)` : label
 }
 
-const TOP_TIER_MODEL = DISTRIBUTION_DEFAULT_AGENT_MODEL
+// MAINMODEL923: the install's configured DEFAULT_AGENT_MODEL, not the shipped
+// distribution default -- otherwise an install standardised on a newer model
+// (here Opus 5.5 1M) got "switch back to Opus 5" advice on every agent.
+const TOP_TIER_MODEL = DEFAULT_AGENT_MODEL
 const TOP_TIER_LABEL = humanModelLabel(TOP_TIER_MODEL)
 
 export type ModelId =
