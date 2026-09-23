@@ -23,7 +23,7 @@ const SILENCE_MS = 2 * DAY_MS
 const NOW = 1_760_000_000_000
 
 function probe(over: Partial<IntakeProbe> = {}): IntakeProbe {
-  return { reachable: true, tokenOk: true, pendingUpdates: 0, webhookUrl: '', lastErrorMessage: null, ...over }
+  return { reachable: true, tokenOk: true, upstreamError: false, pendingUpdates: 0, webhookUrl: '', lastErrorMessage: null, ...over }
 }
 
 describe('parseIntakeProbe', () => {
@@ -35,6 +35,7 @@ describe('parseIntakeProbe', () => {
     expect(r).toEqual({
       reachable: true,
       tokenOk: true,
+      upstreamError: false,
       pendingUpdates: 7,
       webhookUrl: '',
       lastErrorMessage: 'wrong response',
@@ -63,7 +64,27 @@ describe('parseIntakeProbe', () => {
     const r = parseIntakeProbe(0, null)
     expect(r.reachable).toBe(false)
     expect(r.tokenOk).toBe(true)
+    expect(r.upstreamError).toBe(false)
     expect(r.pendingUpdates).toBeNull()
+  })
+
+  // The alarms of 2026-09-22 03:11 verbatim: Telegram's own edge failing, with
+  // tokens that answered getMe ok:true minutes later.
+  it.each([
+    [502, 'Bad Gateway'],
+    [429, 'Too Many Requests: retry after 5'],
+    [500, 'Internal Server Error'],
+  ])('does not call the token invalid on a transient %i from Telegram', (status, description) => {
+    const r = parseIntakeProbe(status, { ok: false, error_code: status, description })
+    expect(r.tokenOk).toBe(true)
+    expect(r.upstreamError).toBe(true)
+    expect(r.lastErrorMessage).toBe(description)
+  })
+
+  it.each([401, 403])('still calls the token invalid on an auth refusal (%i)', (status) => {
+    const r = parseIntakeProbe(status, { ok: false, error_code: status, description: 'Unauthorized' })
+    expect(r.tokenOk).toBe(false)
+    expect(r.upstreamError).toBe(false)
   })
 })
 
@@ -166,6 +187,18 @@ describe('decideIntakeVerdict', () => {
     })
     expect(d.verdict).toBe('token-invalid')
     expect(d.alert).toBe(true)
+  })
+
+  it('never alerts when Telegram itself answered with a transient error', () => {
+    const d = decideIntakeVerdict({
+      probe: probe({ upstreamError: true, pendingUpdates: null, lastErrorMessage: 'Bad Gateway' }),
+      prev: null,
+      lastInboundAt: NOW - 60_000,
+      now: NOW,
+      silenceThresholdMs: SILENCE_MS,
+    })
+    expect(d.verdict).toBe('upstream-error')
+    expect(d.alert).toBe(false)
   })
 
   it('never alerts when our own side could not reach Telegram', () => {

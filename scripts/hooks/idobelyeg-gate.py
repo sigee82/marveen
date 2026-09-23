@@ -71,6 +71,61 @@ HONAP = {"jan": 1, "feb": 2, "mar": 3, "ápr": 4, "apr": 4, "máj": 5, "maj": 5,
 HORGONY_ABLAK = 40
 
 
+# MERES-SZO: csak az ilyen kornyezetben allo orara nezzuk az "elavult mert ora" agat.
+#
+# 2026-09-18, MERT ESET, es ez a MASODIK elofordulas ugyanebben az alakban. Pixel egy
+# 12:0x-12:12-es GA4-meresre "09:2x"-et irt: a delelotti kore `date`-jet vitte tovabb egy
+# 12 orakor indulo feladatra. A szamok mind helyesek voltak, csak a CIMKE nem -- es en
+# atvettem a sajat kanban-kommentembe, ami nem is szerkesztheto.
+#
+# AMIERT A MEGLEVO KAPU NEM FOGTA MEG: az a JOVOBELI orat tiltja. Egy ATVITT, MULTBELI de
+# elavult ora semmibe nem utkozik. Egy mert ora ugyanugy elavul, mint egy becsult -- csak
+# nehezebb eszrevenni, mert "megmertem" erzese van hozza.
+#
+# MIERT CSAK FIGYELMEZTETES: a visszafele iranyu elteres tulnyomo reszt LEGITIM (aznapi
+# korabbi meresre hivatkozas), tehat tiltaskent zajos lenne.
+# MIERT KELL A MERES-SZO: e nelkul minden aznapi korabbi ora tuzelne -- a sajat naplosoraim
+# tele vannak ilyennel. A szukites arra a kerdesre all ra, ami ma elromlott: MIKOR MERTED.
+MERES_SZO = re.compile(
+    r"((vissza)?m[eé]r[eé]s|m[eé]rve|m[eé]rtem|m[eé]rte|megm[eé]rve|megm[eé]rtem|"
+    r"m[eé]rt [eé]rt[eé]k|leolvas|lek[eé]rdez)",
+    re.I,
+)
+# A MERES-SZO AZ ORA MINDKET OLDALAN SZAMIT.
+#
+# 2026-09-18, Pixel merese a MAI TENYLEGES kimeneteimen (23 rekord), az elso valtozat utan.
+# Harom res maradt bent, es mindharmat az okozta, hogy a kontroll-szoveget EN fogalmaztam:
+#   (a) `visszameres` nem volt a szolistan -- pedig a valodi komment igy kezdodik
+#       ("PIXEL VISSZAMERESE, 2026-09-18 09:2x")
+#   (b) a PUSZTA `meres` fonev sem volt rajta, csak a "meres ideje" osszetetel
+#   (c) es a legsulyosabb: az ablak EGYOLDALAS volt, csak az ora ELE nezett -- holott
+#       magyarul ez a termeszetes szorend: "12:12-kor merve", "09:05-kor megmertem"
+#
+# A META-LELET, amiert ez itt all: a javitas utan a pozitiv kontrollt MEGINT egy sajat
+# megfogalmazasu mintaszovegen futtattam ("A meres ideje: ..."), nem a VALODI artefaktumon.
+# A kontroll-szoveget a kapu iroja fogalmazza, es akaratlanul a SAJAT mintajara irja --
+# a hiba viszont valaki MAS irasmodjaban keletkezett. A pozitiv kontroll ezert SZO SZERINT
+# a valodi artefaktumbol joj jon, ne ujrafogalmazva.
+# Hany perccel korabbi ora szamit gyanusan elavultnak. A mai eset 183 perc volt; egy
+# normal, 10-20 perces munkamenet nem tuzel.
+ELAVULT_PERC = 60
+
+# MASZKOLT PERC (09:2x, 12:0x): a sajat irasmodunk, es az `ORA` mintanak LATHATATLAN.
+#
+# 2026-09-18, az elso teszt-kor lelete: a fenti agat pont arra a szovegre irtam meg, amit
+# Pixel kuldott ("A meres ideje: 2026-09-18 09:2x") -- es a pozitiv kontroll CSENDET adott,
+# mert a `2x` nem ket szamjegy. A kapu tehat nem a hibara allt ra, hanem egy hibara, ami
+# nem igy nez ki. A maszkolt alak nalunk mindennapos (a CLAUDE.md es a naplok tele vannak
+# vele), tehat enelkul a bovites a valos esetek tulnyomo reszen nema maradna.
+#
+# CSAK A FIGYELMEZTETO AGHOZ hasznaljuk. A tilto ag marad a pontos `ORA` mintan: egy
+# maszkolt percbol nem akarunk BLOKKOLO allitast epiteni.
+# A perc also hatarat vesszuk (2x -> :20), mert az ad a mostani orahoz kepest a
+# LEGKISEBB elterest -- igy a kuszob nem tuzel korabban, mint indokolt.
+MASZKOLT_ORA = re.compile(r"\b([01]?\d|2[0-3]):([0-5])x\b", re.I)
+
+
+
 def horgony_datuma(elotte: str):
     """A legkozelebbi datum-horgony az ora elott, vagy None."""
     talalat = None
@@ -94,10 +149,16 @@ def main():
     except Exception:
         sys.exit(0)  # olvashatatlan payload: nem a mi dolgunk blokkolni
 
+    # A KAPU 2026-09-21-ig CSAK a Bash `command` mezojet nezte, tehat a Telegram- es
+    # email-uton a kezzel irt jovobeli ora ATMENT. Nessa fogta meg, a sajat hibajan:
+    # "20:40-kor visszamerve" allt egy uzenetben, ami 20:2x-kor ment ki. Ugyanaz a
+    # hibaosztaly a memoria- es a naplo-szkriptben MERVE tiltva, a harmadik csatornan
+    # nem volt. A mezonevek az outgoing-copy-gate sajat gyujtojevel egyeznek.
     parancs = ""
     ti = payload.get("tool_input")
     if isinstance(ti, dict):
-        parancs = str(ti.get("command") or "")
+        mezok = ("command", "text", "caption", "message", "body", "content")
+        parancs = "\n".join(str(ti[f]) for f in mezok if ti.get(f))
     if not parancs:
         sys.exit(0)
 
@@ -105,6 +166,7 @@ def main():
     ma = most.date()
     jovobeli = []
     horgonytalan = []
+    elavult = []
 
     for m in ORA.finditer(parancs):
         if _keparany_e(parancs, m.group(0), m.start(), m.end()):
@@ -121,6 +183,9 @@ def main():
             continue  # nem mai horgony: legitim hivatkozas
         if perc_kulonbseg > 0:
             jovobeli.append("%s (+%d perc)" % (m.group(0), perc_kulonbseg))
+        elif perc_kulonbseg <= -ELAVULT_PERC and MERES_SZO.search(
+                elotte + parancs[m.end():m.end() + HORGONY_ABLAK]):
+            elavult.append("%s (-%d perc)" % (m.group(0), -perc_kulonbseg))
 
     if jovobeli:
         sys.stderr.write(
@@ -139,6 +204,26 @@ def main():
               "horgony nelkul egy ora ket het mulva ertelmezhetetlen.\n"
         )
         sys.exit(2)
+
+    for m in MASZKOLT_ORA.finditer(parancs):
+        ora, perc = int(m.group(1)), int(m.group(2)) * 10
+        elotte = parancs[max(0, m.start() - HORGONY_ABLAK):m.start()]
+        d = horgony_datuma(elotte)
+        if d is not None and d != ma:
+            continue
+        perc_kulonbseg = (ora * 60 + perc) - (most.hour * 60 + most.minute)
+        if perc_kulonbseg <= -ELAVULT_PERC and MERES_SZO.search(
+                elotte + parancs[m.end():m.end() + HORGONY_ABLAK]):
+            elavult.append("%s (-%d perc)" % (m.group(0), -perc_kulonbseg))
+
+    if elavult:
+        sys.stderr.write(
+            "FIGYELEM (nem blokkol): a szovegben MAI datumu, MERESKENT megnevezett ora all, "
+            "ami a mostani %s-hoz kepest jelentosen korabbi: " % most.strftime("%H:%M")
+            + ", ".join(elavult[:5])
+            + ".\nHa ez egy KORABBI kor mert erteke, es MOST mersz, futtass ujra `date`-et. "
+              "Egy mert ora ugyanugy elavul, mint egy becsult -- csak nehezebb eszrevenni.\n"
+        )
 
     if horgonytalan:
         sys.stderr.write(

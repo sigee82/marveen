@@ -158,14 +158,39 @@ function insideUrl(spans, start, end) {
   return spans.some(([a, b]) => start >= a && end <= b)
 }
 
+// MASODIK SZUKITES: A HIRDETESSZOVEG-SOR SZAMA NEM ALLITAS, HANEM JAVASOLT SZOVEG.
+// 2026-09-22: harom kesz Meta-hirdetesszoveget kellett atadni a gazdanak. A copyban allo
+// "82 Ft" es "500" NEM meres, hanem a hirdetes resze -- meresi forrasa nincs es nem is lehet.
+// A kapu haromszor utasitotta el, mire .txt mellekletkent kuldtem ki. A gazda erre:
+// "ne ilyen faszom txt-be dobd az infókat, ez így nem kényelmes".
+// VAGYIS PONTOSAN AZ TORTENT, AMIT A FENTI KOMMENT ELORE LEIRT ("a linket fajlkent, majd
+// csonkitva kuldtem ki, mert a szoveges ut zarva volt") -- masodszor, mas tartalommal.
+// A SZUKITES SZANDEKOSAN SZUK: csak az a SOR mentesul, amelyik egy hirdetes-mezo CIMKEJEVEL
+// KEZDODIK. A cimke a szandekot a gazda szamara is lathatova teszi az uzenetben, tehat nem
+// rejtett kapcsolo. Egy bekezdesben, mondat kozepen allo szam valtozatlanul tuzel, es egy
+// sor, ami csak TARTALMAZZA a cimket, szinten.
+const COPY_LABEL = /^[ \t]*(Szöveg|Címsor|Leírás|Kreatívon|Mondás)[ \t]*:/gim
+
+function copySpans(text) {
+  const spans = []
+  const re = new RegExp(COPY_LABEL.source, COPY_LABEL.flags)
+  let m
+  while ((m = re.exec(text)) !== null) {
+    const sorVege = text.indexOf('\n', m.index)
+    spans.push([m.index, sorVege === -1 ? text.length : sorVege])
+    if (m[0].length === 0) break
+  }
+  return spans
+}
+
 function unsourcedFigure(text) {
-  const spans = urlSpans(text)
+  const spans = [...urlSpans(text), ...copySpans(text)]
   for (const re of SIGNIFICANT_FIGURE) {
     const flags = re.flags.includes('g') ? re.flags : re.flags + 'g'
     const global = new RegExp(re.source, flags)
     let m
     while ((m = global.exec(text)) !== null) {
-      if (insideUrl(spans, m.index, m.index + m[0].length)) continue
+      if (insideUrl(spans, m.index, m.index + m[0].length)) continue // URL vagy copy-sor
       const from = Math.max(0, m.index - SOURCE_WINDOW)
       const to = Math.min(text.length, m.index + m[0].length + SOURCE_WINDOW)
       const near = text.slice(from, to)

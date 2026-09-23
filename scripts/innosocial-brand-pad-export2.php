@@ -29,7 +29,7 @@ foreach ($in as $item) {
     if ($only && $id !== $only) continue;
     $t0 = microtime(true);
     try {
-        ['site' => $site, 'meta' => $siteMeta, 'homeHtml' => $homeHtml, 'posts' => $posts]
+        ['site' => $site, 'meta' => $siteMeta, 'homeHtml' => $homeHtml, 'homeCss' => $homeCss, 'posts' => $posts]
             = autofillGatherSources($row, $account);
         $siteUrl = trim((string) ($row['brand_website_url'] ?? ''));
         if (empty($site['pages']) && (int) $posts['chars'] === 0) {
@@ -56,7 +56,7 @@ foreach ($in as $item) {
             printf("#%-4s %-30s PARSE-HIBA: %s\n", $id, mb_substr($account['page_name'],0,30), mb_substr((string)($parsed['error'] ?? '?'),0,60));
             continue;
         }
-        $proposal = autofillBuildProposal($parsed, $homeHtml, $account, $site, $siteMeta, $posts, $modelId, $cost);
+        $proposal = autofillBuildProposal($parsed, $homeHtml, $account, $site, $siteMeta, $posts, $modelId, $cost, $homeCss);
         $proposal['_meta'] = ['account_id' => $id, 'page_name' => $account['page_name'],
                               'website' => $siteUrl, 'seconds' => round(microtime(true)-$t0, 1)];
         file_put_contents("$OUT/fiok-$id.json", json_encode($proposal, JSON_UNESCAPED_UNICODE));

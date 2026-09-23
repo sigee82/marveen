@@ -28,7 +28,7 @@ generalja a prodon futtathato PHP-t.
 FUTTATAS:
   python3 scripts/landing-17544-generator.py
 """
-import argparse, html, io, json, os, re, subprocess
+import argparse, datetime, hashlib, html, io, json, os, re, subprocess
 
 COPY_MD = ('/Users/macmini/marveen/agents/copy/workspace/landing/'
            'ingyenes-kihivas-2026-10-reggeli/landing-2026-10-reggeli-JAVITOTT.md')
@@ -105,10 +105,15 @@ def horgony(ertek):
     if len(h) == HORGONY_MAX and ' ' in h:
         h = h[:h.rfind(' ')]
     h = h.strip()
+    # A MINIMUM CSAK PREFIXRE ALL. Ha a horgony az EGESZ mert ertek (rovid cimek), az
+    # nem gyengebb, hanem a lehet legerosebb horgony: teljes egyezes, nem kezdodik-vel.
+    if h == ertek.strip():
+        return h
     if len(h) < HORGONY_MIN:
-        raise SystemExit(f'HIBA: a horgony {len(h)} karakterre rovidult ("{h}").\n'
-                         f'  A mert ertek eleje kockazatos karaktert tartalmaz, tehat innen\n'
-                         f'  nem lehet texturize-biztos horgonyt vagni. Kezi dontes kell.')
+        raise SystemExit(f'HIBA: a horgony {len(h)} karakterre rovidult ("{h}"),\n'
+                         f'  es ez csak a mert ertek ELEJE. Egy ilyen rovid prefix nem\n'
+                         f'  azonosit, hanem atengedne barmit, ami igy kezdodik.\n'
+                         f'  Az ok: kockazatos karakter all a szoveg elejen. Kezi dontes kell.')
     return h
 
 
@@ -168,6 +173,21 @@ def sorok(blokk):
     return [s.strip() for s in blokk.split('\n') if s.strip()]
 
 
+def forras_ujjlenyomat():
+    """A forras-fajl md5-je es mtime-ja. AZ ARTEFAKTUM MONDJA MEG, MELYIK KORBOL VALO.
+
+    2026-09-21 delutan a deploy-forras 13:12, 13:14 es 13:16-kor is ujrairodott (Eszter
+    hang-korei). Ket perc alatt harom vilag. Enelkul a generalt PHP-rol kivulrol NEM
+    allapithato meg, melyik korbol szarmazik -- es egy kesobb futtatott, regebbi csomag
+    ugyanolyan magabiztosan ir, mint egy friss.
+    """
+    nyers = io.open(COPY_MD, 'rb').read()
+    return {'md5': hashlib.md5(nyers).hexdigest(),
+            'mtime': datetime.datetime.fromtimestamp(os.path.getmtime(COPY_MD))
+                      .strftime('%Y-%m-%d %H:%M:%S'),
+            'byte': len(nyers)}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--meres-nelkul', action='store_true',
@@ -206,11 +226,27 @@ def main():
 
     # (b) hero: bevezeto + negysoros lista, egyben
     fel('b3e8629', 'editor', html_hero(sz['b']))
-    # (a) 2. szekcio torzse  (a CIM valtozatlan, ezert nincs benne a parositasban)
+    # (a) a 2. szekcio CIME es torzse.
+    # A cim korabban azzal maradt ki, hogy "ugysem valtozik" -- ugyanaz az indok, ami a
+    # (d) cimet is kihagyta, es azt Eszter harmadik kore atirta. Egy mezo, ami ma
+    # valtozatlan, holnap valtozo; a kihagyas viszont CSENDES marad.
+    a_cim = sorok(alszekcio(sz['a'], 'Cím'))
+    if len(a_cim) != 1:
+        raise SystemExit(f'HIBA: a (a) cim {len(a_cim)} soros, egyet vartam.')
+    fel('6c78b0f2', 'title', a_cim[0])
     fel('370bdfea', 'editor', html_bekezdesek(alszekcio(sz['a'], 'Törzs')))
     # (c) "Mire szamithatsz?" torzse
     fel('17c1f49', 'editor', html_bekezdesek(sz['c']))
-    # (d) "Mit kapsz meg?" bevezeto + negy ikonos pont
+    # (d) a SZEKCIO-CIM (ha Copy megadja), majd a bevezeto + negy ikonos pont.
+    # A cim 2026-09-21 13:14 ota szerepel a forrasban (Eszter harmadik kore). Addig
+    # EGYETLEN cim sem volt a parositasban -- ezert ha Copy megadja es mi nem visszuk at,
+    # az egy CSENDES kimaradas: a generator 4 valtozast jelentene, a cim meg a regi maradna.
+    cim = alszekcio(sz['d'], 'Szekció-cím')
+    if cim:
+        sorok_cim = sorok(cim)
+        if len(sorok_cim) != 1:
+            raise SystemExit(f'HIBA: a (d) szekcio-cim {len(sorok_cim)} soros, egyet vartam.')
+        fel('9a135ee', 'title', sorok_cim[0])
     fel('c927586', 'editor', html_bekezdesek(alszekcio(sz['d'], 'Bevezető')))
     negy = sorok(alszekcio(sz['d'], 'A négy pont'))
     if len(negy) != 4:
@@ -257,10 +293,24 @@ def main():
         raise SystemExit('HIBA -- a bevitel a sajat kapunk leleteit hozna vissza:\n  - '
                          + '\n  - '.join(bajok))
 
-    json.dump(parok, io.open(KI_JSON, 'w', encoding='utf-8'),
-              ensure_ascii=False, indent=1)
-    io.open(KI_PHP, 'w', encoding='utf-8').write(FEJ + '\n$PAROK = ' + php_tomb(parok) + ';\n' + TORZS)
+    ujj = forras_ujjlenyomat()
+    json.dump({'forras': {'ut': COPY_MD, **ujj},
+               'mert_elo_allapot': meta['mikor_utc'],
+               'keszult': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+               'parok': parok},
+              io.open(KI_JSON, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+    fej = FEJ.replace(' */', f" *\n * FORRAS: {os.path.basename(COPY_MD)}"
+                      f"  md5={ujj['md5']}  mtime={ujj['mtime']}\n"
+                      f" * MERT ELO ALLAPOT: {meta['mikor_utc']}\n */", 1)
+    io.open(KI_PHP, 'w', encoding='utf-8').write(fej + '\n$PAROK = ' + php_tomb(parok) + ';\n' + TORZS)
     valtozik = [p for p in parok if p['valtozik']]
+    print(f"@@ FORRAS: {os.path.basename(COPY_MD)}  md5={ujj['md5']}  mtime={ujj['mtime']}")
+    kor = (datetime.datetime.now()
+           - datetime.datetime.strptime(ujj['mtime'], '%Y-%m-%d %H:%M:%S')).total_seconds()
+    if kor < 300:
+        print(f'@@ FIGYELEM: a forrast {int(kor)} masodperce irtak. Lehet, hogy epp fut egy')
+        print('@@   ujabb kor -- deploy elott futtasd ujra, es vesd ossze az md5-ot azzal,')
+        print('@@   amit a szoveg gazdaja veglegesnek mondott.')
     print(f"@@ mert elo allapot: {meta['mikor_utc']}  ({meta['forras']})")
     print(f'@@ {len(parok)} mezo ({len(valtozik)} valtozik, {len(parok)-len(valtozik)} valtozatlan)'
           f' -> {KI_PHP}')

@@ -664,17 +664,32 @@ def _hit_context(prose: str, pos: int, length: int) -> str:
 # szet, amit a szotar hibanak lat -- pedig ott toldalek, nem szo. A javitas nem a szotarbol
 # vesz ki (az elrontana a valodi talalatokat is), hanem a technikai regiokat
 # vagja ki a vizsgalt szovegbol. A gondolatjel- es nev-ellenorzes NEM ezen fut.
+# 2026-09-18: a kiszolgalt build-id (git sha elso 12 jegye) magyar SZOKENT bukott meg:
+# az `5b64afa545e9` kozepen ott az `afa`, es a kapu `afa -> afa` ekezet-hianyt jelentett.
+# Ez minden deploy-jelentesnel visszaterne, es a hex-alfabeta (a-f) tele van magyar
+# szotoredekkel (afa, ede, fade, bab, def). A maszk ezert kivagja a legalabb 8 jegyu
+# hex futamokat -- de CSAK azokat, amikben van szamjegy IS es betu IS, hogy egy nyolc
+# betus magyar szo (pl. 'befedded') ne essen ki veletlenul.
+# A DOMAIN-AG A TOLDALEKOT IS ELNYELI, ES EZ NEM KOZMETIKA (2026-09-22, mert eset).
+# Toldalek nelkul a maszk a `gmail.com-ot`-bol kivagta a domaint es OTTHAGYTA a ` -ot`
+# darabot -- amit az ekezet-ellenorzes magyar szokent olvasott, es "ot -> ot" hianyt
+# jelentett egy hibatlan mondatra. A kapu tehat a SAJAT maszkolasa altal gyartott
+# toredeken riasztott, nem a szerzo szovegen. A tulajdonnev-ag (Drive-ra, Chrome-ot)
+# ezt mar kezelte; a domain-ag nem, holott nalunk a domain+toldalek a gyakoribb alak.
+# Merve a javitas elott/utan: `gmail.com-ot` -> ' -ot' / ' ', es a magyar kontrollszavak
+# (befedded, ot, haz-ban) egyik alakban sem esnek ki.
 TECHNICAL = re.compile(
     r"""https?://\S+                # URL
       | [\w.+-]+@[\w-]+\.[\w.]+     # email
       | `[^`]*`                     # kod-span
       | \b\w+(?:_\w+)+\b            # snake_case azonosito
-      | \b\w+\.[A-Za-z]{2,10}\b     # fajlnev / domain (video.mp4, marveen.io)
+      | \b\w+\.[A-Za-z]{2,10}(?:-[a-záéíóöőúüű]{1,4})?\b   # fajlnev / domain, toldalekkal egyutt (marveen.io-ra)
       | \b[\w-]*/[\w/-]+            # utvonal / slug
       | \d+(?:[.:,]\d+)*-[^\W\d_]+   # szam + magyar toldalek (8:09-es, 2-es, 17:06-kor)
       | \b[A-ZÁÉÍÓÖŐÚÜŰ][^\W\d_]*-[a-záéíóöőúüű]{1,4}\b   # tulajdonnev + toldalek (Chrome-ot, Drive-ra)
       | \blevel\s+\d+\b            # angol "level 1" (autonomia-szint, log-szint)
       | \b[a-z]+(?:-[a-z]+){1,4}\b    # kotojeles kisbetus azonosito (feladat- es skill-nevek)
+      | \b(?=[0-9a-f]*[0-9])(?=[0-9a-f]*[a-f])[0-9a-f]{8,}\b  # hex azonosito (git sha, build-id, token-elotag)
     """,
     re.X,
 )

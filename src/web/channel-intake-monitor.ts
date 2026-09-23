@@ -58,8 +58,19 @@ const PROBE_TIMEOUT_MS = 8_000
 export interface IntakeProbe {
   /** false only when OUR side failed to complete the call (network, timeout). */
   reachable: boolean
-  /** false when Telegram answered but rejected the token. */
+  /** false when Telegram answered with an AUTH refusal (401/403) for the token. */
   tokenOk: boolean
+  /**
+   * true when Telegram answered, but with a transient error (429 rate limit,
+   * 5xx gateway) that says nothing about the token. Measured 2026-09-22: three
+   * separate days produced a one-shot `token-invalid` at ~03:11 for a DIFFERENT
+   * agent each time ("Bad Gateway", "Too Many Requests: retry after 5"), while
+   * every one of those tokens answered getMe with ok:true minutes later. A real
+   * bad token fails on EVERY tick for the SAME agent; a transient upstream error
+   * fires once and moves on. Treating the two alike pages the owner about a
+   * healthy channel, which is how a real alarm gets learned as noise.
+   */
+  upstreamError: boolean
   /** Updates queued upstream that nobody has fetched; null when unknown. */
   pendingUpdates: number | null
   webhookUrl: string | null
@@ -79,6 +90,7 @@ export type IntakeVerdict =
   | 'backlog-suspected'
   | 'deaf-backlog'
   | 'token-invalid'
+  | 'upstream-error'
   | 'unreachable'
 
 export interface IntakeDecision {
@@ -105,13 +117,19 @@ interface TelegramWebhookInfoBody {
  */
 export function parseIntakeProbe(status: number, body: unknown): IntakeProbe {
   if (status === 0) {
-    return { reachable: false, tokenOk: true, pendingUpdates: null, webhookUrl: null, lastErrorMessage: null }
+    return { reachable: false, tokenOk: true, upstreamError: false, pendingUpdates: null, webhookUrl: null, lastErrorMessage: null }
   }
   const parsed = (body ?? {}) as TelegramWebhookInfoBody
   if (status !== 200 || parsed.ok !== true || !parsed.result) {
+    // Only an AUTH refusal is evidence about the token. Telegram answers 401
+    // (and 403 for a revoked/blocked bot) when it actually rejects it; a 429 or
+    // a 5xx is its own infrastructure talking, and the same token works on the
+    // next tick.
+    const refused = status === 401 || status === 403
     return {
       reachable: true,
-      tokenOk: false,
+      tokenOk: !refused,
+      upstreamError: !refused,
       pendingUpdates: null,
       webhookUrl: null,
       lastErrorMessage: parsed.description ?? null,
@@ -121,6 +139,7 @@ export function parseIntakeProbe(status: number, body: unknown): IntakeProbe {
   return {
     reachable: true,
     tokenOk: true,
+    upstreamError: false,
     pendingUpdates: typeof pending === 'number' ? pending : null,
     webhookUrl: parsed.result.url ?? null,
     lastErrorMessage: parsed.result.last_error_message ?? null,
@@ -150,6 +169,7 @@ export function decideIntakeVerdict(opts: {
   const { probe, prev, lastInboundAt, now, silenceThresholdMs } = opts
 
   if (!probe.reachable) return { verdict: 'unreachable', alert: false }
+  if (probe.upstreamError) return { verdict: 'upstream-error', alert: false }
   if (!probe.tokenOk) return { verdict: 'token-invalid', alert: true }
 
   const pending = probe.pendingUpdates ?? 0

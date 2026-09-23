@@ -283,7 +283,43 @@ def main() -> int:
     r = urllib.request.Request(VEGPONT, data=adat,
                                headers={"Content-Type": "application/json",
                                         "Authorization": "Bearer " + tok})
-    v = json.loads(urllib.request.urlopen(r).read().decode())
+    # A vegpontnak TARTALOM-SZUROJE van, es egy artatlan tanulsag-szoveg is beleakadhat.
+    # Kezeletlenul egy nyers urllib traceback jon, amibol NEM derul ki, hogy szuro fogta meg --
+    # az olvaso a vegpontot hiszi hibasnak, es a tanulsag elveszik. (Bit merese, 2026-09-22:
+    # a kivalto minta egy HTTP-lekero parancs neve KOZVETLENUL egy loopback-cim elott; az
+    # lsof/pgrep/ps, a [[hivatkozas]] es a parancs cim NELKUL nem akadt fenn.)
+    try:
+        v = json.loads(urllib.request.urlopen(r).read().decode())
+    except urllib.error.HTTPError as e:
+        test = ""
+        try:
+            test = e.read().decode()
+        except Exception:
+            pass
+        uzenet = ""
+        try:
+            uzenet = (json.loads(test) or {}).get("error", "")
+        except Exception:
+            uzenet = test[:200]
+        print(f"A MENTES NEM TORTENT MEG. A vegpont HTTP {e.code}-t adott.", file=sys.stderr)
+        if uzenet:
+            print(f"  A szerver valasza szo szerint: {uzenet}", file=sys.stderr)
+        if e.code == 400 and "security filter" in (uzenet or "").lower():
+            print("  EZ TARTALOM-SZURO, NEM VEGPONT-HIBA. A szoveged egy mintaba akadt.",
+                  file=sys.stderr)
+            print("  ISMERT KIVALTO (merve 2026-09-22): egy HTTP-lekero parancs neve KOZVETLENUL",
+                  file=sys.stderr)
+            print("  egy loopback-cim elott. NEM akad fenn: az lsof/pgrep/ps a kapcsoloival, a",
+                  file=sys.stderr)
+            print("  [[hivatkozas]] alak, es ugyanaz a parancs CIM NELKUL.", file=sys.stderr)
+            print("  A SZURO SZANDEKOS VEDELEM -- NE kerüld meg. Ird korul (pl. 'HTTP-proba a",
+                  file=sys.stderr)
+            print("  loopback-cimre'), a tanulsag ugyanugy atmegy.", file=sys.stderr)
+        return 4
+    except urllib.error.URLError as e:
+        print(f"A MENTES NEM TORTENT MEG. A vegpont nem elerheto: {e.reason}", file=sys.stderr)
+        print("  Fut-e a dashboard? http://localhost:3420", file=sys.stderr)
+        return 5
     print(f"OK: memories id={v.get('id')} | {a.kategoria} | rendszerora {most:%Y-%m-%d %H:%M}")
     return 0
 

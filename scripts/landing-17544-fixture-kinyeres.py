@@ -35,11 +35,29 @@ def main():
                        cwd='/Users/macmini/marveen')
     if r.returncode != 0:
         raise SystemExit(f'HIBA: a {ref}:{UT} nem olvashato ki.\n  {r.stderr.strip()}')
-    deploy = {f"{p['elem_id']}|{p['ut']}": p['uj'] for p in json.loads(r.stdout)}
+    nyers = json.loads(r.stdout)
+    tomb = nyers['parok'] if isinstance(nyers, dict) else nyers
+    deploy = {f"{p['elem_id']}|{p['ut']}": p['uj'] for p in tomb}
     elo = json.load(io.open(ELO, encoding='utf-8'))['mezok']
+
+    # EGY FORRASBOL SZARMAZO MEZOK: amit a hivatkozott deploy meg nem ismert (pl. a ket
+    # szekcio-cim, amit csak 2026-09-21 delutan vettunk be a parositasba). Ezeket a MERT
+    # elo ertekbol vesszuk -- de KIMONDVA, mert rajtuk nincs ket fuggetlen forras.
+    # A cimeknel ez vallalhato: a heading-widget tarolt erteke sima szoveg, a <h3> a widget
+    # kerete, nem a mezo tartalma. Egy EDITOR-mezonel ugyanez mar nem lenne igaz.
+    egyforrasu = []
+    for kulcs in sorted(set(elo) - set(deploy)):
+        if not kulcs.endswith('|title'):
+            raise SystemExit(f'HIBA: {kulcs} nincs a {ref} parositasaban, es nem cim-mezo.\n'
+                             f'  Egy editor-mezo tarolt erteket nem lehet a renderelt\n'
+                             f'  szovegbol visszaallitani (a markup elveszik). Adj ujabb refet.')
+        deploy[kulcs] = elo[kulcs]['szoveg']
+        egyforrasu.append(kulcs)
 
     hiba = []
     for kulcs, mert in elo.items():
+        if kulcs in egyforrasu:
+            continue
         if kulcs not in deploy:
             hiba.append(f'{kulcs}: nincs a {ref} parositasaban'); continue
         a, b = tiszta(deploy[kulcs]), mert['szoveg'].strip()
@@ -54,7 +72,10 @@ def main():
 
     json.dump(deploy, io.open(KI, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
     print(f'@@ {len(deploy)} mezo tarolt erteke -> {KI}')
-    print(f'@@ ket fuggetlen forras EGYEZIK: git {ref} parositas  ==  az elo oldal mai meresе')
+    print(f'@@ ket fuggetlen forras EGYEZIK: git {ref} parositas  ==  az elo oldal mai merese')
+    if egyforrasu:
+        print(f'@@ EGY FORRASBOL ({len(egyforrasu)} cim-mezo, nincs rajtuk kereszt-ellenorzes): '
+              f'{", ".join(egyforrasu)}')
     tagos = sum(1 for k, v in deploy.items() if k.endswith('|editor') and re.search(r'<[^>]+>', v))
     print(f'@@ az ot editor-mezobol {tagos} hordoz HTML-taget (a markup a helyen van).')
 

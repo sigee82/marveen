@@ -267,7 +267,15 @@ def main():
     if talalat:
         print(f"  id-k: {', '.join(str(i) for i in talalat)}")
     if not gyanus:
-        print("MINDEN HIVATKOZAS AZONOS a hivatkozo sajat uzenetevel." if talalat
+        # A SZOVEG AZT MONDJA MEG, MIT MERTUNK -- NEM TOBBET. A 151. sor feltetele
+        # ("egyik vegen sincs") azt ellenorzi, hogy a hivatkozott sor A HIVATKOZO SZALABAN
+        # van-e, vagyis o a KULDO VAGY A CIMZETT. Ez SZANDEKOSAN tagabb a szerzosegnel:
+        # egy bejovo (nova -> signal) sorra valaszolni legitim hivatkozas.
+        # A korabbi szoveg ("AZONOS a hivatkozo sajat uzenetevel") viszont SZERZOSEGET
+        # allitott, amit a kapu nem mert meg -- sajat "a meres jo, a kimondas tagabb" eset,
+        # Signal fogta meg 2026-09-22-en egy nova -> signal hivatkozason. Cold 4692 rokona.
+        print("MINDEN HIVATKOZAS LETEZO SOR, A HIVATKOZO SZALABAN (o a kuldo VAGY a cimzett), "
+              "az ablakon belul. SZERZOSEGET NEM ALLIT." if talalat
               else "NINCS agent_msg hivatkozas a szovegben -- a kapu lefutott, nem volt mit merni.")
         return 0
 

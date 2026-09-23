@@ -197,6 +197,29 @@ export function scrubForLog(value, key) {
   return value
 }
 
+// SUBSTRING MATCHING CANNOT NARROW A TOOL WHOSE NAME IS A PREFIX OF A WIDER ONE.
+// 2026-09-22, measured on the real names in the audit log: the server has BOTH
+// `ads_create_ad` (one ad) and `ads_create_ad_set` (a new ad set, with its own budget
+// and targeting). Any substring that admits the first admits the second, including the
+// full name `ads_create_ad`, because "ads_create_ad_set".includes("ads_create_ad").
+// So a grant written for "upload three creatives" silently also authorised creating an
+// ad set. Nothing in the grant file showed that, and the audit log would have recorded
+// the wider call as GRANTED.
+// An entry may therefore be written `=exact_tool_name`, which requires equality. The
+// bare form keeps its substring meaning, so every grant written before today behaves
+// exactly as it did.
+// NOTE FOR WHOEVER WIDENS THIS: the point is not the `=` character. It is that the
+// narrow intent ("only these calls") was NOT expressible before, and an executor's
+// promise not to call the wider one is not a property of the grant -- it is a property
+// of the executor, and it does not survive the executor being replaced.
+export function matchesTool(sn, entry) {
+  const raw = String(entry ?? '').trim()
+  if (!raw) return false
+  const name = String(sn ?? '').toLowerCase()
+  if (raw.startsWith('=')) return name === raw.slice(1).trim().toLowerCase()
+  return name.includes(raw.toLowerCase())
+}
+
 // Does the grant permit this exact call? Returns a reason string on refusal so the
 // log says WHY, not just "no".
 export function grantAllows(name, sn, { grant, cwd, now, toolInput } = {}) {
@@ -227,7 +250,7 @@ export function grantAllows(name, sn, { grant, cwd, now, toolInput } = {}) {
   // substrings matched against the short tool name, case-insensitively.
   // Absent or empty -> unchanged behaviour, so every existing grant keeps working.
   const tools = Array.isArray(grant.allowed_tools) ? grant.allowed_tools.filter((t) => typeof t === 'string' && t.trim()) : []
-  if (tools.length && !tools.some((t) => sn.toLowerCase().includes(t.trim().toLowerCase()))) {
+  if (tools.length && !tools.some((t) => matchesTool(sn, t))) {
     return { ok: false, why: `tool "${sn}" is outside the grant's allowed_tools [${tools.join(', ')}]` }
   }
 
@@ -255,6 +278,17 @@ export function decide(toolName, ctx = {}) {
   // Money-spend ad WRITE (Meta/Google Ads) -> HARD-DENY: no dialog, no chat card,
   // no autonomous spend. The agent proposes via /api/approvals to Nova instead.
   // READ verbs on ad servers do NOT match WRITE_VERB, so reporting still allows.
+  //
+  // AN APPROVAL IS NECESSARY BUT NOT SUFFICIENT, AND THE OLD MESSAGE HID THAT.
+  // 2026-09-22: Pixel proposed an ad set via /api/approvals, Nova approved it, and the
+  // call was denied again -- correctly. This gate NEVER READS THE approvals TABLE; the
+  // only thing that opens it is GRANT_FILE. The message said "propose it via
+  // /api/approvals", which both of us read as "and then it opens". It does not, and the
+  // two systems do not know about each other.
+  // The cost was not the denial (that was right) but the two rounds spent looking for a
+  // fault that was not there. Same shape as the cso-exit gate the same morning: a gate
+  // that names a path which does not, by itself, unlock it.
+  // The message below now says both halves. Whoever changes it: keep the second half.
   if (ADS_SERVER.test(name) && (WRITE_VERB.test(sn) || ADS_WRITE_EXTRA.test(sn))) {
     const g = grantAllows(name, sn, ctx)
     return g.ok ? 'allow-granted' : 'deny'
@@ -291,7 +325,11 @@ function allow(reason = 'read-only / channel MCP tool') {
 
 export const DENY_REASON_ADS =
   'Money-spend ad write is not run autonomously. Propose it via POST /api/approvals to Nova;'
-  + ' a human/Nova executes the approved change.'
+  + ' the approval is NECESSARY BUT NOT SUFFICIENT -- this hook never reads the approvals table.'
+  + ' What actually opens it is a scoped, expiring grant Nova writes to'
+  + ' store/ads-write-grant.json (agent, server, account_ids, allowed_tools, expires_at).'
+  + ' Approval = the decision; grant = the key. Without the grant file the call is denied'
+  + ' no matter how many approvals are recorded.'
 export const DENY_REASON_DESTRUCTIVE =
   'Irreversible destruction is not run autonomously. This is NOT an ad-spend gate and an'
   + ' /api/approvals ad request will not unblock it. If the deletion is genuinely needed, ask'
