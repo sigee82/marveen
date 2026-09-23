@@ -7,12 +7,12 @@ import {
 } from '../../config.js'
 import { getEffectiveSettingValue } from '../../settings-store.js'
 import { readMarveenTelegramConfig, readMarveenDiscordConfig, readMarveenSlackConfig, readMarveenGooglechatConfig, readMarveenTeamsConfig, sendMarveenAvatarChange } from '../telegram.js'
-import { hardRestartMarveenChannels } from '../channel-monitor.js'
+import { hardRestartMarveenChannels, readConfiguredMainModel } from '../channel-monitor.js'
 import { readFileOr } from '../agent-config.js'
 import { parseMultipart } from '../multipart.js'
 import { readBody, json, serveFile } from '../http-helpers.js'
 import { MAIN_CHANNELS_SESSION } from '../main-agent.js'
-import { readActiveModelFromProjectDir, readContextTokensFromProjectDir } from '../active-model.js'
+import { readActiveModelFromProjectDir, readContextTokensFromProjectDir, withContextSuffix } from '../active-model.js'
 import { readAutoRestartConfig } from '../auto-restart-store.js'
 import { configDirFor } from '../main-transcript-root.js'
 import type { RouteContext } from './types.js'
@@ -23,7 +23,10 @@ function getActiveMarveenModel(): string {
   // that still parses, so the card would show a model the session stopped
   // using. Display, not a decision -- but a wrong number here is what makes
   // someone trust the wrong root elsewhere.
-  return readActiveModelFromProjectDir(PROJECT_ROOT, undefined, configDirFor(MAIN_AGENT_ID)) ?? 'unknown'
+  // MAINMODEL923: the transcript drops the [1m] suffix; restore it from the
+  // launch value so a 1M session is not shown as the 200k one.
+  const transcriptModel = readActiveModelFromProjectDir(PROJECT_ROOT, undefined, configDirFor(MAIN_AGENT_ID))
+  return withContextSuffix(transcriptModel, readConfiguredMainModel()) ?? 'unknown'
 }
 
 // Pure identity-core of the /api/marveen payload: the brand-relevant fields the

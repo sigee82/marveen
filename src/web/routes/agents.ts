@@ -81,7 +81,7 @@ import {
   revokeInvite,
   agentChannelDir,
 } from '../channel-invites.js'
-import { hardRestartMarveenChannels } from '../channel-monitor.js'
+import { hardRestartMarveenChannels, readConfiguredMainModel } from '../channel-monitor.js'
 import { isMainChannelsAgent, MAIN_CHANNELS_SESSION, withoutMainAgent } from '../main-agent.js'
 import {
   getProvider,
@@ -114,7 +114,7 @@ import {
 import { addDesiredAgent, removeDesiredAgent } from '../agent-desired-state.js'
 import { RemoteStatusCache } from '../remote-status-cache.js'
 import type { AgentRunState } from '../ssh-tmux.js'
-import { readActiveModelFromProjectDir, readContextTokensFromProjectDir } from '../active-model.js'
+import { readActiveModelFromProjectDir, readContextTokensFromProjectDir, withContextSuffix } from '../active-model.js'
 import { detectPaneState, detectPermissionMode } from '../../pane-state.js'
 import { checkAgentPutFields, checkConfigPutFields, AGENT_PUT_WRITABLE_FIELDS } from '../agent-put-fields.js'
 import { detectReauthNeeded } from '../reauth-detect.js'
@@ -407,7 +407,7 @@ interface AgentSummary {
   /** Card c755f4b2 Block B: how `model` was arrived at. Metadata only -- it
    *  reports the existing resolution, it does not change it. */
   modelProfile: string | null
-  modelSource: 'explicit_model' | 'model_profile' | 'default'
+  modelSource: 'explicit_model' | 'model_profile' | 'default' | 'main_launch'
   modelProfileError: string | null
   activeModel: string | null
   runningSince: number | null
@@ -539,15 +539,22 @@ function getAgentSummary(name: string): AgentSummary {
   // resolveTranscriptLocation.
   const transcript = resolveTranscriptLocation(name)
 
+  // MAINMODEL923: the main agent is launched by channels.sh from
+  // readConfiguredMainModel() (.env MAIN_AGENT_MODEL > settings.json > shipped
+  // default), not from agents/<name>/agent-config.json -- so the per-agent
+  // resolver reported the distribution default for it, whatever it really ran on.
+  const configuredModel = isMain ? readConfiguredMainModel() : modelResolution.model
+  const transcriptModel = running ? readActiveModelFromProjectDir(transcript.workingDir, runningSince ?? undefined, transcript.configDir) : null
+
   return {
     name,
     displayName: readAgentDisplayName(name),
     description: extractDescriptionFromClaudeMd(claudeMd),
-    model: modelResolution.model,
+    model: configuredModel,
     modelProfile: typeof agentModelConfig.modelProfile === 'string' ? agentModelConfig.modelProfile : null,
-    modelSource: modelResolution.source,
+    modelSource: isMain ? 'main_launch' : modelResolution.source,
     modelProfileError: modelResolution.error ?? null,
-    activeModel: running ? readActiveModelFromProjectDir(transcript.workingDir, runningSince ?? undefined, transcript.configDir) : null,
+    activeModel: withContextSuffix(transcriptModel, configuredModel),
     runningSince,
     authMode: readAgentAuthMode(name),
     securityProfile: readAgentSecurityProfile(name),
@@ -2441,3 +2448,4 @@ export async function tryHandleAgents(ctx: RouteContext, webDir: string): Promis
 
   return false
 }
+

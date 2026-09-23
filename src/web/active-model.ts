@@ -181,3 +181,16 @@ export function readTranscriptMtimeAcrossConfigDirs(
   }
   return newest
 }
+
+// The transcript records the API's model name, and the API never echoes the
+// client-side context-window suffix: a session launched with
+// claude-opus-5-5[1m] logs plain claude-opus-5-5. Reading it raw made every
+// 1M session look like a 200k one on the dashboard as soon as it had answered
+// once (measured 2026-09-23 on nova and bit, both launched with [1m]). Re-attach
+// the suffix only when the base names match, so a real drift stays visible.
+export function withContextSuffix(transcriptModel: string | null, configuredModel: string | null | undefined): string | null {
+  if (!transcriptModel || !configuredModel) return transcriptModel
+  const m = /^(.*?)(\[[^\]]+\])$/.exec(configuredModel)
+  if (m && m[1] === transcriptModel) return configuredModel
+  return transcriptModel
+}
