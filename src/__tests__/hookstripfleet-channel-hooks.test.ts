@@ -19,8 +19,17 @@ import { PROJECT_ROOT } from '../config.js'
 // registration), a mutant control that shows the loss without the change, and
 // the strip-surviving layer (never the isolated dir).
 
+// OWNER DECISION, 2026-09-23: telegram_progress.py is NO LONGER in this list.
+// It is the hook that reacts with a marker on Zsolt's inbound message and posts
+// the "Dolgozom rajta..." placeholder, and he asked for both to stop. It is now
+// absent from every surface including the template, so asserting that the
+// template carries it would pin behaviour he explicitly rejected.
+//
+// The two clear-hooks STAY listed. They only delete a placeholder, so with the
+// setter gone they are no-ops -- but they are also what would have to survive a
+// strip if the progress indicator is ever switched back on, and leaving them
+// keeps this test's mutant control meaningful for the remaining three.
 const CHANNEL_HOOKS = [
-  'telegram_progress.py',
   'telegram_progress_clear.py',
   'telegram_progress_reply_clear.py',
   'channel-image-resize.sh',
@@ -39,9 +48,9 @@ function hookBasenames(hooks: unknown): Set<string> {
   return out
 }
 
-describe('HOOKSTRIPFLEET913: the four channel hooks survive the #1307 strip', () => {
+describe('HOOKSTRIPFLEET913: the remaining channel hooks survive the #1307 strip', () => {
   // --- Condition 3: mutant control at the template level -------------------
-  // The four hooks come ONLY from the template. The base (pre-fix) template
+  // These hooks come ONLY from the template. The base (pre-fix) template
   // lacks them; the fixed template has them. No ensure* function in the
   // scaffold writes them, so the template is their sole source -- remove it and
   // every sub-agent loses them on the next strip.
@@ -49,7 +58,7 @@ describe('HOOKSTRIPFLEET913: the four channel hooks survive the #1307 strip', ()
     // git-independent: deriving the "before" from git HEAD is fragile (on a
     // committed branch / CI merge-ref HEAD already carries the fix). Instead
     // parse the SHIPPED template and build the pre-fix mutant in-test by
-    // dropping the four; the delta between them must be exactly these four.
+    // dropping them; the delta between them must be exactly this list.
     function parsedTemplate(): { hooks?: unknown } {
       return JSON.parse(
         readFileSync(join(PROJECT_ROOT, 'templates', 'settings.json.template'), 'utf-8')
@@ -57,13 +66,13 @@ describe('HOOKSTRIPFLEET913: the four channel hooks survive the #1307 strip', ()
       ) as { hooks?: unknown }
     }
 
-    it('the shipped template carries all four; a mutant with them dropped carries none', () => {
+    it('the shipped template carries them all; a mutant with them dropped carries none', () => {
       const now = hookBasenames(parsedTemplate().hooks)
       for (const h of CHANNEL_HOOKS) {
         expect(now.has(h), `shipped template must carry ${h}`).toBe(true)
       }
       // Build the pre-fix mutant: remove every group/entry that runs one of the
-      // four, mirroring the template state before this change.
+      // list, mirroring the template state before this change.
       const t = parsedTemplate() as { hooks: Record<string, Array<{ hooks?: Array<{ command?: string }> }>> }
       for (const ev of Object.keys(t.hooks)) {
         t.hooks[ev] = t.hooks[ev]
@@ -75,7 +84,7 @@ describe('HOOKSTRIPFLEET913: the four channel hooks survive the #1307 strip', ()
         expect(mutant.has(h), `mutant (pre-fix) template must lack ${h}`).toBe(false)
       }
       // And the mutant still carries the untouched governance hooks, so the
-      // delta is exactly the four -- not a wholesale change.
+      // delta is exactly this list -- not a wholesale change.
       expect(mutant.has('provenance-gate.py'), 'mutant keeps governance hooks').toBe(true)
     })
 
@@ -94,7 +103,7 @@ describe('HOOKSTRIPFLEET913: the four channel hooks survive the #1307 strip', ()
   })
 
   // --- Condition 2 (integration): strip runs, project scope survives -------
-  describe('strip + survival: a channel agent keeps the four in its project scope', () => {
+  describe('strip + survival: a channel agent keeps them in its project scope', () => {
     const PROBE = 'hsf913-probe'
     const probeDir = join(PROJECT_ROOT, 'agents', PROBE)
     let fakeHome: string
@@ -105,7 +114,7 @@ describe('HOOKSTRIPFLEET913: the four channel hooks survive the #1307 strip', ()
       fakeHome = mkdtempSync(join(tmpdir(), 'hsf913-'))
       process.env.HOME = fakeHome
       mkdirSync(join(fakeHome, '.claude'), { recursive: true })
-      // The global clone-source still carries the four (as on the live host
+      // The global clone-source still carries them (as on the live host
       // before the prune) -- the strip must drop them from the clone.
       writeFileSync(join(fakeHome, '.claude', 'settings.json'), JSON.stringify({
         enabledPlugins: { 'telegram@claude-plugins-official': true },
@@ -124,7 +133,7 @@ describe('HOOKSTRIPFLEET913: the four channel hooks survive the #1307 strip', ()
       rmSync(probeDir, { recursive: true, force: true })
     })
 
-    it('the clone is stripped, then ensureAgentHooks restores the four in project scope', () => {
+    it('the clone is stripped, then ensureAgentHooks restores them in project scope', () => {
       const cfg = ensureIsolatedChannelConfigDir(PROBE, 'telegram')
       expect(cfg).not.toBeNull()
       const cloneHooks = JSON.parse(readFileSync(join(cfg!, 'settings.json'), 'utf-8')).hooks
