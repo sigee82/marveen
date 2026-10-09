@@ -896,6 +896,15 @@ def audit(text: str):
             f"DUPLA KOTOJEL gondolatjel-potlokent {dh} helyen (' -- ') -- Szabi jelzese: "
             "ugyanugy zavaro, mint az em dash. Ird at kotojel nelkul: kettospont, zarojel, vagy uj mondat."
         )
+    # X-ES IDOPONT (2026-10-05, egy delelott HAROMSZOR kiment Zsoltnak "08:5x" / "09:2x" / "10:0x"
+    # alakban, pedig a memoria tiltja: "Pontos ido Telegramban"). A becsult perc mert ertek
+    # helyett all, es a gazda a szamot viszi tovabb. A percet stat/date adja, kuldes elott.
+    xt = re.findall(r"\b\d{1,2}:(?:[0-5]x|xx)\b", prose, flags=re.I)
+    if xt:
+        problems.append(
+            f"X-ES IDOPONT {len(xt)} helyen ({', '.join(sorted(set(xt)))}) -- a pontos percet merd meg "
+            "(date / stat / a log idobelyege), es azt ird; becsult 'x'-es ora nem mehet ki."
+        )
     # 4. ellenorzes (GATEHOMOGLIF816): vegyes irasrendszeru szo. SZANDEKOSAN
     # NEM magyar-kapuzott (elteres Marveen specjetol, ervvel): az FP-vedelem
     # maga a VEGYES-szo szabaly -- egy legitim idegen idezet szavai TISZTA

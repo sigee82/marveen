@@ -962,7 +962,15 @@ async function attemptFireTask(
       // visible. The system-level pending-retry alert further down uses the
       // owner chat by design.
       const bound = resolveBoundChannel(agentName)
-      if (bound.chatId) {
+      const ownerChat = bound.chatId ? resolveBoundChannel(MAIN_AGENT_ID).chatId : null
+      if (bound.chatId && ownerChat && bound.chatId === ownerChat) {
+        // A sub-agent whose first allowlist entry is the OWNER's own chat must not
+        // report there: the owner channel belongs to the main agent (2026-09-27,
+        // lumen-heti5-kelkaposzta-kep sent images straight to the owner, who asked
+        // why). Route the result through the main agent instead, and let a task
+        // body that names another recipient (e.g. a client chat) take precedence.
+        prefix = `[Utemezett feladat: ${task.name}] Az eredmenyt NE kuldd a tulajdonos ${channelDeliveryName(bound.provider)} chatjere: jelentsd inter-agent uzenetben a(z) ${MAIN_AGENT_ID} agensnek, vagy annak a cimzettnek, akit a feladat szovege kifejezetten megnevez. `
+      } else if (bound.chatId) {
         prefix = `[Utemezett feladat: ${task.name}] Az eredmenyt kuldd el ${channelDeliveryName(bound.provider)} (chat_id: ${bound.chatId}, reply tool). `
       } else {
         logger.warn({ task: task.name, agent: agentName, provider: bound.provider }, 'scheduled task: agent has no bound channel (access.json missing/empty) -- prompt omits the delivery instruction')

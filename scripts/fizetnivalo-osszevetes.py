@@ -63,8 +63,13 @@ def parse(text):
         # latott a mero, es a HAT nyitott szeptemberi tetelbol NULLAT. A sheet-
         # osszevetes bemenete igy szerkezetileg hianyos volt -- pont az a
         # hibaosztaly, ami ellen a script keszult.
+        #   (d) "- 2026-10-0X[ <napszak> kor]: ATADVA [(agent_msg N) | (N)]:? <id> | ..."
+        #       EGY sor = EGY tetel; a tobb tetelt " | "-vel osszefuzo sor csak az elsot adja.
+        #       a 2026-10-es korbejegyzes-alak; 2026-10-05-ig LATHATATLAN volt
+        #       (Signal merte: az osszes oktoberi atadas 0 talalat).
         m = (re.match(r"\s*[-|]\s*\*\*(.+?)\*\*[^|]*\|(.*)$", line)
-             or re.match(r"\s*`([A-Za-z0-9][^|`]{3,60}?)\s*\|(.*)$", line))
+             or re.match(r"\s*`([A-Za-z0-9][^|`]{3,60}?)\s*\|(.*)$", line)
+             or re.match(r"\s*-\s*\d{4}-\d{2}-\d{2}(?:\s+\S+\s+k[oö]r)?:\s*ATADVA\s*(?:\((?:agent_msg\s*)?\d+\))?:?\s*([^|]{3,90}?)\s*\|(.*)$", line))
         if not m:
             continue
         ident, rest = m.group(1).strip(), m.group(2)

@@ -156,3 +156,14 @@ describe('schedule-runner source contract (sentinel removed, provider-aware)', (
     expect(src).toContain('getProvider(CHANNEL_PROVIDER)')
   })
 })
+
+describe('sub-agent bound to the owner chat does not report there (2026-09-27)', () => {
+  const src = readFileSync(join(PROJECT_ROOT, 'src/web/schedule-runner.ts'), 'utf-8')
+  it('compares the sub-agent binding with the main agent binding', () => {
+    expect(src).toContain('resolveBoundChannel(MAIN_AGENT_ID).chatId')
+    expect(src).toMatch(/bound\.chatId === ownerChat/)
+  })
+  it('routes the result to the main agent via inter-agent message', () => {
+    expect(src).toContain('jelentsd inter-agent uzenetben a(z) ${MAIN_AGENT_ID} agensnek')
+  })
+})
