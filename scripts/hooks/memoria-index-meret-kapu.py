@@ -22,7 +22,7 @@ azt mertem, hogy a flotta-agensek sajat cwd-vel futnak, a slugjukhoz tartozo mem
 URES, tehat "ez csak Nova fajlja". MINDKETTO TULLOTT.
 
 Amit tenyleg tudunk (2026-09-08):
-- A tanulsagok TULNYOMO resze a SQLite flotta-tarba megy (/api/memories): nova 1563,
+- A tanulsagok TULNYOMO resze a SQLite flotta-tarba megy (a dashboard memoria-vegpontja): nova 1563,
   bit 545, pixel 545, signal 231, summa 192. Ott NINCS index-plafon. Ennyiben igazam volt.
 - DE Bit sessionje ezt a fajl-vaultot tolti be es irja: a rendszer-promptja szo szerint
   ezt az utat adja meg, menet kozben valtozas-ertesitest kap ra, es az ide irt sorai

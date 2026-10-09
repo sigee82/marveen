@@ -562,6 +562,170 @@ export function detectsBlockingMenu(pane: string): boolean {
   return MENU_NAV_RX.test(footerRegion) || MENU_ESC_RX.test(footerRegion)
 }
 
+// What the prompt is ASKING, in one line, for an alert that has to be
+// actionable without opening the pane.
+//
+// The orchestrator answered two of these by hand on 2026-09-03, and both times
+// the deciding step was reading the pane: which tool, on whose behalf, and
+// why consent is needed. Putting that line in the alert removes the step.
+//
+// Two live captures (fixtures permission-prompt-bash-grep.txt and
+// permission-prompt-compound-cd.txt) share the layout, and the REASON text
+// differs between them -- which is exactly why nothing here keys on the reason
+// wording:
+//
+//   ────────────────────────────────────────
+//    Bash command · from the general-purpose agent      <- title
+//
+//      │ cd ... && grep -n ...                          <- the command
+//      Locate the functions
+//
+//    │ <reason, one or more lines>                      <- why consent is needed
+//
+//    Do you want to proceed?
+//
+// Returns null when either piece is missing: an alert with a half-parsed
+// question is worse than an alert that just says "open the pane".
+const PERMISSION_RULE_LINE_RX = /^\s*─{8,}\s*$/
+// The question line the summary anchors on. detectsPermissionDialog (added on
+// develop by PR #1190) decides WHETHER a prompt is up; this module only has to
+// find the question again to quote it.
+const PERMISSION_SUMMARY_QUESTION_RX = /\bDo you want to (?:proceed|create|make|run)\b/i
+const PERMISSION_QUOTE_PREFIX_RX = /^\s*│\s?/
+const PERMISSION_REASON_MAX = 220
+
+export interface PermissionPromptSummary {
+  /** The tool card's header, e.g. "Bash command · from the general-purpose agent". */
+  title: string
+  /** First line of the reason Claude gives for needing consent. */
+  reason: string
+}
+
+/**
+ * Extract a one-line summary of what a permission prompt is asking.
+ *
+ * Pure + dependency-free. Only meaningful on a pane where
+ * detectsPermissionDialog() is true; returns null when the expected parts are
+ * not both present.
+ */
+export function permissionPromptSummary(pane: string): PermissionPromptSummary | null {
+  if (!pane) return null
+  const lines = pane.split('\n')
+  const questionIdx = lines.findIndex((l) => PERMISSION_SUMMARY_QUESTION_RX.test(l))
+  if (questionIdx < 0) return null
+
+  // Title: first non-empty line after the horizontal rule that opens the card.
+  let title = ''
+  const ruleIdx = lines.slice(0, questionIdx).map((l) => PERMISSION_RULE_LINE_RX.test(l)).lastIndexOf(true)
+  if (ruleIdx >= 0) {
+    for (const l of lines.slice(ruleIdx + 1, questionIdx)) {
+      const t = l.trim()
+      if (t) { title = t; break }
+    }
+  }
+
+  // Reason: the LAST quoted block before the question, rejoined into one
+  // line. Two reasons for the shape:
+  //   - last block, not first: the command echo is quoted too, and the last
+  //     block is the one that says why consent is needed rather than what
+  //     would run.
+  //   - rejoined, not first-line: the pane hard-wraps at the card width, so
+  //     the first line alone can be as useless as "grep on" (measured on the
+  //     bash-grep fixture). Rejoining recovers the sentence; the cap keeps a
+  //     long reason from flooding the alert.
+  let reason = ''
+  let end = -1
+  for (let i = questionIdx - 1; i >= 0; i--) {
+    const quoted = PERMISSION_QUOTE_PREFIX_RX.test(lines[i])
+    if (quoted && end < 0) end = i
+    else if (!quoted && end >= 0) {
+      const block = lines.slice(i + 1, end + 1).map((l) => l.replace(PERMISSION_QUOTE_PREFIX_RX, '').trim())
+      reason = block.join(' ').replace(/\s+/g, ' ').trim()
+      break
+    }
+  }
+  if (reason.length > PERMISSION_REASON_MAX) reason = reason.slice(0, PERMISSION_REASON_MAX - 1).trimEnd() + '…'
+  if (!title || !reason) return null
+  return { title, reason }
+}
+
+// Plan usage limit ("quota wall"), card 41a0c3a3. When the plan's usage limit
+// is hit, the CLI ends the turn and paints a banner BELOW the input box, with
+// the prompt itself idle. Two live captures of the same moment (two sessions on
+// one key, 2026-09-30 16:14Z; fixture quota-wall-usage-limit.txt):
+//
+//   ────────────────────────────────────────
+//   ❯
+//   ────────────────────────────────────────
+//     ⚠ Usage limit reached · limit resets 6:20pm
+//       Continuing automatically at 6:20pm · esc to cancel · /usage-credits to
+//       continue now
+//     Opus 5.5 | ctx 50% | 5h 100% | 7d 26%
+//
+// An earlier CLI (measured 2026-09-24) drew the same banner on one line:
+//   ⚠ Usage limit reached · continuing automatically at 7:40pm · esc to cancel
+//
+// Only a ⚠ line UNDER the box's bottom rule counts. The same words above the
+// box are conversation: the failed turn echoes "You've hit your session limit ·
+// resets 6:20pm" there, and an agent can quote a banner in a reply. The
+// "has reset" forms ("Usage limit reset · continuing automatically") and the
+// "approaching" warning are not a wall, and neither regex below matches them.
+const QUOTA_WALL_RX = /\busage limit reached\b|\bhit (?:your|the) (?:session|usage|weekly) limit\b|\b(?:session|weekly|\d+-hour) limit reached\b/i
+// "limit resets 6:20pm", "resets at 2am", "continuing automatically at 7:40pm":
+// the time is whatever the CLI printed, up to the next · separator or the line
+// end. A real one is short ("Sep 28, 5pm (UTC)" is 17 characters); anything
+// longer is not a time we can quote, so it reads as "the banner does not say".
+const QUOTA_WALL_RESET_RX = /\b(?:resets(?: at)?|continuing automatically at)\s+([^·\n]{1,40}?)\s*(?:·|$)/i
+const QUOTA_WALL_BANNER_MAX = 220
+
+export interface QuotaWall {
+  /** The banner as painted, its wrapped continuation lines rejoined into one line. */
+  banner: string
+  /** When the CLI says it resumes, verbatim ("6:20pm"); null when the banner does not say. */
+  resetsAt: string | null
+}
+
+/**
+ * The plan usage-limit banner under the live input box, or null.
+ *
+ * Pure + dependency-free. The reset time is kept as the CLI printed it: the
+ * clock it is in belongs to the session's host, so turning it into an instant
+ * here would be a guess.
+ */
+export function detectQuotaWall(pane: string): QuotaWall | null {
+  if (!pane || !pane.trim()) return null
+  const lines = pane.split('\n')
+  let bottomRule = -1
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (BOX_SEP_RX.test(lines[i])) { bottomRule = i; break }
+  }
+  if (bottomRule < 0) return null
+  for (let i = bottomRule + 1; i < lines.length; i++) {
+    const text = lines[i].trimStart()
+    if (!text.startsWith('⚠') || !QUOTA_WALL_RX.test(text)) continue
+    // The banner wraps at the pane width; its continuation lines are indented
+    // deeper than the ⚠ line, the status line under it is not.
+    const indent = lines[i].length - text.length
+    const parts = [text.trimEnd()]
+    for (let j = i + 1; j < lines.length; j++) {
+      const next = lines[j].trimStart()
+      if (!next || lines[j].length - next.length <= indent) break
+      parts.push(next.trimEnd())
+    }
+    // Per part, not on the rejoined line: a wrapped part ends where the next
+    // sentence starts, and only the part's own end bounds the time.
+    let resetsAt: string | null = null
+    for (const p of parts) {
+      const m = QUOTA_WALL_RESET_RX.exec(p)
+      if (m) { resetsAt = m[1].trim(); break }
+    }
+    let banner = parts.join(' ').replace(/\s+/g, ' ').trim()
+    if (banner.length > QUOTA_WALL_BANNER_MAX) banner = banner.slice(0, QUOTA_WALL_BANNER_MAX - 1).trimEnd() + '…'
+    return { banner, resetsAt }
+  }
+  return null
+}
+
 // Claude Code FIRST-RUN gates: the interactive dialogs a brand-new install
 // parks on before the prompt ever renders -- the per-project "Do you trust the
 // files in this folder?" consent, the --dangerously-skip-permissions "Bypass

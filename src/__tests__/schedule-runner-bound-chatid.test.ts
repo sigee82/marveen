@@ -1,9 +1,29 @@
-import { describe, expect, it } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
+import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
-import { chatIdFromAccessConfig, channelDeliveryName, resolveSchedulerAlertToken } from '../web/schedule-runner.js'
+import { tmpdir } from 'node:os'
 import { PROJECT_ROOT } from '../config.js'
 import { channelStateDir, type ChannelProviderType } from '../channel-provider.js'
+
+// Behavioural fixture for the ambiguous-allowlist branch (see the
+// "genuinely exercises the ambiguous branch" describe block below). Mocked
+// BEFORE importing schedule-runner.js so the resolver's own
+// `agentDir(agentName)` call resolves into a throwaway temp directory for
+// this one fixture agent name, instead of the real repo's agents/ tree --
+// every other agent name falls through to the real implementation
+// unaffected.
+let FIXTURE_DIR = ''
+const FIXTURE_AGENT = 'ambiguous-fixture-agent-819'
+vi.mock('../web/agent-config.js', async (orig) => {
+  const actual = await orig<typeof import('../web/agent-config.js')>()
+  return {
+    ...actual,
+    agentDir: (name: string) => (name === FIXTURE_AGENT ? FIXTURE_DIR : actual.agentDir(name)),
+  }
+})
+
+const { chatIdFromAccessConfig, channelDeliveryName, resolveSchedulerAlertToken, resolveTaskChannelTarget, routesViaMainAgent } = await import('../web/schedule-runner.js')
+const { MAIN_AGENT_ID } = await import('../config.js')
 
 // Regression guard for 2026-07-27 (Zara report, Marveen diagnosis): the
 // scheduled-task prompt prefix carried a "chat_id: 0" sentinel from a
@@ -11,6 +31,16 @@ import { channelStateDir, type ChannelProviderType } from '../channel-provider.j
 // (assertAllowedChat: "0" is never allowlisted), so every non-heartbeat
 // scheduled task threw at delivery. The fix resolves the agent's own bound
 // chat from its channel access.json at prompt-build time.
+//
+// Second regression guard for 2026-08-19 (WRONGRECIP819, Marci, kanban
+// f1217c23): the "resolve to the first allowlist entry" heuristic below
+// silently misdirected sub-agent task results whenever an agent had 2+ DM
+// contacts -- measured on the live install, 6 of 7 currently-enabled
+// sub-agent `task`-type schedules were affected, either contradicting their
+// own explicit recipient or carrying no real Telegram target at all. Fixed
+// by resolveTaskChannelTarget: a sub-agent with 2+ candidates and no
+// task.telegramChatId pin gets chatId: null + ambiguousCandidates set, never
+// a guessed chat id.
 
 describe('chatIdFromAccessConfig (pure core)', () => {
   it('returns the first DM allowlist entry', () => {
@@ -135,11 +165,40 @@ describe('schedule-runner source contract (sentinel removed, provider-aware)', (
     expect(src).not.toMatch(/kuldd el Telegramon \(chat_id/)
   })
 
-  it('multi-entry allowlists produce an ambiguity warn (heuristic made visible)', () => {
-    // Behaviour stays first-entry; the warn exists so a reordered allowlist
-    // (2+ entries: zara/iris) cannot silently redirect task results.
-    expect(src).toContain('bound-chat resolution is ambiguous')
-    expect(src).toMatch(/candidates > 1/)
+  it('an ambiguous 2+-candidate resolution is SKIPPED, not guessed, and raises visibility', () => {
+    // WRONGRECIP819: the old behaviour ("stays first-entry", just warns) is
+    // gone. An agent with 2+ DM contacts and no pinned chat id must never
+    // receive a chat_id guess in its prompt.
+    expect(src).toContain('scheduled task: delivery target is ambiguous')
+    expect(src).toContain('logger.error(')
+    expect(src).toContain('createAgentMessage(')
+    // The ambiguous branch falls through to the SAME bare-tag prefix as the
+    // config-gap branch -- delivery is skipped either way, never guessed.
+    const ambiguousIdx = src.indexOf('scheduled task: delivery target is ambiguous')
+    const nextPrefixIdx = src.indexOf('prefix = `[Utemezett feladat: ${task.name}] `', ambiguousIdx)
+    expect(nextPrefixIdx, 'ambiguous branch must fall through to the bare prefix').toBeGreaterThan(ambiguousIdx)
+  })
+
+  it('the [FELHIVAS] notice is ONE-SHOT per task, while the error log stays per fire', () => {
+    // Fleet review of PR #1005: the notice is a CONFIG-GAP alert, not a
+    // per-run event. Without a guard every fire of an affected task inserted a
+    // fresh system -> main message, so a */5 task on an agent with two DM
+    // contacts would wake the main agent 288 times a day until someone pinned
+    // the chat id.
+    expect(src).toContain('const ambiguousTargetAlerted = new Set<string>()')
+    expect(src).toContain('if (!ambiguousTargetAlerted.has(task.name))')
+    expect(src).toContain('ambiguousTargetAlerted.add(task.name)')
+    // The entry is dropped once the task resolves to a concrete chat id, so a
+    // pin that is added and later REMOVED alerts again instead of staying
+    // silent forever.
+    expect(src).toContain('ambiguousTargetAlerted.delete(task.name)')
+    // The guard must wrap the MESSAGE, not the log line: a log is read on
+    // purpose, an agent message is an interrupt.
+    const guardIdx = src.indexOf('if (!ambiguousTargetAlerted.has(task.name))')
+    const logIdx = src.indexOf("'scheduled task: delivery target is ambiguous")
+    const msgIdx = src.indexOf('createAgentMessage(', guardIdx)
+    expect(logIdx, 'the error log stays OUTSIDE the one-shot guard').toBeLessThan(guardIdx)
+    expect(msgIdx, 'the agent message sits INSIDE the one-shot guard').toBeGreaterThan(guardIdx)
   })
 
   it('resolution reads the access.json for the agent\'s own provider, not always telegram', () => {
@@ -157,13 +216,101 @@ describe('schedule-runner source contract (sentinel removed, provider-aware)', (
   })
 })
 
-describe('sub-agent bound to the owner chat does not report there (2026-09-27)', () => {
-  const src = readFileSync(join(PROJECT_ROOT, 'src/web/schedule-runner.ts'), 'utf-8')
-  it('compares the sub-agent binding with the main agent binding', () => {
-    expect(src).toContain('resolveBoundChannel(MAIN_AGENT_ID).chatId')
-    expect(src).toMatch(/bound\.chatId === ownerChat/)
+describe('resolveTaskChannelTarget (pin precedence, no filesystem needed)', () => {
+  it('"none" means no chat target, by design -- never falls through to auto-resolution', () => {
+    expect(resolveTaskChannelTarget({ agent: 'sam', telegramChatId: 'none' }).chatId).toBeNull()
   })
-  it('routes the result to the main agent via inter-agent message', () => {
-    expect(src).toContain('jelentsd inter-agent uzenetben a(z) ${MAIN_AGENT_ID} agensnek')
+
+  it('an explicit chat_id is used as-is, overriding any allowlist heuristic', () => {
+    expect(resolveTaskChannelTarget({ agent: 'max', telegramChatId: '8321555318' }).chatId).toBe('8321555318')
+  })
+
+  it('an explicit override wins even for the main agent (author intent beats the default)', () => {
+    expect(resolveTaskChannelTarget({ agent: 'pedro', telegramChatId: '8321555318' }).chatId).toBe('8321555318')
+  })
+})
+
+// BEHAVIOURAL guard, not text-pinned: the source-contract tests above only
+// prove certain STRINGS exist in schedule-runner.ts, which a mutation that
+// reintroduces the "just use the first allowlist entry" guess would NOT
+// touch (the log/notify strings stay in the file as dead code, unreached).
+// This is the test that actually calls resolveTaskChannelTarget with a
+// real 2-DM-contact access.json and asserts on the RETURNED VALUE -- the
+// only way to catch a regression to the old heuristic. Verified red/green:
+// reverting the sub-agent branch to `return { chatId: chatIdFromAccessConfig(raw) }`
+// (dropping the `candidates > 1` check) makes this test fail
+// ("expected ambiguousCandidates 2, got chatId '111111'"), while every other
+// test in this file stays green. The assertions read the fields rather than
+// deep-equalling the object, so adding a field to BoundChannel (e.g. the
+// resolved provider) does not turn this guard red for the wrong reason.
+describe('resolveTaskChannelTarget genuinely exercises the ambiguous branch (not text-pinned)', () => {
+  beforeEach(() => {
+    FIXTURE_DIR = mkdtempSync(join(tmpdir(), 'ambiguous-chatid-'))
+    mkdirSync(join(FIXTURE_DIR, '.claude', 'channels', 'telegram'), { recursive: true })
+  })
+  afterEach(() => {
+    rmSync(FIXTURE_DIR, { recursive: true, force: true })
+    FIXTURE_DIR = ''
+  })
+
+  it('a sub-agent with 2 DM contacts and no telegramChatId pin gets null + ambiguousCandidates, never a guess', () => {
+    writeFileSync(
+      join(FIXTURE_DIR, '.claude', 'channels', 'telegram', 'access.json'),
+      JSON.stringify({ allowFrom: ['111111', '222222'] }),
+    )
+    const target = resolveTaskChannelTarget({ agent: FIXTURE_AGENT })
+    expect(target.chatId).toBeNull()
+    expect(target.ambiguousCandidates).toBe(2)
+  })
+
+  it('a sub-agent with exactly ONE DM contact resolves it directly -- unambiguous, no guess involved', () => {
+    writeFileSync(
+      join(FIXTURE_DIR, '.claude', 'channels', 'telegram', 'access.json'),
+      JSON.stringify({ allowFrom: ['111111'] }),
+    )
+    const target = resolveTaskChannelTarget({ agent: FIXTURE_AGENT })
+    expect(target.chatId).toBe('111111')
+    expect(target.ambiguousCandidates).toBeUndefined()
+  })
+
+  it('an explicit telegramChatId pin bypasses the ambiguity check entirely, even with 2+ contacts', () => {
+    writeFileSync(
+      join(FIXTURE_DIR, '.claude', 'channels', 'telegram', 'access.json'),
+      JSON.stringify({ allowFrom: ['111111', '222222'] }),
+    )
+    expect(resolveTaskChannelTarget({ agent: FIXTURE_AGENT, telegramChatId: '333333' }).chatId).toBe('333333')
+  })
+})
+
+// 2026-09-27 (local): a sub-agent whose resolved target is the OWNER's own chat
+// reports through the main agent instead. Behavioural, through the injected
+// owner-chat lookup, so no access.json is read. The main-agent case is the one
+// the pre-merge version got wrong: its bound chat IS the owner chat, so every
+// main-agent task was told not to report to the owner.
+describe('routesViaMainAgent (sub-agent bound to the owner chat)', () => {
+  const owner = () => '8321555318'
+  const bound = (chatId: string | null) => ({ provider: 'telegram' as ChannelProviderType, chatId })
+
+  it('a sub-agent whose target is the owner chat is routed via the main agent', () => {
+    expect(routesViaMainAgent('lumen', {}, bound('8321555318'), owner)).toBe(true)
+  })
+  it('the MAIN agent is never routed to itself, although its chat is the owner chat', () => {
+    expect(routesViaMainAgent(MAIN_AGENT_ID, {}, bound('8321555318'), owner)).toBe(false)
+  })
+  it('an explicit telegramChatId pin is author intent and is not redirected', () => {
+    expect(routesViaMainAgent('lumen', { telegramChatId: '8321555318' }, bound('8321555318'), owner)).toBe(false)
+  })
+  it('a sub-agent bound to its own (non-owner) chat keeps it', () => {
+    expect(routesViaMainAgent('lumen', {}, bound('111111'), owner)).toBe(false)
+  })
+  it('no resolved chat, or no known owner chat, is not a redirect', () => {
+    expect(routesViaMainAgent('lumen', {}, bound(null), owner)).toBe(false)
+    expect(routesViaMainAgent('lumen', {}, bound('8321555318'), () => null)).toBe(false)
+  })
+  it('the fire path calls the rule before the plain delivery branch', () => {
+    const src = readFileSync(join(PROJECT_ROOT, 'src/web/schedule-runner.ts'), 'utf-8')
+    const call = src.indexOf('if (routesViaMainAgent(agentName, task, bound))')
+    expect(call).toBeGreaterThan(-1)
+    expect(src.indexOf('} else if (bound.chatId) {', call)).toBeGreaterThan(call)
   })
 })

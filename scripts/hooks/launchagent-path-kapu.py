@@ -65,7 +65,7 @@ def main():
     lines = ['launchagent-path-kapu: a launchd MINIMALIS PATH-tal indit (nincs /opt/homebrew/bin).']
     for p, r in bad:
         lines.append(f'  {p}: se EnvironmentVariables.PATH, se PATH= a futtatott scriptben ({", ".join(r)})')
-    lines.append('Javitas: a wrapperbe `export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"`, vagy PATH a plistbe.')
+    lines.append('Javitas: a wrapper elejen exportald a PATH-t /opt/homebrew/bin:/usr/local/bin elotaggal, vagy PATH a plistbe.')
     lines.append('Utana a betoltes, es ELES csak egy `launchctl kickstart gui/501/<label>` futas utan.')
     lines.append('Ha a script csak abszolut binaris-utakat hasznal: `# launchd-path-ok` a parancsba.')
     print('\n'.join(lines), file=sys.stderr)

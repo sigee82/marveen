@@ -38,6 +38,15 @@ describe('checkMemoryUpdateFields', () => {
     }
   })
 
+  // v1.42.0 merge (MEMVERSION930): if_version is a precondition, not an edit.
+  // Alone it would be the same no-op write, so it is recognised but refused.
+  it('refuses a body carrying only if_version, and accepts it next to an edit', () => {
+    const r = checkMemoryUpdateFields({ if_version: 'abc' })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.message).toContain('Nothing to update')
+    expect(checkMemoryUpdateFields({ prepend: 'x', if_version: 'abc' })).toEqual({ ok: true })
+  })
+
   it('accepts the category-only tier move the Dream Engine makes', () => {
     expect(checkMemoryUpdateFields({ category: 'cold' })).toEqual({ ok: true })
   })

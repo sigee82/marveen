@@ -23,6 +23,10 @@ export const MEMORY_UPDATE_FIELDS = [
   // Deprecated alias for `category`, still accepted by the route (it logs a
   // deprecation warning). Listed so an old caller is not broken by this check.
   'tier',
+  // MEMVERSION930 (upstream v1.42.0): the server puts this text in front of the
+  // current content. It IS an edit, so it counts as substantive -- without it
+  // here a prepend-only body was refused as "unknown field" by this check.
+  'prepend',
 ] as const
 
 // Keys that are RECOGNISED but do not by themselves constitute an edit.
@@ -38,7 +42,10 @@ export const MEMORY_UPDATE_FIELDS = [
 // Two lists, because the two questions are different: "do I recognise this
 // key?" and "is anything being changed?". One list answered both, and that is
 // why adding a field to it would have quietly reopened the hole.
-export const MEMORY_UPDATE_TRACE_FIELDS = ['updated_by'] as const
+// MEMVERSION930 added `if_version`: a precondition (409 when the row changed
+// since the caller read it), not a change. Recognised, never substantive -- a
+// body carrying only `if_version` would be the same no-op write.
+export const MEMORY_UPDATE_TRACE_FIELDS = ['updated_by', 'if_version'] as const
 
 export type MemoryUpdateFieldCheck =
   | { ok: true }

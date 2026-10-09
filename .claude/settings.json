@@ -1,471 +1,103 @@
 {
+  "permissions": {
+    "deny": [
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.gnupg/**)",
+      "Read(~/.env)",
+      "Read(**/.env)",
+      "Bash(sudo:*)",
+      "Bash(*/sudo *)",
+      "Bash(rm -rf ~:*)",
+      "Bash(rm -rf /:*)",
+      "Bash(curl -X POST:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "mcp__playwright__browser_run_code_unsafe"
+    ]
+  },
   "enabledPlugins": {
     "slack-channel@marveen-marketplace": false,
     "telegram@claude-plugins-official": true
   },
   "hooks": {
     "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/ledger-capture.py\"",
-            "timeout": 15
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/inbox-drain.py\"",
-            "timeout": 15
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/telegram-reply-directive.py\"",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/provenance-gate.py\"",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/staleness-guard.py\"",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/channel-inbox-drain.py\"",
-            "timeout": 5
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/voice-reply-directive.py\"",
-            "timeout": 180
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/claude-usage.py\"",
-            "timeout": 45
-          }
-        ]
-      }
+      { "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/ledger-capture.py\"", "timeout": 15 } ] },
+      { "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/inbox-drain.py\"", "timeout": 15 } ] },
+      { "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/telegram-reply-directive.py\"", "timeout": 10 } ] },
+      { "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/provenance-gate.py\"", "timeout": 10 } ] },
+      { "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/staleness-guard.py\"", "timeout": 10 } ] },
+      { "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/memory-lookup-nudge.py\"", "timeout": 3 } ] },
+      { "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/channel-inbox-drain.py\"", "timeout": 5 } ] },
+      { "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/voice-reply-directive.py\"", "timeout": 180 } ] },
+      { "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/slack_progress.py\"", "timeout": 15 } ] },
+      { "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/marveen-commands.py\"", "timeout": 45 } ] }
     ],
     "PostToolUse": [
-      {
-        "matcher": "mcp__plugin_telegram_telegram__reply",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/ledger-outbound.py\"",
-            "timeout": 15
-          },
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/telegram_progress_reply_clear.py\""
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/tool-log-capture.py\"",
-            "timeout": 5
-          }
-        ]
-      },
-      {
-        "matcher": "Skill|Read",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/skill-usage-capture.py\"",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": "Bash|Read|Grep",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 /Users/macmini/marveen/scripts/hooks/titok-kimenet-kapu.py",
-            "timeout": 10
-          }
-        ]
-      }
+      { "matcher": "mcp__plugin_[^_]+_[^_]+__reply", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/ledger-outbound.py\"", "timeout": 15 } ] },
+      { "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/tool-log-capture.py\"", "timeout": 5 } ] },
+      { "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/persona-change-notify.py\"", "timeout": 15 } ] },
+      { "matcher": "slack.*reply", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/slack_progress_reply_clear.py\"", "timeout": 15 } ] },
+      { "matcher": "Skill|Read", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/skill-usage-capture.py\"", "timeout": 10 } ] },
+      { "matcher": "Bash", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/memory-frontmatter-bash-gate.py\"", "timeout": 10 } ] },
+      { "matcher": "mcp__plugin_telegram_telegram__reply", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/telegram_progress_reply_clear.py\"" } ] },
+      { "matcher": "Bash|Read|Grep", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/titok-kimenet-kapu.py\"", "timeout": 10 } ] }
     ],
     "PostToolUseFailure": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/tool-log-capture.py\"",
-            "timeout": 5
-          }
-        ]
-      }
+      { "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/tool-log-capture.py\"", "timeout": 5 } ] },
+      { "matcher": "Bash", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/memory-frontmatter-bash-gate.py\"", "timeout": 10 } ] }
     ],
     "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/outgoing-copy-gate.py\"",
-            "timeout": 15
-          },
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/record-overwrite-gate.py\""
-          },
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/delegalt-iras-tiltas-kapu.py\""
-          },
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/interagent-homoglifa-kapu.py\""
-          },
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/idobelyeg-gate.py\""
-          },
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/cso-exit-kod-kapu.py\""
-          }
-        ]
-      },
-      {
-        "matcher": ".*send_email.*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/outgoing-copy-gate.py\"",
-            "timeout": 15
-          },
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/idobelyeg-gate.py\""
-          }
-        ]
-      },
-      {
-        "matcher": ".*manage_email.*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/outgoing-copy-gate.py\"",
-            "timeout": 15
-          },
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/idobelyeg-gate.py\""
-          }
-        ]
-      },
-      {
-        "matcher": ".*[Gg]mail.*__.*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/outgoing-copy-gate.py\"",
-            "timeout": 15
-          },
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/idobelyeg-gate.py\""
-          }
-        ]
-      },
-      {
-        "matcher": ".*draft_email.*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/outgoing-copy-gate.py\"",
-            "timeout": 15
-          },
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/idobelyeg-gate.py\""
-          }
-        ]
-      },
-      {
-        "matcher": "mcp__plugin_telegram_telegram__reply|mcp__plugin_telegram_telegram__edit_message",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/outgoing-copy-gate.py\"",
-            "timeout": 15
-          },
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/idobelyeg-gate.py\""
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/email-approval-gate.py\"",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": ".*send_email.*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/email-approval-gate.py\"",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": ".*manage_email.*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/email-approval-gate.py\"",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": ".*[Gg]mail.*__.*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/email-approval-gate.py\"",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": ".*draft_email.*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/email-approval-gate.py\"",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": "Read",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/hooks/channel-image-resize.sh\"",
-            "timeout": 15
-          }
-        ]
-      },
-      {
-        "matcher": "WebFetch",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "command -v node >/dev/null 2>&1 || { echo \"governance-kapu: node interpreter hianyzik, a kapu BLOKKOL\" >&2; exit 2; }; node \"$CLAUDE_PROJECT_DIR/scripts/hooks/egress-gate.mjs\"",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": "Write|Edit|MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/memory-frontmatter-gate.py\"",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "command -v node >/dev/null 2>&1 || { echo \"governance-kapu: node interpreter hianyzik, a kapu BLOKKOL\" >&2; exit 2; }; node \"$CLAUDE_PROJECT_DIR/scripts/hooks/bash-safety-gate.mjs\"",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": "Read",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "command -v node >/dev/null 2>&1 || { echo \"governance-kapu: node interpreter hianyzik, a kapu BLOKKOL\" >&2; exit 2; }; node \"$CLAUDE_PROJECT_DIR/scripts/hooks/read-safety-gate.mjs\"",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": "Write|Edit|NotebookEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "command -v node >/dev/null 2>&1 || { echo \"governance-kapu: node interpreter hianyzik, a kapu BLOKKOL\" >&2; exit 2; }; node \"$CLAUDE_PROJECT_DIR/scripts/hooks/edit-safety-gate.mjs\"",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": "Monitor|TaskOutput|TaskStop",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "command -v node >/dev/null 2>&1 || { echo \"governance-kapu: node interpreter hianyzik, a kapu BLOKKOL\" >&2; exit 2; }; node \"$CLAUDE_PROJECT_DIR/scripts/hooks/orchestration-safety-gate.mjs\"",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": "mcp__.*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "command -v node >/dev/null 2>&1 || { echo \"governance-kapu: node interpreter hianyzik, a kapu BLOKKOL\" >&2; exit 2; }; node \"$CLAUDE_PROJECT_DIR/scripts/hooks/mcp-permission-gate.mjs\"",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": "mcp__plugin_telegram_telegram__reply|mcp__plugin_telegram_telegram__edit_message",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "command -v node >/dev/null 2>&1 || { echo \"governance-kapu: node interpreter hianyzik, a kapu BLOKKOL\" >&2; exit 2; }; node \"$CLAUDE_PROJECT_DIR/scripts/hooks/telegram-text-gate.mjs\"",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/ssh-burst-gate.py\""
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/launchagent-path-kapu.py\""
-          }
-        ]
-      }
+      { "matcher": "Bash", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/outgoing-copy-gate.py\"", "timeout": 15 } ] },
+      { "matcher": ".*send_email.*", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/outgoing-copy-gate.py\"", "timeout": 15 } ] },
+      { "matcher": ".*manage_email.*", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/outgoing-copy-gate.py\"", "timeout": 15 } ] },
+      { "matcher": ".*[Gg]mail.*__.*", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/outgoing-copy-gate.py\"", "timeout": 15 } ] },
+      { "matcher": ".*draft_email.*", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/outgoing-copy-gate.py\"", "timeout": 15 } ] },
+      { "matcher": "mcp__plugin_telegram_telegram__reply|mcp__plugin_telegram_telegram__edit_message", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/outgoing-copy-gate.py\"", "timeout": 15 } ] },
+      { "matcher": "mcp__plugin_discord_discord__reply|mcp__plugin_discord_discord__edit_message", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/outgoing-copy-gate.py\"", "timeout": 15 } ] },
+      { "matcher": "Bash", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/email-approval-gate.py\"", "timeout": 10 } ] },
+      { "matcher": ".*send_email.*", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/email-approval-gate.py\"", "timeout": 10 } ] },
+      { "matcher": ".*manage_email.*", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/email-approval-gate.py\"", "timeout": 10 } ] },
+      { "matcher": ".*[Gg]mail.*__.*", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/email-approval-gate.py\"", "timeout": 10 } ] },
+      { "matcher": ".*draft_email.*", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/email-approval-gate.py\"", "timeout": 10 } ] },
+      { "matcher": "Read", "hooks": [ { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/hooks/channel-image-resize.sh\"", "timeout": 15 } ] },
+      { "matcher": "WebFetch", "hooks": [ { "type": "command", "command": "command -v node >/dev/null 2>&1 || { echo \"governance-kapu: node interpreter hianyzik, a kapu BLOKKOL\" >&2; exit 2; }; node \"$CLAUDE_PROJECT_DIR/scripts/hooks/egress-gate.mjs\"", "timeout": 10 } ] },
+      { "matcher": "Write|Edit|MultiEdit", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/memory-frontmatter-gate.py\"", "timeout": 10 } ] },
+      { "matcher": "Bash", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/memory-frontmatter-bash-gate.py\"", "timeout": 10 } ] },
+      { "matcher": "Bash", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/record-overwrite-gate.py\"" } ] },
+      { "matcher": "Bash", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/delegalt-iras-tiltas-kapu.py\"" } ] },
+      { "matcher": "Bash", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/interagent-homoglifa-kapu.py\"" } ] },
+      { "matcher": "Bash", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/idobelyeg-gate.py\"" } ] },
+      { "matcher": "Bash", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/cso-exit-kod-kapu.py\"" } ] },
+      { "matcher": ".*send_email.*", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/idobelyeg-gate.py\"" } ] },
+      { "matcher": ".*manage_email.*", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/idobelyeg-gate.py\"" } ] },
+      { "matcher": ".*[Gg]mail.*__.*", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/idobelyeg-gate.py\"" } ] },
+      { "matcher": ".*draft_email.*", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/idobelyeg-gate.py\"" } ] },
+      { "matcher": "mcp__plugin_telegram_telegram__reply|mcp__plugin_telegram_telegram__edit_message", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/idobelyeg-gate.py\"" } ] },
+      { "matcher": "Bash", "hooks": [ { "type": "command", "command": "command -v node >/dev/null 2>&1 || { echo \"governance-kapu: node interpreter hianyzik, a kapu BLOKKOL\" >&2; exit 2; }; node \"$CLAUDE_PROJECT_DIR/scripts/hooks/bash-safety-gate.mjs\"", "timeout": 10 } ] },
+      { "matcher": "Read", "hooks": [ { "type": "command", "command": "command -v node >/dev/null 2>&1 || { echo \"governance-kapu: node interpreter hianyzik, a kapu BLOKKOL\" >&2; exit 2; }; node \"$CLAUDE_PROJECT_DIR/scripts/hooks/read-safety-gate.mjs\"", "timeout": 10 } ] },
+      { "matcher": "Write|Edit|NotebookEdit", "hooks": [ { "type": "command", "command": "command -v node >/dev/null 2>&1 || { echo \"governance-kapu: node interpreter hianyzik, a kapu BLOKKOL\" >&2; exit 2; }; node \"$CLAUDE_PROJECT_DIR/scripts/hooks/edit-safety-gate.mjs\"", "timeout": 10 } ] },
+      { "matcher": "Monitor|TaskOutput|TaskStop", "hooks": [ { "type": "command", "command": "command -v node >/dev/null 2>&1 || { echo \"governance-kapu: node interpreter hianyzik, a kapu BLOKKOL\" >&2; exit 2; }; node \"$CLAUDE_PROJECT_DIR/scripts/hooks/orchestration-safety-gate.mjs\"", "timeout": 10 } ] },
+      { "matcher": "mcp__.*", "hooks": [ { "type": "command", "command": "command -v node >/dev/null 2>&1 || { echo \"governance-kapu: node interpreter hianyzik, a kapu BLOKKOL\" >&2; exit 2; }; node \"$CLAUDE_PROJECT_DIR/scripts/hooks/mcp-permission-gate.mjs\"", "timeout": 10 } ] },
+      { "matcher": "mcp__plugin_telegram_telegram__reply|mcp__plugin_telegram_telegram__edit_message", "hooks": [ { "type": "command", "command": "command -v node >/dev/null 2>&1 || { echo \"governance-kapu: node interpreter hianyzik, a kapu BLOKKOL\" >&2; exit 2; }; node \"$CLAUDE_PROJECT_DIR/scripts/hooks/telegram-text-gate.mjs\"", "timeout": 10 } ] },
+      { "matcher": "Bash", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/ssh-burst-gate.py\"" } ] },
+      { "matcher": "Bash", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/launchagent-path-kapu.py\"" } ] }
     ],
     "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/telegram-reply-guard.py\"",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/telegram_progress_clear.py\""
-          }
-        ]
-      }
+      { "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/telegram-reply-guard.py\"", "timeout": 10 } ] },
+      { "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/slack_progress_clear.py\"", "timeout": 15 } ] },
+      { "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/marveen-commands.py\" --stop", "timeout": 10 } ] },
+      { "matcher": "*", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/telegram_progress_clear.py\"" } ] }
     ],
     "SessionStart": [
-      {
-        "matcher": "startup|resume|clear",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/ledger-replay.py\"",
-            "timeout": 15
-          }
-        ]
-      },
-      {
-        "matcher": "compact|resume|clear",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/taskstate-replay.py\"",
-            "timeout": 15
-          }
-        ]
-      },
-      {
-        "matcher": "clear",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/clear-replay.py\"",
-            "timeout": 15
-          }
-        ]
-      },
-      {
-        "matcher": "startup|resume|clear|compact",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/memoria-index-meret-kapu.py\"",
-            "timeout": 10
-          }
-        ]
-      }
+      { "matcher": "startup|resume|clear", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/ledger-replay.py\"", "timeout": 15 } ] },
+      { "matcher": "compact|resume|clear", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/taskstate-replay.py\"", "timeout": 15 } ] },
+      { "matcher": "clear", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/clear-replay.py\"", "timeout": 15 } ] },
+      { "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/marveen-commands.py\" --session-start", "timeout": 10 } ] },
+      { "matcher": "startup|resume|clear|compact", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/memoria-index-meret-kapu.py\"", "timeout": 10 } ] }
     ],
     "SessionEnd": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/clear-capture.py\"",
-            "timeout": 15
-          }
-        ]
-      }
+      { "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/hooks/clear-capture.py\"", "timeout": 15 } ] }
     ]
   }
 }

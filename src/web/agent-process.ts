@@ -32,7 +32,11 @@ import {
 } from '../pane-state.js'
 import { scheduleRecoveryBrief } from './restart-recovery-brief.js'
 import { beginRestart, endRestart } from './restart-lock.js'
-import { agentDir, listAgentNames, readAgentModel, readAgentClaudeConfigDir, readAgentClaudePlan, readAgentChannelProvider, readAgentAuthMode, readAgentDisplayName, readAgentRemoteConfig, readAgentRemoteHost, readAgentRunAsUser, readAgentMemoryIsolation, readAgentWorksourceChannel } from './agent-config.js'
+import { agentDir, listAgentNames, readAgentModel, resolveAgentModelDetailed, readAgentClaudeConfigDir, readAgentClaudePlan, readAgentChannelProvider, readAgentAuthMode, readAgentDisplayName, readAgentRemoteConfig, readAgentRemoteHost, readAgentRunAsUser, readAgentMemoryIsolation, readAgentStateObserver, readAgentWorksourceChannel, readAgentCustomProvider, readAgentExtraChannels, readFileOr, readJsonObjectForWrite } from './agent-config.js'
+import { buildExtraChannelLaunch, enableExtraPlugins } from './agent-extra-channels.js'
+import { probeExtraPluginsInTree, combineLiveness } from './extra-channel-liveness.js'
+import { loadCustomProvider, type CustomProviderDef } from './custom-providers.js'
+import { decideOwnOauthToken, ownOauthTokenExport, ownOauthLaunchVerdict } from './agent-oauth-token-file.js'
 import { worksourceRootFor } from './worksource-queue.js'
 import { resolveAgentConfigDir, readClaudePlans, getClaudePlan } from './claude-plans.js'
 import { readClaudePlansState } from './claude-plans-state.js'
@@ -57,21 +61,39 @@ import {
 import { parseTelegramToken } from './telegram.js'
 import { getProvider, getProviderType, channelStateDir, readChannelToken, type ChannelProviderType } from '../channel-provider.js'
 import { decideContinueFlag, verifyContinueLaunch } from './channel-continue-policy.js'
+import { buildChannelStateFence } from './channel-state-fence.js'
 import { measureClaudeCliVersion } from './claude-cli-version.js'
+import { decideStateObserver, stateObserverLaunchEnv } from './state-observer.js'
+import { launchableInstallDefault } from './default-model-guard.js'
 import { getClaudePidForSession, probeChannelPluginLiveness } from '../channel-coordinator/liveness.js'
-import { CHANNEL_PROVIDER, MAIN_AGENT_ID, STORE_DIR, PROJECT_ROOT, SUBAGENT_INBOX_TEE } from '../config.js'
+import { CHANNEL_PROVIDER, MAIN_AGENT_ID, STORE_DIR, PROJECT_ROOT, SUBAGENT_INBOX_TEE, FLEET_PYTHON_VENV } from '../config.js'
+import { fleetVenvBin } from '../fleet-venv.js'
+
+// FLEETVENV923: the `<venv>/bin:` prefix for a launch PATH, or '' when the venv
+// has no bin/ directory or its path cannot sit safely inside the double-quoted
+// `export PATH="..."` of the launch command (a `"`, `$` or backtick in the
+// path would be re-interpreted by the shell; a relative path would resolve
+// against each launch's own `cd` -- skipped rather than escaped or guessed,
+// with a warning, because a fleet venv at such a path is a config mistake).
+// Exported for unit tests; `exists` is the seam.
+export function fleetVenvPathPrefix(venvDir: string = FLEET_PYTHON_VENV, exists: (p: string) => boolean = existsSync): string {
+  const { prefix, refused } = fleetVenvBin(venvDir, exists)
+  if (refused) logger.warn({ venvDir }, 'fleetVenvPathPrefix: venv path is not absolute or contains a shell-active character; PATH prefix skipped')
+  return prefix
+}
 import { getEffectiveSettingValue } from '../settings-store.js'
+import { filterInheritableMcpServers, readInheritableMcpServerNames, logNotInherited } from './mcp-inheritance.js'
 import { readEnvFile } from '../env.js'
-import { loadProfileTemplate } from './profiles.js'
+import { loadProfileTemplate, profileWantsThinChiefHandoff } from './profiles.js'
 import { resolveAgentSecurityProfile } from './agent-team.js'
-import { writeAgentSettingsFromProfile, ensureFleetRosterSection, ensureAutonomySection, ensureSkillsPathTrapSection, ensureSystemDirectiveAuthSection, ensureMemorySearchLabelSection, ensureFleetAuthSection, ensureEvidenceSection, ensureMcpListChannelSection } from './agent-scaffold.js'
+import { writeAgentSettingsFromProfile, ensureFleetRosterSection, ensureProjectRootInClaudeMd, ensureAutonomySection, ensureSkillsPathTrapSection, ensureSystemDirectiveAuthSection, ensureAgentIdHeaderSection, ensureThinChiefHandoffSection, ensureMemorySearchLabelSection, ensureFleetAuthSection, ensureEvidenceSection, ensureMcpListChannelSection, ensureMessageCloseSection } from './agent-scaffold.js'
 import { schedulePluginUnlockAfterRespawn } from './channel-plugin-unlock.js'
 import { recordInjectedPrompt } from './injected-prompt-registry.js'
 import { getSecret } from './vault.js'
 import { resolveOpenRouterModel } from './openrouter-models.js'
 import { reapChannelOrphans, reapDetachedChannelClaudes } from './channel-poller-reap.js'
 import { MAIN_CHANNELS_SESSION } from './main-agent.js'
-import { notifyChannel } from '../notify.js'
+import { notifyChannel, alertIsRedirected } from '../notify.js'
 
 // Lazy so a transient PATH gap at import time (e.g. the 04:00 auto-update
 // restart, where the finalizer omits the bin dir from PATH) cannot hard-crash
@@ -89,6 +111,9 @@ export function delay(ms: number): Promise<void> {
 }
 
 import { CHANNEL_PLUGIN_IDS } from './plugin-ids.js'
+import { ROOT_SANDBOX_ENV } from './root-sandbox-env.js'
+import { exactTmuxTarget, sessionOfTmuxTarget } from '../tmux-target.js'
+import { expandAndValidateConfigDir } from '../config-dir-path.js'
 export { CHANNEL_PLUGIN_IDS }
 
 // Pure: compute the enabledPlugins map for a sub-agent so that exactly its own
@@ -133,6 +158,28 @@ export function ownChannelProviderForScope(
   resolvedProvider: string | null,
 ): string | null {
   return hasOwnToken && resolvedProvider ? resolvedProvider : null
+}
+
+/**
+ * Teams name-sync write: set TEAMS_BOT_DISPLAY_NAME in the agent's teams .env
+ * to `displayName`, only on drift. Returns whether it wrote.
+ *
+ * ENVTMPMODE925: the teams .env holds the bot's app secret, so a file this call
+ * CREATES is 0600. writeFileSync's `mode` applies only on creation, so an
+ * existing .env keeps whatever mode the operator gave it (the write is in
+ * place, no rename). Without it a missing .env came up at the umask default.
+ */
+export function syncTeamsDisplayName(envPath: string, displayName: string | null | undefined): boolean {
+  if (!displayName) return false
+  const raw = existsSync(envPath) ? readFileSync(envPath, 'utf-8') : ''
+  const current = raw.match(/^TEAMS_BOT_DISPLAY_NAME=(.*)$/m)?.[1]?.trim()
+  if (current === displayName) return false
+  const line = `TEAMS_BOT_DISPLAY_NAME=${displayName}`
+  const next = current !== undefined
+    ? raw.replace(/^TEAMS_BOT_DISPLAY_NAME=.*$/m, line)
+    : (raw === '' || raw.endsWith('\n') ? raw + line + '\n' : raw + '\n' + line + '\n')
+  writeFileSync(envPath, next, { mode: 0o600 })
+  return true
 }
 
 // Wrap the telegram plugin's bun stdio server in a tee that persists each
@@ -421,8 +468,11 @@ export function ensureIsolatedChannelConfigDir(
   // null = channel-less agent: provision the isolated dir with EVERY channel
   // plugin disabled (scopeChannelPlugins(null)) instead of enabling one.
   providerType: ChannelProviderType | null,
+  // AGENTEXTRACH1006: co-listen plugins that must stay enabled next to the
+  // primary one (the same re-enable the main agent's extras get).
+  extraPluginIds: string[] = [],
 ): string | null {
-  return provisionIsolatedConfigDir(join(agentDir(name), '.claude-config'), agentDir(name), providerType, name)
+  return provisionIsolatedConfigDir(join(agentDir(name), '.claude-config'), agentDir(name), providerType, name, extraPluginIds)
 }
 
 // The main channels agent (started by scripts/channels.sh, cwd = PROJECT_ROOT)
@@ -465,6 +515,13 @@ export function ensureMainAgentIsolatedConfigDir(
   try { enabled = String(getEffectiveSettingValue('MAIN_AGENT_ISOLATED_CONFIG')) === '1' } catch { enabled = false }
   if (!enabled) return null
   if (!hasFleetOauthToken()) return null
+  return provisionMainIsolatedConfigDir(provider)
+}
+
+// Shared provisioning call for the generic isolated dir, factored out so the
+// fleet-token-gated path (above) and the token-mode-rotation path (below)
+// cannot drift on what they actually provision.
+function provisionMainIsolatedConfigDir(provider?: string): string | null {
   return provisionIsolatedConfigDir(
     join(PROJECT_ROOT, '.channels-config'),
     PROJECT_ROOT,
@@ -472,6 +529,21 @@ export function ensureMainAgentIsolatedConfigDir(
     MAIN_AGENT_ID,
     readExtraChannelPluginIds(),
   )
+}
+
+// Same generic isolated dir as ensureMainAgentIsolatedConfigDir, but for a
+// TOKEN-MODE rotated claude-plans entry (ClaudePlan.tokenSecretId): gated
+// only on MAIN_AGENT_ISOLATED_CONFIG=1, NOT on hasFleetOauthToken(). A
+// token-mode plan supplies its OWN token at launch (see
+// resolveMainAgentRotatedTokenSecretId) instead of the flotta's, so requiring
+// a flotta token to even provision the shared dir would be the wrong gate --
+// an install with rotation configured but no flotta token registered should
+// still be able to run token-mode plans.
+export function ensureMainAgentIsolatedConfigDirForRotatedToken(provider?: string): string | null {
+  let enabled = false
+  try { enabled = String(getEffectiveSettingValue('MAIN_AGENT_ISOLATED_CONFIG')) === '1' } catch { enabled = false }
+  if (!enabled) return null
+  return provisionMainIsolatedConfigDir(provider)
 }
 
 // READ-ONLY sibling of the two resolvers above: which config dir will the main
@@ -605,7 +677,13 @@ export function resolveMainAgentConfigDir(): string | null {
   let raw = ''
   try { raw = String(getEffectiveSettingValue('MAIN_AGENT_CONFIG_DIR') ?? '').trim() } catch { return null }
   if (!raw) return null
-  const dir = raw.startsWith('~') ? join(homedir(), raw.slice(1)) : raw
+  // SECSZIVEK1007: a value from .env or the systemd environment never met the
+  // settings write check; the read applies the same path rules.
+  const dir = expandAndValidateConfigDir(raw, homedir())
+  if (!dir) {
+    logger.warn('main-agent config dir: MAIN_AGENT_CONFIG_DIR is not a valid config dir path, keeping the shared ~/.claude')
+    return null
+  }
   if (!existsSync(dir)) {
     logger.warn({ dir }, 'main-agent config dir: MAIN_AGENT_CONFIG_DIR does not exist, keeping the shared ~/.claude')
     return null
@@ -628,7 +706,9 @@ export function resolveMainAgentConfigDir(): string | null {
 // either threshold this returns null even if a stale activePlanByAgent entry
 // exists on disk, so turning rotation off (or dropping back to one plan)
 // cannot strand the main agent on a dir nobody is maintaining anymore.
-export function resolveMainAgentRotatedConfigDir(): string | null {
+// Shared by both resolveMainAgentRotatedConfigDir and
+// resolveMainAgentRotatedTokenSecretId, so the two can never gate differently.
+function resolveActiveMainPlan(): ReturnType<typeof getClaudePlan> {
   let isolationEnabled = false
   try { isolationEnabled = String(getEffectiveSettingValue('MAIN_AGENT_ISOLATED_CONFIG')) === '1' } catch { return null }
   if (!isolationEnabled) return null
@@ -638,8 +718,24 @@ export function resolveMainAgentRotatedConfigDir(): string | null {
   const activeId = readClaudePlansState().activePlanByAgent[MAIN_AGENT_ID]
   if (!activeId) return null
 
-  const plan = getClaudePlan(activeId)
-  return plan ? plan.configDir : null
+  return getClaudePlan(activeId)
+}
+
+export function resolveMainAgentRotatedConfigDir(): string | null {
+  return resolveActiveMainPlan()?.configDir ?? null
+}
+
+// The main agent's token-mode rotation counterpart: the vault secret id
+// holding the active plan's raw CLAUDE_CODE_OAUTH_TOKEN, when the active plan
+// is token-mode (ClaudePlan.tokenSecretId set) rather than configDir-mode.
+// Every token-mode plan shares the SAME generic isolated CLAUDE_CONFIG_DIR
+// (ensureMainAgentIsolatedConfigDir) -- this resolver answers ONLY "which
+// token", never "which dir". See ClaudePlan.tokenSecretId for why token-mode
+// exists at all (2026-09-12 incident: a configDir-mode plan registered but
+// never actually logged into, on a remote host, wedged the main session on an
+// interactive OAuth-code prompt no headless session can complete).
+export function resolveMainAgentRotatedTokenSecretId(): string | null {
+  return resolveActiveMainPlan()?.tokenSecretId ?? null
 }
 
 // Shared provisioning core for BOTH the sub-agents (ensureIsolatedChannelConfigDir)
@@ -728,14 +824,28 @@ function reconcileMcpServers(
   }
   const own = isPlainObject(cur.mcpServers) ? cur.mcpServers : {}
   const projectScoped = projectScopedServerNames(cwd)
+  // MCPOROKLES923: a sub-agent gap-fills ONLY servers on the inheritable list
+  // (mcp-inheritance.ts). Additive as before: nothing the agent already has is
+  // removed. The main agent is exempt -- its config mirrors the operator's own.
+  const allowed = name === MAIN_AGENT_ID ? null : readInheritableMcpServerNames()
   const added: string[] = []
   const shadowed: string[] = []
+  const notInherited: string[] = []
   for (const [key, def] of Object.entries(shared.mcpServers)) {
     if (key in own) continue
-    if (projectScoped.has(key)) { shadowed.push(key); continue }
+    // Both reasons are judged independently and BOTH are logged: an unlisted
+    // server the agent also owns at project scope is a list refusal AND a
+    // collision. Recording only the first reason hid the collision trace the
+    // 2026-09-05 rule exists to leave.
+    const unlisted = allowed !== null && !allowed.has(key)
+    const collides = projectScoped.has(key)
+    if (unlisted) notInherited.push(key)
+    if (collides) shadowed.push(key)
+    if (unlisted || collides) continue
     own[key] = def
     added.push(key)
   }
+  logNotInherited(name, 'gap-fill', notInherited)
   // Log the skips even when nothing was added: a silent skip is how this class
   // of bug stays invisible, and the name alone tells the next reader where the
   // agent's real definition lives.
@@ -756,10 +866,18 @@ function reconcileMcpServers(
 // shared config is copied: without this the very first launch of a new agent
 // starts out shadowed, which is the same outage as the gap-fill one, just
 // earlier. Mutates `cfg` in place.
-function stripProjectScopedCollisions(cfg: Record<string, unknown>, cwd: string, name: string): void {
+// `alreadyRemoved` are names an earlier filter (the inheritable list) took out of
+// `cfg` first; any of them the agent owns at project scope is still a collision
+// and is logged as one, so the trace does not depend on which rule ran first.
+function stripProjectScopedCollisions(
+  cfg: Record<string, unknown>,
+  cwd: string,
+  name: string,
+  alreadyRemoved: readonly string[] = [],
+): void {
   const projectScoped = projectScopedServerNames(cwd)
   if (projectScoped.size === 0) return
-  const dropped: string[] = []
+  const dropped: string[] = alreadyRemoved.filter((key) => projectScoped.has(key))
   if (isPlainObject(cfg.mcpServers)) {
     for (const key of Object.keys(cfg.mcpServers)) {
       if (projectScoped.has(key)) { delete (cfg.mcpServers as Record<string, unknown>)[key]; dropped.push(key) }
@@ -987,15 +1105,26 @@ function provisionIsolatedConfigDir(
       const sharedDot = join(homedir(), '.claude.json')
       if (!existsSync(dotClaude)) {
         let seed: Record<string, unknown> = { hasCompletedOnboarding: true }
+        let notInheritedOnSeed: string[] = []
         if (existsSync(sharedDot)) {
           try { seed = JSON.parse(readFileSync(sharedDot, 'utf-8')) as Record<string, unknown> } catch { /* keep minimal */ }
         }
         seed.hasCompletedOnboarding = true
+        // MCPOROKLES923: the seed copies the shared config for its consent flags,
+        // NOT for its connectors: a sub-agent's seed keeps only the servers on the
+        // inheritable list. The main agent is exempt (its config mirrors the
+        // operator's own ~/.claude.json).
+        if (name !== MAIN_AGENT_ID && isPlainObject(seed.mcpServers)) {
+          const { kept, dropped } = filterInheritableMcpServers(seed.mcpServers, readInheritableMcpServerNames())
+          seed.mcpServers = kept
+          notInheritedOnSeed = dropped
+          logNotInherited(name, 'seed', dropped)
+        }
         // The seed is a FULL copy of the shared config, so it carries the same
         // scope-collision risk as the gap-fill below: a shared entry whose name
         // the agent owns in its own .mcp.json would arrive at local scope and
         // shadow it, credentials included. Strip those before writing.
-        stripProjectScopedCollisions(seed, cwd, name)
+        stripProjectScopedCollisions(seed, cwd, name, notInheritedOnSeed)
         writeJsonAtomic(dotClaude, seed, { groupShared: perUser })
       } else {
         try {
@@ -1115,6 +1244,102 @@ export function stampProjectTrustForDir(dotClaudePath: string, projectDir: strin
   }
 }
 
+// Pre-approve a custom ANTHROPIC_API_KEY in a config root's .claude.json so
+// Claude Code's "Detected a custom API key" TUI prompt never renders in
+// --channels (non-interactive) mode.
+//
+// Root cause: when a custom provider uses authHeader=x-api-key, agent-process
+// exports ANTHROPIC_API_KEY. The Claude Code TUI treats ANTHROPIC_API_KEY as
+// an approval-required key (it shows "Detected a custom API key in your
+// environment / Do you want to use this API key?"). In --channels mode this
+// dialog cannot be answered interactively, so the agent parks on "Not logged
+// in". The ANTHROPIC_AUTH_TOKEN (Bearer) path has no such gate.
+//
+// Fix: mirror the CLI's own approval storage. The CLI stores the key as
+//   customApiKeyResponses.approved: [key.trim().slice(-20)]
+// (empirically verified from the 2.1.222 binary: `function Jne(e){return
+//  e.trim().slice(-20)}`). Pre-seeding this entry before spawn makes the CLI
+// treat the key as already approved. Idempotent; atomic 0600 write.
+export function stampCustomApiKeyApproval(dotClaudePath: string, apiKey: string): boolean {
+  const suffix = apiKey.trim().slice(-20)
+  if (!suffix) return false
+  try {
+    // JSONCLOBBER926B: a corrupt .claude.json is refused, not reset to a
+    // one-key object. It carries the agent's onboarding and project-trust
+    // flags and its local-scope MCP servers (credentials included), and the
+    // old "start fresh" silently destroyed all of them. The refusal lands in
+    // the catch below: no stamp, a warn naming the file, and the file intact.
+    const data = readJsonObjectForWrite(dotClaudePath)
+    const existing = (data.customApiKeyResponses && typeof data.customApiKeyResponses === 'object' && !Array.isArray(data.customApiKeyResponses))
+      ? data.customApiKeyResponses as Record<string, unknown>
+      : {}
+    const approved = Array.isArray(existing.approved) ? existing.approved as string[] : []
+    if (approved.includes(suffix)) return false
+    data.customApiKeyResponses = { ...existing, approved: [...approved, suffix] }
+    atomicWriteFileSync(dotClaudePath, JSON.stringify(data, null, 2) + '\n', { mode: 0o600 })
+    logger.info({ dotClaudePath }, 'custom-api-key: pre-stamped customApiKeyResponses.approved (prevents interactive approval prompt in --channels TUI)')
+    return true
+  } catch (err) {
+    logger.warn({ err, dotClaudePath }, 'custom-api-key: could not stamp approval (agent may park on API key prompt if running non-interactively)')
+    return false
+  }
+}
+
+// Build the shell env-export prefix for an agent's custom provider, ready to
+// prepend to a tmux launch command. Returns null when the agent has no custom
+// provider configured. Throws when the provider definition is missing or the
+// vault key is absent (mirrors the abort logic in startAgentProcess).
+//
+// The returned envPrefix ends with "&&" so it can be concatenated directly
+// before "cd <dir> && claude ...". The customApiKeyForApproval field carries
+// the raw key when authHeader=x-api-key, so the caller can pre-stamp
+// .claude.json via stampCustomApiKeyApproval (prevents the interactive
+// "Detected a custom API key" modal in non-channels TUI sessions).
+export interface CustomProviderLaunchEnv {
+  envPrefix: string
+  customApiKeyForApproval: string | null
+  model: string
+}
+
+export function buildCustomProviderLaunchEnv(agentName: string): CustomProviderLaunchEnv | null {
+  const customProviderId = readAgentCustomProvider(agentName)
+  if (!customProviderId) return null
+
+  const customProviderDef = loadCustomProvider(customProviderId)
+  if (!customProviderDef) {
+    throw new Error(`Custom provider "${customProviderId}" not found. Add it in Settings > Providers.`)
+  }
+
+  const model = readAgentModel(agentName)
+  let headerExport: string
+  let customApiKeyForApproval: string | null = null
+
+  if (customProviderDef.authHeader === 'none') {
+    headerExport = `export ANTHROPIC_AUTH_TOKEN=ollama && `
+  } else {
+    const key = getSecret(customProviderDef.vaultKey ?? '') ?? ''
+    if (!key) {
+      throw new Error(`Custom provider vault key "${customProviderDef.vaultKey}" not found. Add it in the Vault tab.`)
+    }
+    // A BAZIS ALATTUNK MEGVALTOZOTT (LATENSKULCSARGV920, #1478): a kulcs nem a launch-parancsban
+    // utazik, hanem 0600-as fajlbol olvassa a BEINDITOTT shell. A szerzo logikaja valtozatlan.
+    //
+    // A `customApiKeyForApproval` viszont SZANDEKOSAN a nyers kulcs marad: azt a hivo NEM a
+    // parancsba teszi, hanem a `.claude.json`-be stampeli (a CLI az utolso 20 karaktert tarolja),
+    // tehat az nem argv-kitettseg. Ket kulonbozo ut, ket kulonbozo szabaly.
+    const keyRef = launchSecretRef(`${agentName}.${customProviderDef.vaultKey}`, key)
+    if (customProviderDef.authHeader === 'x-api-key') {
+      headerExport = `export ANTHROPIC_API_KEY=${keyRef} && `
+      customApiKeyForApproval = key
+    } else {
+      headerExport = `export ANTHROPIC_AUTH_TOKEN=${keyRef} && `
+    }
+  }
+
+  const envPrefix = `export ANTHROPIC_BASE_URL="${customProviderDef.baseUrl}" && ${headerExport}export ANTHROPIC_MODEL=${shSingleQuote(model)} && `
+  return { envPrefix, customApiKeyForApproval, model }
+}
+
 // Pre-stamp the Fable overage-consent acknowledgment in a config root's
 // .claude.json so the "Fable 5 now uses usage credits" dialog never renders.
 //
@@ -1225,13 +1450,43 @@ export function shSingleQuote(value: string): string {
  * amit a hivo a `launchSecretRef`-fel allit elo. Egy jovobeli ag, ami megint az erteket akarna
  * beirni, eloszor a PARAMETER TIPUSAT kellene visszaallitsa -- az pedig latszik a review-ban.
  */
-export type ProviderKind = 'claude' | 'deepseek' | 'minimax' | 'openrouter' | 'ollama'
+export type ProviderKind = 'claude' | 'deepseek' | 'minimax' | 'openrouter' | 'ollama' | 'custom'
 
 export function resolveProviderEnv(
   model: string,
   /** A titok SHELL-HIVATKOZASA (pl. `"$(cat '/ut')"`), NEM az erteke. Lasd `launchSecretRef`. */
   secretShellRef: (id: string) => string | null,
+  customProviderDef?: CustomProviderDef | null,
 ): { provider: ProviderKind; exportsStr: string } {
+  // Generic custom-provider env: built from the provider definition stored in
+  // store/custom-providers.json. Only Anthropic-Messages-compatible endpoints
+  // are supported (/v1/messages); pure OpenAI endpoints require a proxy. Early
+  // return, ahead of every string-pattern discriminator below, so a custom
+  // provider's model id (which can look like anything) never accidentally
+  // matches the claude-/deepseek-/ollama branches.
+  if (customProviderDef) {
+    let headerExport: string
+    if (customProviderDef.authHeader === 'none') {
+      headerExport = `export ANTHROPIC_AUTH_TOKEN=ollama && `
+    } else {
+      // A BAZIS ALATTUNK MEGVALTOZOTT (LATENSKULCSARGV920, #1478): ez a parameter mar nem a kulcs
+      // ERTEKET adja vissza, hanem egy shell-HIVATKOZAST ra (`"$(cat '/ut')"`), amit a hivo a
+      // `launchSecretRef`-fel allit elo. A szerzo szandeka valtozatlan -- hianyzo vault-kulcsnal az
+      // inditas MEGALL, nem esik vissza csendben a rossz backendre --, csak a titok mar nem a
+      // launch-parancsban utazik. A `null` itt pontosan azt jelenti, amit nala az ures ertek.
+      const keyRef = secretShellRef(customProviderDef.vaultKey ?? '')
+      if (!keyRef) {
+        throw new Error(`Custom provider vault key "${customProviderDef.vaultKey}" not found. Add it in the Vault tab.`)
+      }
+      headerExport = customProviderDef.authHeader === 'x-api-key'
+        ? `export ANTHROPIC_API_KEY=${keyRef} && `
+        : `export ANTHROPIC_AUTH_TOKEN=${keyRef} && `
+    }
+    return {
+      provider: 'custom',
+      exportsStr: `export ANTHROPIC_BASE_URL="${customProviderDef.baseUrl}" && ${headerExport}export ANTHROPIC_MODEL=${shSingleQuote(model)} && `,
+    }
+  }
   const isClaude = model.startsWith('claude-')
   const isDeepseek = model.startsWith('deepseek-')
   const isMinimax = model.startsWith('minimax-')
@@ -1336,8 +1591,10 @@ function sessionRunAsUserMap(): Map<string, string> {
 export function runAsUserForTmuxArgs(tmuxArgs: string[], map: Map<string, string>): string | null {
   for (let i = 0; i < tmuxArgs.length - 1; i++) {
     if (tmuxArgs[i] !== '-t' && tmuxArgs[i] !== '-s') continue
-    // `-t agent-x:0.1` addresses a window/pane inside the same session.
-    const session = tmuxArgs[i + 1].split(':')[0]
+    // `-t agent-x:0.1` addresses a window/pane inside the same session, and
+    // since TMUXEXACT1771 every target is in the exact form `=agent-x:` -- the
+    // session name is what the map is keyed on, so both are stripped.
+    const session = sessionOfTmuxTarget(tmuxArgs[i + 1])
     const user = map.get(session)
     if (user) return user
   }
@@ -1450,7 +1707,7 @@ export function getAgentRunningSince(name: string, session: string = agentSessio
   try {
     const target = agentTmuxTarget(name)
     const host = target.host
-    const out = captureTmux(target, ['display-message', '-p', '-t', session, '#{session_created}']).trim()
+    const out = captureTmux(target, ['display-message', '-p', '-t', exactTmuxTarget(session), '#{session_created}']).trim()
     const ts = parseInt(out, 10)
     return Number.isFinite(ts) ? ts : null
   } catch {
@@ -1561,6 +1818,36 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
   // Remote agents are handled entirely by the ssh path above (with its own
   // start guard), before any local already-running check / scaffolding.
   const remote = readAgentRemoteConfig(name)
+
+  // Per-agent setup-token file (agent-config.json "oauthTokenFile", 2fb86ef2).
+  // Decided before ANY launch step, remote agents included: a present but
+  // unusable field refuses the start, loudly, and never falls back to the fleet
+  // token (see agent-oauth-token-file.ts). Absent field -> 'unset' -> every
+  // branch below runs exactly as before.
+  const ownOauth = decideOwnOauthToken({
+    rawConfigJson: readFileOr(join(dir, 'agent-config.json'), '{}'),
+    isMainAgent: name === MAIN_AGENT_ID,
+    isRemote: !!(remote.host && remote.workdir),
+    // The launcher's own discriminators (see isCustom / isClaude below): a set
+    // customProvider wins over every model pattern, and for the rest the
+    // resolved model must start with claude-.
+    isCustomProvider: readAgentCustomProvider(name) !== null,
+    isClaudeModel: resolveOpenRouterModel(readAgentModel(name)).startsWith('claude-'),
+    authMode: readAgentAuthMode(name),
+    hasExplicitConfigDir: readAgentClaudeConfigDir(name) !== null,
+    hasClaudePlan: !!readAgentClaudePlan(name),
+    fleetTokenPath: FLEET_OAUTH_TOKEN_PATH,
+    uid: typeof process.getuid === 'function' ? process.getuid() : null,
+  })
+  if (ownOauth.kind === 'refused') {
+    logger.error(
+      { name, path: ownOauth.path, reason: ownOauth.reason, detail: ownOauth.detail },
+      'oauthTokenFile: agent NOT started (fail-closed, no fallback to the fleet token)',
+    )
+    return { ok: false, error: `oauthTokenFile: ${ownOauth.reason}${ownOauth.detail ? ` (${ownOauth.detail})` : ''}` }
+  }
+  const ownTokenFile = ownOauth.kind === 'ok' ? ownOauth.path : null
+
   if (remote.host && remote.workdir) {
     return startRemoteAgentProcess(name, remote.host, remote.workdir, opts)
   }
@@ -1597,23 +1884,24 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
     // Channel-less agents (inter-agent only, no direct Telegram/Slack) are allowed to start
   }
 
+  // AGENTEXTRACH1006: co-listen providers next to the primary one. Only an
+  // extra whose OWN state dir holds a token takes part; a configured but
+  // tokenless one is skipped loudly rather than loading a plugin that could
+  // fall back to another bot's token.
+  const extraLaunch = buildExtraChannelLaunch(readAgentExtraChannels(name), agentProvider, dir)
+  if (extraLaunch.skipped.length > 0) {
+    logger.warn({ name, skipped: extraLaunch.skipped }, 'extraChannels: provider configured but no token in its state dir -- not loaded')
+  }
+  const hasExtraChannels = extraLaunch.providers.length > 0
+  const hasAnyChannel = hasChannel || hasExtraChannels
+
   // Teams name-sync (companion to make-teams-manifest.sh): keep
   // TEAMS_BOT_DISPLAY_NAME in the agent's teams .env equal to the agent's
   // displayName, so the generated Teams manifest names the bot after the agent
   // (not the generic fallback). Idempotent; writes only on drift, non-fatal.
   if (agentProvider === 'teams' && hasChannel) {
     try {
-      const envPath = join(agentChannelDir, '.env')
-      const displayName = readAgentDisplayName(name)
-      const raw = existsSync(envPath) ? readFileSync(envPath, 'utf-8') : ''
-      const current = raw.match(/^TEAMS_BOT_DISPLAY_NAME=(.*)$/m)?.[1]?.trim()
-      if (displayName && current !== displayName) {
-        const line = `TEAMS_BOT_DISPLAY_NAME=${displayName}`
-        const next = current !== undefined
-          ? raw.replace(/^TEAMS_BOT_DISPLAY_NAME=.*$/m, line)
-          : (raw === '' || raw.endsWith('\n') ? raw + line + '\n' : raw + '\n' + line + '\n')
-        writeFileSync(envPath, next)
-      }
+      syncTeamsDisplayName(join(agentChannelDir, '.env'), readAgentDisplayName(name))
     } catch { /* best-effort name-sync; never block launch */ }
   }
 
@@ -1621,7 +1909,7 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
 
   try {
     try {
-      runTmux(agentTmuxTarget(name), ['kill-session', '-t', session])
+      runTmux(agentTmuxTarget(name), ['kill-session', '-t', exactTmuxTarget(session)])
       await delay(3000)
     } catch { /* ok */ }
 
@@ -1635,6 +1923,7 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
       const agentProvider = resolveAgentProvider(name)
       const dir = agentDir(name)
       reapChannelOrphans(agentProvider, dir, { tmuxPath: tmuxBin() })
+      for (const p of extraLaunch.providers) reapChannelOrphans(p, dir, { tmuxPath: tmuxBin() })
     } catch (err) {
       logger.warn({ err, name }, 'pre-launch channel-poller reap failed (continuing)')
     }
@@ -1651,11 +1940,58 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
       logger.warn({ err, name }, 'pre-launch detached-claude reap failed (continuing)')
     }
 
+    // Custom provider check runs FIRST and BEFORE resolveOpenRouterModel, so
+    // an explicit customProvider field in agent-config.json takes priority over
+    // all string-pattern discriminators. This prevents model ids like `mistral:7b`
+    // from accidentally matching the Ollama branch when the operator intends a
+    // custom Anthropic-compatible endpoint.
+    // DEFAULTCLIGUARD927: an agent that resolved no model of its own launches
+    // the install default, guarded against a CLI that cannot run it.
+    const resolvedModel = resolveAgentModelDetailed(name)
+    const rawModel = resolvedModel.source === 'default' ? await launchableInstallDefault(`agent:${name}`) : resolvedModel.model
+    const customProviderId = readAgentCustomProvider(name)
+    // isCustom is true whenever an id is set -- even if the definition is missing.
+    // The guard below catches the missing-definition case and aborts before any
+    // string-pattern discriminator runs, so a deleted provider never silently
+    // falls through to the Ollama branch.
+    const isCustom = customProviderId !== null
+    const customProviderDef = customProviderId ? loadCustomProvider(customProviderId) : null
+
+    if (isCustom && !customProviderDef) {
+      // Provider id is set in agent-config but not found in custom-providers.json
+      // (deleted via DELETE /api/custom-providers/:id or corrupt store).
+      // Abort launch with a clear error rather than silently falling through to Ollama.
+      logger.error({ name, customProviderId }, 'Custom provider not found in store -- agent launch aborted. Add it in Settings > Providers.')
+      throw new Error(`Custom provider "${customProviderId}" not found. Add it in Settings > Providers.`)
+    }
+
     // `openrouter-auto:<tier>` resolves to the tier's current recommended model
     // (weekly-refreshed); a concrete OpenRouter id (contains '/') passes through.
-    const model = resolveOpenRouterModel(readAgentModel(name))
+    // Skip this resolution entirely for custom providers -- their model ids go
+    // verbatim to the custom endpoint and have no openrouter-auto semantics.
+    const model = isCustom ? rawModel : resolveOpenRouterModel(rawModel)
     const authMode = readAgentAuthMode(name)
-    const isClaude = model.startsWith('claude-')
+    const isClaude = !isCustom && model.startsWith('claude-')
+    // 2fb86ef2 backstop: the decision above already refused a custom-provider or
+    // non-Claude agent with its own token. Re-checked on the launcher's own
+    // isClaude, so a drift between the two predicates refuses instead of
+    // launching with a setup-token that no export site will use.
+    if (ownTokenFile && !isClaude) {
+      logger.error(
+        { name, path: ownTokenFile, customProviderId, model },
+        'oauthTokenFile: agent is not a Claude OAuth agent -- NOT started (a setup-token cannot take effect here)',
+      )
+      return { ok: false, error: 'oauthTokenFile: not a Claude OAuth agent' }
+    }
+    // When authHeader=x-api-key, the CLI's ANTHROPIC_API_KEY approval prompt
+    // cannot be answered in --channels mode. Pre-seed the approval into
+    // .claude.json (see stampCustomApiKeyApproval) after claudeConfigDir is
+    // resolved below. Store the key here so the stamp call has it; Bearer/none
+    // providers leave this null (they have no such gate).
+    const customApiKeyForApproval: string | null =
+      isCustom && customProviderDef?.authHeader === 'x-api-key'
+        ? getSecret(customProviderDef.vaultKey ?? '') ?? null
+        : null
     // ANTHROPIC_MODEL is REQUIRED for non-Claude models: the interactive TUI
     // validates the `--model` flag against known Anthropic models and silently
     // falls back to the built-in default (claude-opus-...) for an unrecognized
@@ -1666,10 +2002,21 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
     // Provider discriminator + env-export chain live in resolveProviderEnv (pure,
     // unit-tested in agent-provider-env.test.ts) so a new provider is one branch there.
     // A titok FAJLBA megy, es a launch-parancsba csak a HIVATKOZAS kerul (LATENSKULCSARGV920).
-    const { exportsStr: providerEnv } = resolveProviderEnv(model, (id) => {
-      const ertek = (getSecret(id) ?? '').trim()
-      return ertek ? launchSecretRef(`${name}.${id}`, ertek) : null
-    })
+    // A hiba-ag a SZERZOE (a hianyzo vault-kulcs megallitja az inditast, nem esik vissza csendben
+    // a rossz backendre); a titok-atadas alakja a MIENK. A ketto nem zarja ki egymast.
+    let providerEnv: string
+    try {
+      providerEnv = resolveProviderEnv(model, (id) => {
+        const ertek = (getSecret(id) ?? '').trim()
+        return ertek ? launchSecretRef(`${name}.${id}`, ertek) : null
+      }, customProviderDef).exportsStr
+    } catch (err) {
+      // Custom-provider vault key missing (deleted from the vault after the
+      // provider was configured). Abort launch with a clear error rather than
+      // silently falling through to the wrong backend.
+      logger.error({ name, customProviderId, err }, 'Custom provider vault key missing -- agent launch aborted. Add it in the Vault tab.')
+      throw err
+    }
     // When authMode is 'api', the agent uses its own ANTHROPIC_API_KEY from
     // the vault instead of the host's OAuth. The vault entry ID follows the
     // convention `agent-{name}-api-key`. We inject it as an env var so Claude
@@ -1693,13 +2040,25 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
     const profile = loadProfileTemplate(resolveAgentSecurityProfile(name))
     writeAgentSettingsFromProfile(name, profile)
     ensureFleetRosterSection(name)
+    ensureProjectRootInClaudeMd(name)
     ensureAutonomySection(name)
     ensureSkillsPathTrapSection(name)
     ensureSystemDirectiveAuthSection(name)
+    ensureAgentIdHeaderSection(name)
+    // OPT-IN, DEFAULT OFF (PR #1357 review). The THIN CHIEF handoff is this
+    // fleet's reporting standard -- how a specialist hands a result to its
+    // coordinator -- not a property of the software. Injecting it into every
+    // downstream install's agent CLAUDE.md would be shipping our process as if
+    // it were a feature. No shipped profile sets the flag, so a fresh install
+    // gets nothing; the fleet that wrote it opts in on its own profiles.
+    // Turning the flag off does not remove a section an agent already carries:
+    // ensureThinChiefHandoffSection only appends, and nothing here deletes.
+    if (profileWantsThinChiefHandoff(profile)) ensureThinChiefHandoffSection(name)
     ensureMemorySearchLabelSection(name)
     ensureFleetAuthSection(name)
     ensureEvidenceSection(name)
     ensureMcpListChannelSection(name)
+    ensureMessageCloseSection(name)
     // A sub-agent must load ONLY its own channel plugin. The user-scope
     // enabledPlugins would otherwise make EVERY sub-agent spawn a telegram
     // (and slack/discord) poller that falls back to the main agent's bot
@@ -1790,6 +2149,22 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
     // writes; it is not applied fleet-wide. (An `allowedChannelPlugins` entry in
     // managed settings is the non-dev route, but it is keyed by plugin +
     // marketplace, which a local plugin has no id in.)
+    // Opt-in agent-state-observer mod (MODSTERMEK1005, default OFF): see
+    // state-observer.ts. The version is measured only for an agent that has it
+    // on, so every other launch is untouched.
+    let stateObserverEnv = ''
+    if (readAgentStateObserver(name)) {
+      const observer = decideStateObserver({
+        enabled: true,
+        isMainAgent: name === MAIN_AGENT_ID,
+        installedCli: (await measureClaudeCliVersion()).version,
+        remote: false, // a remote agent took startRemoteAgentProcess above
+        runAs: !!agentTmuxTarget(name).runAsUser,
+      })
+      stateObserverEnv = stateObserverLaunchEnv(observer.load, name, shSingleQuote)
+      logger.info({ name, load: observer.load, reason: observer.reason }, 'agent-state-observer launch decision')
+    }
+
     let worksourceFlags = ''
     if (readAgentWorksourceChannel(name) && name !== MAIN_AGENT_ID) {
       try {
@@ -1797,10 +2172,12 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
         if (!existsSync(serverPath)) throw new Error(`worksource server not found at ${serverPath}`)
         const mcpJsonPath = join(agentDir(name), '.mcp.json')
         let mcpConfig: { mcpServers: Record<string, unknown> } = { mcpServers: {} }
-        try {
-          const existing = JSON.parse(readFileSync(mcpJsonPath, 'utf-8')) as { mcpServers?: Record<string, unknown> }
-          if (existing && typeof existing === 'object' && existing.mcpServers) mcpConfig = { mcpServers: existing.mcpServers }
-        } catch { /* absent or unreadable -> start from empty, do not fail the launch */ }
+        // JSONCLOBBER926B: absent -> start from empty; an existing but corrupt
+        // .mcp.json is refused (it may hold the agent's other MCP servers), and
+        // the refusal lands in this block's catch: the agent starts without the
+        // worksource channel, as for any other wiring failure, and the file stays.
+        const existing = readJsonObjectForWrite(mcpJsonPath)
+        if (isPlainObject(existing.mcpServers)) mcpConfig = { mcpServers: existing.mcpServers }
         mcpConfig.mcpServers.worksource = {
           command: process.execPath,
           args: [serverPath],
@@ -1871,6 +2248,9 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
           scopeProvider,
           s.enabledPlugins as Record<string, boolean> | undefined,
         )
+        // AGENTEXTRACH1006: the co-listen plugins stay on after the
+        // primary-only scope above turned them off.
+        s.enabledPlugins = enableExtraPlugins(s.enabledPlugins as Record<string, boolean>, extraLaunch.pluginIds)
         writeFileSync(settingsPath, JSON.stringify(s, null, 2))
       } catch (err) {
         logger.warn({ err, name }, 'Could not scope channel plugins for sub-agent')
@@ -1908,12 +2288,6 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
     }
     let claudeConfigDir = planResolution.configDir
     let oauthTokenEnv = ''
-    // Shared-home agents (no isolated config dir) authenticate from the rotating
-    // ~/.claude/.credentials.json by default. If the operator has a long-lived
-    // fleet setup-token, export it so EVERY locally launched agent uses the
-    // stable token instead -- this is what makes the Linux credentials-guard
-    // rename safe (a shared sub-agent with no env token would otherwise be
-    // locked out once credentials.json is moved aside). No-op without a token.
     // authMode 'own_team' (OWNTEAMVAK914): the operator explicitly opted this
     // agent OUT of the fleet credential -- it authenticates from its OWN
     // /login credential (dashboard auth-flow -> /login in the agent's tmux).
@@ -1922,7 +2296,24 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
     // credential is absent or expired, which would silently put the agent
     // back on the shared identity -- exactly what own_team excludes.
     const isOwnTeam = isClaude && authMode === 'own_team'
-    if (!claudeConfigDir && hasFleetOauthToken() && !isOwnTeam) {
+    // Only Claude-OAuth agents need the fleet token. BYO/custom-endpoint agents
+    // (Ollama, DeepSeek, OpenRouter, generic custom) authenticate via their own
+    // ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN. Exporting CLAUDE_CODE_OAUTH_TOKEN
+    // for those agents causes the Claude CLI to send it to the third-party
+    // endpoint instead of the provider credential -> 401 (channel-agent + custom
+    // provider bug, 2026-08-05). own_team agents are excluded too, for the
+    // reason above.
+    const needsFleetOauth = isClaude && authMode !== 'api' && !isOwnTeam
+    // Shared-home agents (no isolated config dir) authenticate from the rotating
+    // ~/.claude/.credentials.json by default. If the operator has a long-lived
+    // fleet setup-token, export it so EVERY locally launched agent uses the
+    // stable token instead -- this is what makes the Linux credentials-guard
+    // rename safe (a shared sub-agent with no env token would otherwise be
+    // locked out once credentials.json is moved aside). No-op without a token.
+    if (ownTokenFile) {
+      // 2fb86ef2: the agent's own setup-token file, INSTEAD of the fleet file.
+      oauthTokenEnv = ownOauthTokenExport(ownTokenFile)
+    } else if (!claudeConfigDir && hasFleetOauthToken() && needsFleetOauth) {
       oauthTokenEnv = `export CLAUDE_CODE_OAUTH_TOKEN="$(cat '${FLEET_OAUTH_TOKEN_PATH}')" && `
     }
     // Isolation must also cover CHANNEL-LESS Claude-OAuth agents, not just
@@ -1935,8 +2326,7 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
     // 2026-07-25). Only agents that never touch Anthropic OAuth stay on the
     // shared root: local/BYO-endpoint models (Ollama/DeepSeek/OpenRouter) and
     // per-agent API-key (authMode 'api') agents.
-    const needsFleetOauth = isClaude && authMode !== 'api' && !isOwnTeam
-    if (!claudeConfigDir && (hasChannel || needsFleetOauth || isOwnTeam) && name !== MAIN_AGENT_ID) {
+    if (!claudeConfigDir && (hasAnyChannel || needsFleetOauth || isOwnTeam) && name !== MAIN_AGENT_ID) {
       if (isOwnTeam) {
         // own_team isolates WITHOUT the fleet token: the isolated dir is where
         // the agent's own /login credential lives (macOS Keychain scopes the
@@ -1944,7 +2334,7 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
         // of the dir -- and on Linux the provisioner deliberately never
         // touches .credentials.json, see ISOLATED_CONFIG_SKIP), so the
         // isolation gate must NOT be hasFleetOauthToken() here.
-        const isolated = ensureIsolatedChannelConfigDir(name, hasChannel ? agentProvider : null)
+        const isolated = ensureIsolatedChannelConfigDir(name, hasChannel ? agentProvider : null, extraLaunch.pluginIds)
         if (isolated) {
           claudeConfigDir = isolated
           // Linux keeps the credential as a file, so its absence is reliably
@@ -1961,7 +2351,15 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
           // Falling back to the shared ~/.claude would put the agent on the
           // OWNER's rotating credential -- the opposite of own_team. Loud.
           logger.warn({ name }, 'own_team auth: isolated config dir provisioning failed; agent falls back to the shared ~/.claude and will use the HOST credential, not its own Team login')
-          if (hasChannel) maybeAlertSharedConfigCollision(name)
+          if (hasAnyChannel) maybeAlertSharedConfigCollision(name)
+        }
+      } else if (ownTokenFile) {
+        // 2fb86ef2: isolated exactly like the fleet branch below; only the token
+        // source differs, so the fleet token's presence is irrelevant here.
+        const isolated = ensureIsolatedChannelConfigDir(name, hasChannel ? agentProvider : null, extraLaunch.pluginIds)
+        if (isolated) {
+          claudeConfigDir = isolated
+          oauthTokenEnv = ownOauthTokenExport(ownTokenFile)
         }
       } else if (hasFleetOauthToken()) {
         // Token present -> isolation works; any earlier degradation is resolved,
@@ -1970,13 +2368,16 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
         // A channel-less agent provisions with a null provider so its isolated
         // settings.json disables EVERY channel plugin -- it has no bot token,
         // so a loaded plugin could only fight the fleet over poller slots.
-        const isolated = ensureIsolatedChannelConfigDir(name, hasChannel ? agentProvider : null)
+        const isolated = ensureIsolatedChannelConfigDir(name, hasChannel ? agentProvider : null, extraLaunch.pluginIds)
         if (isolated) {
           claudeConfigDir = isolated
           // Read the token at launch via $(cat) so the literal secret never
           // appears in the JS-built command string or in `ps`. The file is 0600
           // and the value lands only in this process's own environment.
-          oauthTokenEnv = `export CLAUDE_CODE_OAUTH_TOKEN="$(cat '${FLEET_OAUTH_TOKEN_PATH}')" && `
+          // BYO/custom-endpoint agents: no OAuth export, only config-dir isolation.
+          if (needsFleetOauth) {
+            oauthTokenEnv = `export CLAUDE_CODE_OAUTH_TOKEN="$(cat '${FLEET_OAUTH_TOKEN_PATH}')" && `
+          }
         }
       } else {
         logger.warn({ name }, 'isolated-config: no fleet OAuth token (store/.claude-oauth-token); keeping shared ~/.claude. Run `claude setup-token` and store it to enable per-agent isolation.')
@@ -1984,8 +2385,36 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
         // ~/.claude this is an active plugin-slot collision -> raise a loud
         // alert. Channel-less agents cannot contend for a plugin slot, so they
         // only get the WARN.
-        if (hasChannel) maybeAlertSharedConfigCollision(name)
+        if (hasAnyChannel) maybeAlertSharedConfigCollision(name)
       }
+    }
+    // 2fb86ef2: a Claude agent with its own token must run isolated. On the
+    // shared ~/.claude the rotating host credential wins over the env token, so
+    // the agent would silently authenticate as the host, not with its own token.
+    if (ownTokenFile && isClaude && !claudeConfigDir) {
+      logger.error(
+        { name, path: ownTokenFile },
+        'oauthTokenFile: isolated config dir could not be provisioned -- agent NOT started (the shared ~/.claude would authenticate it with the host credential)',
+      )
+      return { ok: false, error: 'oauthTokenFile: isolated config dir could not be provisioned' }
+    }
+    // 2fb86ef2: the claim is derived from the launch env itself, not from the
+    // decision. One verdict drives both the refusal and the log: an 'ok'
+    // decision that did not reach oauthTokenEnv would run the agent on the
+    // fleet token (or none) while the log said otherwise, so it refuses.
+    const ownLaunch = ownOauthLaunchVerdict(ownOauth, oauthTokenEnv)
+    if (ownLaunch.kind === 'refuse') {
+      logger.error(
+        { name, path: ownLaunch.path },
+        'oauthTokenFile: own token decided but NOT in the launch env -- agent NOT started (no fallback to the fleet token)',
+      )
+      return { ok: false, error: 'oauthTokenFile: own token did not reach the launch env' }
+    }
+    if (ownLaunch.kind === 'own') {
+      logger.info(
+        { name, path: ownLaunch.path, fingerprint: ownLaunch.fingerprint },
+        'oauthTokenFile: own setup-token exported instead of the fleet token',
+      )
     }
     // Per-project trust pre-seed in the config root this session will ACTUALLY
     // use (isolated CLAUDE_CONFIG_DIR when set, shared ~/.claude.json
@@ -2002,6 +2431,14 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
     stampFableOverageConsent(
       claudeConfigDir ? join(claudeConfigDir, '.claude.json') : join(homedir(), '.claude.json'),
     )
+    // Pre-approve ANTHROPIC_API_KEY for x-api-key custom providers so the
+    // "Detected a custom API key" TUI prompt never blocks a --channels agent.
+    if (customApiKeyForApproval) {
+      stampCustomApiKeyApproval(
+        claudeConfigDir ? join(claudeConfigDir, '.claude.json') : join(homedir(), '.claude.json'),
+        customApiKeyForApproval,
+      )
+    }
     const claudeConfigEnv = claudeConfigDir ? `export CLAUDE_CONFIG_DIR="${claudeConfigDir}" && ` : ''
     // `--continue` requires an existing session; on a brand-new agent the
     // Claude Code projects directory does not yet exist and `claude` exits
@@ -2034,24 +2471,48 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
     // bot.pid) with a fresh fallback, see below. Channel-less agents keep
     // --continue as before.
     const usesLaunchSecret = providerEnv !== '' || apiKeyEnv !== ''
-    const installedCli = hasChannel ? (await measureClaudeCliVersion()).version : null
+    const installedCli = hasAnyChannel ? (await measureClaudeCliVersion()).version : null
     const continueDecision = decideContinueFlag({
       hasPriorSession, fresh: !!opts.fresh, hasChannel, isMainAgent: name === MAIN_AGENT_ID,
       provider: agentProvider, usesLaunchSecret, fleetTokenLaunch: oauthTokenEnv !== '',
-      useMcpJsonForChannel, installedCli,
+      useMcpJsonForChannel, installedCli, extraProviders: extraLaunch.providers,
     })
-    if (hasChannel && hasPriorSession && !opts.fresh) {
+    if (hasAnyChannel && hasPriorSession && !opts.fresh) {
       logger.info({ name, useContinue: continueDecision.useContinue, reason: continueDecision.reason, installedCli }, 'channel agent resume decision')
     }
     const continueFlag = continueDecision.useContinue ? '--continue ' : ''
     const stateEnvVar = agentProvider === 'slack' ? 'SLACK_STATE_DIR' : agentProvider === 'discord' ? 'DISCORD_STATE_DIR' : agentProvider === 'googlechat' ? 'GOOGLECHAT_STATE_DIR' : agentProvider === 'teams' ? 'TEAMS_STATE_DIR' : 'TELEGRAM_STATE_DIR'
-    const unsetTokens = 'unset TELEGRAM_BOT_TOKEN SLACK_BOT_TOKEN SLACK_APP_TOKEN DISCORD_BOT_TOKEN'
+    // CHANSTATEUNSET930: the channel STATE DIRS are stripped too, not only the
+    // bot tokens. The tmux server carries the main agent's TELEGRAM_STATE_DIR in
+    // its own env (channels.sh exports it before `tmux start-server`), so every
+    // new pane inherited it -- including channel-less agents, whose claude and
+    // every MCP server under it then looked, to channel-poller-reap's env scan,
+    // exactly like the main agent's orphaned pollers. Measured 2026-09-30 12:06
+    // and 14:21: each main-channel reap SIGTERMed the MCP servers of every
+    // channel-less agent, whose tools then reported 'failed to connect' until
+    // the agent was restarted. A channel agent
+    // re-exports its OWN dir right after this, via channelSetup below.
+    const unsetTokens = 'unset TELEGRAM_BOT_TOKEN SLACK_BOT_TOKEN SLACK_APP_TOKEN DISCORD_BOT_TOKEN TELEGRAM_STATE_DIR SLACK_STATE_DIR DISCORD_STATE_DIR GOOGLECHAT_STATE_DIR TEAMS_STATE_DIR'
+    // BYO/custom-endpoint agents must have CLAUDE_CODE_OAUTH_TOKEN removed from
+    // their environment, not just omitted from the launch export. The parent tmux
+    // server carries the fleet OAuth token in its own env, and
+    // every new pane inherits it. The Claude CLI prefers CLAUDE_CODE_OAUTH_TOKEN
+    // over ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN, so the inherited token would
+    // reach the custom endpoint -> 401, even after the explicit export was removed.
+    // An active `unset` at launch strips the inherited value before exec.
+    // Claude-OAuth agents (needsFleetOauth=true) must keep the token intact.
+    const byoUnsetEnv = !needsFleetOauth ? 'unset CLAUDE_CODE_OAUTH_TOKEN && ' : ''
     // Slack plugin is third-party; its "not on approved allowlist" check is
     // bypassed via `allowedChannelPlugins` in /Library/Application Support/ClaudeCode/managed-settings.json.
     const auditLogEnv = agentProvider === 'slack' ? ` && export SLACK_AUDIT_LOG="${agentChannelDir}/audit.jsonl"` : ''
-    const channelSetup = hasChannel
+    const channelSetup = (hasChannel
       ? `export ${stateEnvVar}="${agentChannelDir}"${auditLogEnv} && `
-      : ''
+      : '') + extraLaunch.envExports
+    // SLACKDMVESZT1006: every provider this launch does NOT use points at the
+    // agent's own (token-less) state dir, so a plugin loaded for any other
+    // reason can never fall back to the main agent's token. The extras export
+    // their own real dir (envExports above), so they are excluded from the fence.
+    const stateFence = buildChannelStateFence([...(hasChannel ? [agentProvider] : []), ...extraLaunch.providers], dir)
     // When the per-agent mcp.json+tee path is active (SUBAGENT_INBOX_TEE), the
     // plugin is already loaded as a plain MCP server, so ALSO passing --channels
     // would register the plugin a SECOND way -- a duplicate poller racing the tee
@@ -2059,7 +2520,12 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
     // rely solely on mcp.json (enabledPlugins is already forced false above for
     // the same reason). Every other agent (non-telegram, main, or flag off) keeps
     // the --channels launch path unchanged.
-    const channelFlag = hasChannel && !useMcpJsonForChannel ? `--channels plugin:${provider.pluginId}` : ''
+    // AGENTEXTRACH1006: the extras ride the SAME --channels list (a plugin that
+    // is loaded but not listed delivers nothing). With the telegram mcp.json
+    // path the primary is absent from the list and only the extras remain.
+    const primaryChannel = hasChannel && !useMcpJsonForChannel ? `plugin:${provider.pluginId}` : ''
+    const channelList = (primaryChannel + extraLaunch.channelArgs).trim()
+    const channelFlag = channelList ? `--channels ${channelList}` : ''
     // Channel-plugin MCP-registration guard (2026-06-23): the telegram/slack/etc.
     // channel plugin registers as a stdio MCP server loaded via --channels. Claude
     // Code connects stdio MCP servers in batches of MCP_SERVER_CONNECTION_BATCH_SIZE
@@ -2072,7 +2538,7 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
     // size and per-server timeout, and force non-blocking startup, so a slow local
     // MCP can never crowd the channel plugin out of registration. Only set for
     // channel-having agents (channel-less agents have no plugin to protect).
-    const mcpEnv = hasChannel
+    const mcpEnv = hasAnyChannel
       ? 'export MCP_SERVER_CONNECTION_BATCH_SIZE=10 && export MCP_CONNECTION_NONBLOCKING=1 && export MCP_TIMEOUT=60000 && '
       : ''
     // Disable Claude Code's history-based prompt suggestions -- the DIM (ANSI
@@ -2095,7 +2561,11 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
     // restarts did not clear it; one keypress did. Env var verified present in the
     // shipped binary's CLAUDE_CODE_DISABLE_* table (2.1.205).
     const promptSuggestionEnv =
-      'export CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION=false CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY=1 && '
+      // CHANSPARE925: no Agent view -- its Left key backgrounds the session into the
+      // Claude Code daemon, which keeps a second --channels copy alive (bot poller hijack).
+      'export CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION=false CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY=1 CLAUDE_CODE_DISABLE_AGENT_VIEW=1 && ' +
+      // ROOTRESPAWN1001: IS_SANDBOX=1 on a root host, evaluated in the pane (see root-sandbox-env.ts).
+      `${ROOT_SANDBOX_ENV} && `
     // Disable Claude Code's in-place auto-updater for every spawned agent. A
     // running agent whose updater fires does an in-place global reinstall into the
     // shared package prefix; a half-completed update can leave a broken stub and
@@ -2117,7 +2587,14 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
     // buildLaunchCmd(launchCwd): only the launch CWD varies between the normal start and the
     // EPERM /tmp fallback below; every env export is an absolute path and stays pointed at the
     // real agent dir.
-    const buildLaunchCmd = (launchCwd: string) => `${umaskPrefix}export PATH="/opt/homebrew/bin:$HOME/.bun/bin:/usr/local/bin:/usr/bin:/bin:$PATH" && ${unsetTokens} && ${autoUpdaterEnv}${promptSuggestionEnv}${mcpEnv}${channelSetup}${apiKeyEnv}${claudeConfigEnv}${oauthTokenEnv}${providerEnv}cd "${launchCwd}" && ${claudeBin()} ${continueFlag}${skipFlag}--model ${shSingleQuote(model)} ${channelFlag}${worksourceFlags}`.trimEnd()
+    //
+    // A `${byoUnsetEnv}` a SZERZO tagja (BYO/custom agensnel az orokolt OAuth-tokent le kell
+    // venni, kulonben a CLI azt preferalja a sajat kulcs helyett). A bazis azota fuggvennye tette
+    // ezt a sort az EPERM-fallback miatt; a tag ugyanabba a poziciba kerult vissza.
+    // FLEETVENV923: the fleet venv's bin/ goes FIRST so its python3 beats the
+    // Homebrew one that carries no packages.
+    const venvPathPrefix = fleetVenvPathPrefix()
+    const buildLaunchCmd = (launchCwd: string) => `${umaskPrefix}export PATH="${venvPathPrefix}/opt/homebrew/bin:$HOME/.bun/bin:/usr/local/bin:/usr/bin:/bin:$PATH" && ${unsetTokens} && ${stateFence}${autoUpdaterEnv}${byoUnsetEnv}${promptSuggestionEnv}${mcpEnv}${channelSetup}${apiKeyEnv}${claudeConfigEnv}${oauthTokenEnv}${providerEnv}${stateObserverEnv}cd "${launchCwd}" && ${claudeBin()} ${continueFlag}${skipFlag}--model ${shSingleQuote(model)} ${channelFlag}${worksourceFlags}`.trimEnd()
     // The agent's own target: for a per-user agent this is what makes the whole
     // session (and every process inside it) belong to that uid. Passing null here
     // silently started it as the router's user -- measured 2026-08-19: the start
@@ -2127,6 +2604,13 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
     runTmux(startTarget, ['new-session', '-d', '-s', session, buildLaunchCmd(dir)], { timeout: 10000 })
 
     logger.info({ name, session, channelDir: agentChannelDir, runAsUser: startTarget.runAsUser ?? null }, 'Agent tmux session started')
+    // APRO920 (c)(2): the --model value actually passed, with the config-chain
+    // element that supplied it (agent-config.json / model-choices / default) --
+    // D001 measured 227 claude-sonnet-4-6 token_usage rows under agent='marveen'
+    // with no task_title, spread across 21 sessions, which looked like a CLI
+    // fallback-model pattern rather than a configured source; this line lets a
+    // later audit tell the two apart without re-deriving the resolution by hand.
+    logger.info({ name, model, source: resolveAgentModelDetailed(name).source }, 'Agent launch model resolved')
 
     // Condition 3 of the resume narrowing: a resumed channel agent must bring
     // its plugin up (bun poller under the claude pid + bot.pid) within the
@@ -2134,11 +2618,19 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
     // seconds on a healthy resume; a deaf resume never shows it. Async so the
     // start call returns as before; the fallback goes through the normal
     // start path (kill + reap + fresh), which never uses --continue.
-    if (continueFlag && hasChannel && name !== MAIN_AGENT_ID) {
+    // AGENTEXTRACH1006: an agent with co-listen channels resumes too, and the
+    // SAME verification decides: every plugin -- primary and extras -- must
+    // come back, or the agent is relaunched fresh. The extras are probed in the
+    // resumed claude's own process tree only (extra-channel-liveness.ts).
+    if (continueFlag && hasAnyChannel && name !== MAIN_AGENT_ID) {
       void verifyContinueLaunch({
         probe: () => {
           const pid = getClaudePidForSession(session)
-          return pid ? probeChannelPluginLiveness(pid, agentProvider, name) : 'unknown'
+          if (!pid) return 'unknown'
+          return combineLiveness([
+            hasChannel ? probeChannelPluginLiveness(pid, agentProvider, name) : 'alive',
+            probeExtraPluginsInTree(pid, extraLaunch.providers),
+          ])
         },
       }).then(async (v) => {
         if (v.outcome === 'alive') {
@@ -2146,7 +2638,7 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
           return
         }
         logger.warn({ name, session, polls: v.polls, elapsedMs: v.elapsedMs }, 'resumed channel agent: plugin NOT alive within the window; relaunching FRESH')
-        try { runTmux(agentTmuxTarget(name), ['kill-session', '-t', session], { timeout: 5000 }) } catch { /* already gone */ }
+        try { runTmux(agentTmuxTarget(name), ['kill-session', '-t', exactTmuxTarget(session)], { timeout: 5000 }) } catch { /* already gone */ }
         try {
           const r = await startAgentProcess(name, { fresh: true })
           logger.info({ name, ok: r.ok, error: r.error ?? null }, 'resumed channel agent: fresh fallback launched')
@@ -2168,7 +2660,7 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
     // attaches. Non-blocking setTimeout poller (the dashboard is single-threaded
     // -- a synchronous sleep loop would freeze the whole event loop). Only for
     // channel-having sub-agents; MAIN comes up via channels.sh, not this path.
-    if (hasChannel && name !== MAIN_AGENT_ID) {
+    if (hasAnyChannel && name !== MAIN_AGENT_ID) {
       const epermDeadline = Date.now() + 14_000
       let epermRestarted = false
       const checkEperm = () => {
@@ -2177,7 +2669,7 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
         try { pane = capturePane(session) ?? '' } catch { /* transient capture miss */ }
         if (!epermRestarted && /EPERM|[Oo]peration not permitted/.test(pane)) {
           epermRestarted = true
-          try { runTmux(null, ['kill-session', '-t', session], { timeout: 5000 }) } catch { /* already gone */ }
+          try { runTmux(null, ['kill-session', '-t', exactTmuxTarget(session)], { timeout: 5000 }) } catch { /* already gone */ }
           try {
             const fallbackCwd = mkdtempSync(join(tmpdir(), `marveen-agent-${name}-`))
             const agentClaudeMd = join(dir, 'CLAUDE.md')
@@ -2203,11 +2695,11 @@ export async function startAgentProcess(name: string, opts: { fresh?: boolean } 
         // EPERM branch returns early, so the non-EPERM path fell through to here.
         if (epermRestarted) {
           if (/Do you trust the files in this folder\?/.test(pane)) {
-            try { runTmux(null, ['send-keys', '-t', session, '1', 'Enter'], { timeout: 4000 }) } catch { /* ignore */ }
+            try { runTmux(null, ['send-keys', '-t', exactTmuxTarget(session), '1', 'Enter'], { timeout: 4000 }) } catch { /* ignore */ }
           } else if (/Bypass Permissions mode/.test(pane) && /Yes, I accept/.test(pane)) {
-            try { runTmux(null, ['send-keys', '-t', session, '2', 'Enter'], { timeout: 4000 }) } catch { /* ignore */ }
+            try { runTmux(null, ['send-keys', '-t', exactTmuxTarget(session), '2', 'Enter'], { timeout: 4000 }) } catch { /* ignore */ }
           } else if (/Welcome to Claude Code/.test(pane)) {
-            try { runTmux(null, ['send-keys', '-t', session, 'Enter'], { timeout: 4000 }) } catch { /* ignore */ }
+            try { runTmux(null, ['send-keys', '-t', exactTmuxTarget(session), 'Enter'], { timeout: 4000 }) } catch { /* ignore */ }
           }
         }
         if (/Listening for channel messages/.test(pane)) return
@@ -2274,7 +2766,7 @@ export async function stopAgentProcess(name: string): Promise<{ ok: boolean; err
   const host = target.host
 
   try {
-    runTmux(target, ['kill-session', '-t', session], { timeout: 5000 })
+    runTmux(target, ['kill-session', '-t', exactTmuxTarget(session)], { timeout: 5000 })
     // A LAUNCH-TITKOK NEM ELIK TUL A LEALLITAST. Enelkul egy rotalt kulcs REGI erteke a lemezen
     // maradna a kovetkezo inditasig, egy leallitott agense pedig hataridotlenul.
     clearLaunchSecrets(name)
@@ -2288,6 +2780,10 @@ export async function stopAgentProcess(name: string): Promise<{ ok: boolean; err
         const agentProvider = resolveAgentProvider(name)
         const dir = agentDir(name)
         reapChannelOrphans(agentProvider, dir, { tmuxPath: tmuxBin() })
+        // AGENTEXTRACH1006: the co-listen pollers are orphaned the same way.
+        for (const p of readAgentExtraChannels(name)) {
+          if (p !== agentProvider) reapChannelOrphans(p, dir, { tmuxPath: tmuxBin() })
+        }
       } catch (err) {
         logger.warn({ err, name }, 'post-stop channel-poller reap failed')
       }
@@ -2354,9 +2850,9 @@ const SURVEY_MODAL_RX = /How is Claude doing this session/
 
 async function dismissSurveyModalIfPresent(session: string, host: string | null = null): Promise<void> {
   try {
-    const pane = captureTmux(host, ['capture-pane', '-t', session, '-p'])
+    const pane = captureTmux(host, ['capture-pane', '-t', exactTmuxTarget(session), '-p'])
     if (!SURVEY_MODAL_RX.test(pane)) return
-    runTmux(host, ['send-keys', '-t', session, '0'], { timeout: 5000 })
+    runTmux(host, ['send-keys', '-t', exactTmuxTarget(session), '0'], { timeout: 5000 })
     // Modal close is one frame; settle window so the next send-keys lands in
     // the prompt input, not the now-stale modal handler.
     await delay(300)
@@ -2376,11 +2872,11 @@ const RESUME_SUMMARY_MODAL_RX = /Resume from summary/
 
 export async function dismissResumeSummaryModalIfPresent(session: string, host: string | null = null): Promise<void> {
   try {
-    const pane = captureTmux(host, ['capture-pane', '-t', session, '-p'])
+    const pane = captureTmux(host, ['capture-pane', '-t', exactTmuxTarget(session), '-p'])
     if (!RESUME_SUMMARY_MODAL_RX.test(pane)) return
-    runTmux(host, ['send-keys', '-t', session, '1'], { timeout: 5000 })
+    runTmux(host, ['send-keys', '-t', exactTmuxTarget(session), '1'], { timeout: 5000 })
     await delay(100)
-    runTmux(host, ['send-keys', '-t', session, 'Enter'], { timeout: 5000 })
+    runTmux(host, ['send-keys', '-t', exactTmuxTarget(session), 'Enter'], { timeout: 5000 })
     // /compact starts immediately and can run for minutes; we only need to
     // unblock the modal so detectPaneState can transition off 'unknown'.
     await delay(300)
@@ -2449,13 +2945,13 @@ export async function clearFeedbackModalAndRecheck(session: string, host: string
 
 export async function dismissFeedbackDraftModalIfPresent(session: string, host: string | null = null): Promise<void> {
   try {
-    const pane = captureTmux(host, ['capture-pane', '-t', session, '-p'])
+    const pane = captureTmux(host, ['capture-pane', '-t', exactTmuxTarget(session), '-p'])
     if (!detectsFeedbackDraftModal(pane)) return
-    runTmux(host, ['send-keys', '-t', session, '0'], { timeout: 5000 })
+    runTmux(host, ['send-keys', '-t', exactTmuxTarget(session), '0'], { timeout: 5000 })
     await delay(300)
-    const after = captureTmux(host, ['capture-pane', '-t', session, '-p'])
+    const after = captureTmux(host, ['capture-pane', '-t', exactTmuxTarget(session), '-p'])
     if (detectsFeedbackOptOutPrompt(after)) {
-      runTmux(host, ['send-keys', '-t', session, 'Escape'], { timeout: 5000 })
+      runTmux(host, ['send-keys', '-t', exactTmuxTarget(session), 'Escape'], { timeout: 5000 })
       await delay(300)
     }
     logger.info({ session }, 'Dismissed Claude Code feedback-draft modal before sending prompt (feedback drafting left ON)')
@@ -2477,11 +2973,11 @@ export async function dismissFeedbackDraftModalIfPresent(session: string, host: 
 // (pure detector, quoted-text-proof), so this adds no blind-injection surface.
 export async function dismissModelConsentDialogIfPresent(session: string, host: string | null = null): Promise<void> {
   try {
-    const pane = captureTmux(host, ['capture-pane', '-t', session, '-p'])
+    const pane = captureTmux(host, ['capture-pane', '-t', exactTmuxTarget(session), '-p'])
     if (!detectsModelConsentDialog(pane)) return
-    runTmux(host, ['send-keys', '-t', session, '1'], { timeout: 5000 })
+    runTmux(host, ['send-keys', '-t', exactTmuxTarget(session), '1'], { timeout: 5000 })
     await delay(150)
-    runTmux(host, ['send-keys', '-t', session, 'Enter'], { timeout: 5000 })
+    runTmux(host, ['send-keys', '-t', exactTmuxTarget(session), 'Enter'], { timeout: 5000 })
     await delay(300)
     logger.info({ session }, 'Answered model usage-credit consent dialog: kept the configured model (option 1, never the switch default)')
   } catch (err) {
@@ -2538,7 +3034,7 @@ export async function answerFirstRunGates(
           return 'blocked'
         }
         for (const k of keys) {
-          runTmux(host, ['send-keys', '-t', session, k], { timeout: 5000 })
+          runTmux(host, ['send-keys', '-t', exactTmuxTarget(session), k], { timeout: 5000 })
           await delay(150)
         }
       } else if (gate === 'bypass-permissions') {
@@ -2552,7 +3048,7 @@ export async function answerFirstRunGates(
           return 'blocked'
         }
         for (const k of keys) {
-          runTmux(host, ['send-keys', '-t', session, k], { timeout: 5000 })
+          runTmux(host, ['send-keys', '-t', exactTmuxTarget(session), k], { timeout: 5000 })
           await delay(150)
         }
       } else if (gate === 'mcp-trust') {
@@ -2568,12 +3064,12 @@ export async function answerFirstRunGates(
           return 'blocked'
         }
         for (const k of keys) {
-          runTmux(host, ['send-keys', '-t', session, k], { timeout: 5000 })
+          runTmux(host, ['send-keys', '-t', exactTmuxTarget(session), k], { timeout: 5000 })
           await delay(150)
         }
       } else {
         // theme / welcome: Enter accepts the highlighted default and moves on.
-        runTmux(host, ['send-keys', '-t', session, 'Enter'], { timeout: 5000 })
+        runTmux(host, ['send-keys', '-t', exactTmuxTarget(session), 'Enter'], { timeout: 5000 })
       }
     } catch (err) {
       logger.warn({ err, session, gate }, 'first-run gate: answer keystroke failed')
@@ -2670,7 +3166,7 @@ export async function scheduleIdentitySetup(session: string, displayName: string
             }
             try {
               for (const cmd of identitySlashCommands(displayName)) {
-                runTmux(host, ['send-keys', '-t', session, cmd, 'Enter'], { timeout: 5000 })
+                runTmux(host, ['send-keys', '-t', exactTmuxTarget(session), cmd, 'Enter'], { timeout: 5000 })
                 await delay(1000)
               }
               logger.info({ session, displayName, attempt }, 'Set session /rename')
@@ -2775,7 +3271,7 @@ export async function clearInputBuffer(session: string, host: string | null = nu
     try {
       const pane = capturePane(session, host)
       for (const key of parkedClearSequence(pane != null ? parkedInputRowCount(pane) : 0)) {
-        runTmux(host, ['send-keys', '-t', session, key], { timeout: 5000 })
+        runTmux(host, ['send-keys', '-t', exactTmuxTarget(session), key], { timeout: 5000 })
       }
       // Settle briefly so the next send-keys lands in the freshly cleared
       // buffer rather than racing the clear.
@@ -2831,7 +3327,7 @@ async function discardPlaceholderBuffer(session: string, host: string | null = n
     // would quit the TUI.
     if (pane != null && !detectsPastePlaceholder(pane)) return true
     try {
-      runTmux(host, ['send-keys', '-t', session, 'C-c'], { timeout: 5000 })
+      runTmux(host, ['send-keys', '-t', exactTmuxTarget(session), 'C-c'], { timeout: 5000 })
     } catch (err) {
       logger.warn({ err, session }, 'discardPlaceholderBuffer: Ctrl-C send failed')
       return false
@@ -2840,6 +3336,59 @@ async function discardPlaceholderBuffer(session: string, host: string | null = n
   }
   const finalPane = capturePane(session, host)
   return finalPane != null && !detectsPastePlaceholder(finalPane)
+}
+
+// Cap on how many extra characters a single chunk boundary may absorb while
+// dodging the two tmux CLI-argument quirks below. Keeps a long run of dashes
+// or semicolons from inflating one chunk past the paste-detector threshold.
+export const TMUX_CHUNK_MAX_SLIDE = 8
+
+// Compute one `send-keys -l` chunk (and the index it ends at) for streaming
+// `oneLine` into a pane starting at `start`. Exported so the two tmux
+// CLI-argument quirks it dodges can be exercised directly in tests, without
+// driving a real tmux session:
+//
+//   - tmux send-keys doesn't support `--` option-terminator, so a chunk that
+//     STARTS with '-' parses as a flag ("command send-keys: unknown flag -s"
+//     on Hungarian suffixes like -szal/-vel/-ban). Slide the boundary up to
+//     `maxSlide` chars past any '-' that would land at the start of the next
+//     chunk. If the cap is reached and the chunk still starts with '-',
+//     prepend a space instead.
+//   - a chunk that ENDS with an unescaped ';' has that trailing ';' silently
+//     dropped: tmux's own command-line parser treats a semicolon as the end
+//     of the current command when it is the last character of the final
+//     argv element, even under -l literal mode, even though this is one
+//     argv element passed via execFileSync (no shell involved). Measured
+//     2026-09-27 (BORITEKVESZ927): every "spliced" kanban-audit/nap-zaro
+//     delivery lost exactly the one chunk-boundary ';', while ';' characters
+//     that land inside a chunk (not at its end) were always intact. Slide
+//     the boundary forward the same way, folding the next real character in
+//     instead of leaving ';' as the chunk's last byte. If the cap is reached
+//     (or there is no more text to fold in), append a trailing space so the
+//     chunk no longer ends in a bare ';'.
+export function computeTmuxChunk(
+  oneLine: string,
+  start: number,
+  chunkSize: number,
+  maxSlide: number = TMUX_CHUNK_MAX_SLIDE,
+): { chunk: string; end: number } {
+  let end = Math.min(start + chunkSize, oneLine.length)
+  let slide = 0
+  // Both dodges in ONE loop: don't let the NEXT chunk start with '-', and
+  // don't let THIS chunk end with ';'. Folding a character in for one rule can
+  // re-trigger the other: with two sequential loops, ';x-' at the boundary
+  // slid past the ';' and stopped right before the '-', so the next chunk got
+  // a ' ' prepended -- a space typed into the middle of the text.
+  while (
+    end < oneLine.length && slide < maxSlide &&
+    (oneLine[end] === '-' || oneLine[end - 1] === ';')
+  ) {
+    end++; slide++
+  }
+  let chunk = oneLine.slice(start, end)
+  if (chunk.startsWith('-')) chunk = ' ' + chunk
+  if (chunk.endsWith(';')) chunk = chunk + ' '
+  return { chunk, end }
 }
 
 // Send text to a tmux session as if typed at the prompt.
@@ -2865,7 +3414,7 @@ export async function sendPromptToSession(
   session: string,
   text: string,
   host: string | null = null,
-  opts: { waitForIdle?: boolean; onBusyTimeout?: 'send' | 'abort'; idleTimeoutMs?: number; lockMode?: SendLockMode } = {},
+  opts: { waitForIdle?: boolean; onBusyTimeout?: 'send' | 'abort'; idleTimeoutMs?: number; lockMode?: SendLockMode; onBusySend?: () => void; onEmitStart?: () => void } = {},
 ): Promise<'sent' | 'aborted-busy' | 'skipped-locked'> {
   const lockMode: SendLockMode = opts.lockMode ?? 'deliver'
   // PANEWRITERS805: the three modal dismissals are probe+act keystroke writers
@@ -2930,6 +3479,30 @@ export async function sendPromptToSession(
       return 'aborted-busy'
     }
     logger.warn({ session }, 'sendPromptToSession: pane still busy after wait-until-idle budget; sending best-effort')
+    // AUDITBORITEKVESZ918: a best-effort send into a BUSY pane is the one
+    // delivery mode that can arrive spliced. Measured 2026-09-18 16:00 on the
+    // main session: three tasks fired inside 18s (drain :08, memoria :13,
+    // kanban-audit :26), the third one's idle wait timed out after the 12s
+    // budget, and the prompt reached the agent with its HEAD CUT OFF -- no
+    // <scheduled-task> envelope, body starting mid-line. task_runs still said
+    // 'fired', so a corrupted delivery was indistinguishable from a clean run.
+    // This callback lets the caller record THAT instead of a false green. It
+    // does not change delivery: the send still proceeds (a session that never
+    // idles must still get its prompt), only the bookkeeping learns the
+    // difference. Never throws into the send path.
+    try {
+      opts.onBusySend?.()
+    } catch (err) {
+      logger.warn({ err, session }, 'sendPromptToSession: onBusySend callback threw; ignored (delivery continues)')
+    }
+    // CORRECTED 2026-09-23 (PROMPTCSONK923): the 09-18 incident above was NOT
+    // a truncation -- that session's transcript holds the full 44448-char
+    // kanban-audit prompt, envelope and all; "head cut off" was read off the
+    // pane, where an input box taller than the pane shows only its tail. A
+    // busy-pane send queued whole in a live repro. Real damage comes from a
+    // foreign keystroke mid-stream, busy or not; the scheduler judges each
+    // delivery from the transcript (delivery-integrity.ts). onBusySend records
+    // a send condition, not an integrity verdict.
   }
 
   // DELIVLOCK805: everything from here to `return 'sent'` EMITS keystrokes into
@@ -2939,12 +3512,20 @@ export async function sendPromptToSession(
   // (session-send-lock): normal delivery is fail-open (a stuck holder must not
   // silence the fleet); a `recover` caller skips instead of racing a live send.
   const emitToPane = async (): Promise<'sent'> => {
+  // PROMPTCSONK923: tell the caller the moment the first keystroke of THIS
+  // prompt is about to be emitted (we hold the lane from here). The scheduler
+  // judges delivery from transcript prompts recorded after this instant.
+  try {
+    opts.onEmitStart?.()
+  } catch (err) {
+    logger.warn({ err, session }, 'sendPromptToSession: onEmitStart callback threw; ignored (delivery continues)')
+  }
   // Pre-flight buffer-clear when a stale preamble is detected. Reading
   // the pane is best-effort: a capture failure here means we cannot
   // prove the buffer is clean, but proceeding without the clear is no
   // worse than the pre-fix status quo.
   try {
-    const preCapture = captureTmux(host, ['capture-pane', '-t', session, '-p'])
+    const preCapture = captureTmux(host, ['capture-pane', '-t', exactTmuxTarget(session), '-p'])
     if (shouldClearTruncatedPreamble(preCapture)) {
       logger.info({ session }, 'Cleared stale preamble from input buffer before sending prompt')
       await clearInputBuffer(session, host)
@@ -2965,26 +3546,13 @@ export async function sendPromptToSession(
   // Stream oneLine into the pane as CHUNK-sized literal send-keys writes,
   // followed by a submitting Enter. Extracted as a closure so the
   // clear-and-resend recovery path below can replay the EXACT same byte
-  // stream after a Ctrl-C, rather than duplicating the dash-slide logic.
-  //
-  // tmux send-keys doesn't support `--` option-terminator, so a chunk that
-  // starts with '-' parses as a flag ("command send-keys: unknown flag -s"
-  // on Hungarian suffixes like -szal/-vel/-ban). Slide the boundary up to a
-  // few chars past any '-' that lands at the start of the next chunk. Capped
-  // so a long run of dashes doesn't inflate one chunk past the paste-detector
-  // threshold; if the cap is reached, prepend a space to the chunk instead.
-  const MAX_SLIDE = 8
+  // stream after a Ctrl-C, rather than duplicating the boundary logic
+  // (see computeTmuxChunk for the two chunk-boundary dodges it applies).
   const sendChunks = async (): Promise<void> => {
     let i = 0
     while (i < oneLine.length) {
-      let end = Math.min(i + CHUNK, oneLine.length)
-      let slide = 0
-      while (end < oneLine.length && oneLine[end] === '-' && slide < MAX_SLIDE) {
-        end++; slide++
-      }
-      let chunk = oneLine.slice(i, end)
-      if (chunk.startsWith('-')) chunk = ' ' + chunk
-      runTmux(host, ['send-keys', '-t', session, '-l', chunk], { timeout: 5000 })
+      const { chunk, end } = computeTmuxChunk(oneLine, i, CHUNK, TMUX_CHUNK_MAX_SLIDE)
+      runTmux(host, ['send-keys', '-t', exactTmuxTarget(session), '-l', chunk], { timeout: 5000 })
       i = end
       if (i < oneLine.length) await delay(30)
     }
@@ -2997,7 +3565,7 @@ export async function sendPromptToSession(
     // taller than the pane, see overfullParkedInputTail), so nothing
     // re-pressed it. Single-chunk prompts keep the immediate Enter.
     if (oneLine.length > CHUNK) await waitForPaneSettle(() => capturePane(session, host))
-    runTmux(host, ['send-keys', '-t', session, 'Enter'], { timeout: 5000 })
+    runTmux(host, ['send-keys', '-t', exactTmuxTarget(session), 'Enter'], { timeout: 5000 })
   }
   await sendChunks()
 
@@ -3048,7 +3616,7 @@ export async function sendPromptToSession(
     }
     // action === 'retry-enter'
     try {
-      runTmux(host, ['send-keys', '-t', session, 'Enter'], { timeout: 5000 })
+      runTmux(host, ['send-keys', '-t', exactTmuxTarget(session), 'Enter'], { timeout: 5000 })
     } catch (err) {
       logger.warn({ err, session, attempt }, 'Retry-Enter send failed')
       break
@@ -3095,7 +3663,7 @@ const PANE_READY_CONFIRM_DELAY_MS = 250
 // tmux failure is logged and swallowed so the watcher loop keeps going.
 export function sendEnterToSession(session: string, host: string | null = null): boolean {
   try {
-    runTmux(host, ['send-keys', '-t', session, 'Enter'], { timeout: 5000 })
+    runTmux(host, ['send-keys', '-t', exactTmuxTarget(session), 'Enter'], { timeout: 5000 })
     return true
   } catch (err) {
     logger.warn({ err, session }, 'sendEnterToSession: failed to send recovery Enter')
@@ -3137,7 +3705,7 @@ export function capturePane(session: string, host: string | null = null): string
     // to the bottom it is removed so the live footer/spinner classifies normally
     // (a banner otherwise pins detectPaneState 'unknown', blocking scheduler +
     // inter-agent delivery). See stripSessionTitleBanner.
-    return stripAllAnsi(stripSessionTitleBanner(captureTmux(host, ['capture-pane', '-t', session, '-e', '-p'])))
+    return stripAllAnsi(stripSessionTitleBanner(captureTmux(host, ['capture-pane', '-t', exactTmuxTarget(session), '-e', '-p'])))
   } catch {
     return null
   }
@@ -3154,7 +3722,7 @@ export function capturePane(session: string, host: string | null = null): string
 // failure (treated as "nothing parked"), matching capturePane's contract.
 export function captureParkedInputView(session: string, host: string | null = null): string | null {
   try {
-    return stripGhostSuggestion(captureTmux(host, ['capture-pane', '-t', session, '-e', '-p']))
+    return stripGhostSuggestion(captureTmux(host, ['capture-pane', '-t', exactTmuxTarget(session), '-e', '-p']))
   } catch {
     return null
   }
@@ -3249,7 +3817,15 @@ export function saturationRefusesDispatch(capture: string, session: string): boo
   return saturationBannerTrusted(session)
 }
 
-export async function isSessionReadyForPrompt(session: string, host: string | null = null): Promise<boolean> {
+export async function isSessionReadyForPrompt(
+  session: string,
+  host: string | null = null,
+  // A caller that polls the same session every few seconds (the reconcile's
+  // readiness gap) asks for 'debug' so a saturated session does not write a
+  // warn line per poll. Every other caller keeps 'warn'.
+  opts: { saturationLog?: 'warn' | 'debug' } = {},
+): Promise<boolean> {
+  const saturationLog = opts.saturationLog ?? 'warn'
   // Dim-ghost tolerant idle read: CC >=2.1.202 paints a dim placeholder into
   // the empty input box, which a plain capture reads as parked text. Only when
   // the plain view says 'typing' do we pay for the second (-e, dim-stripped)
@@ -3260,7 +3836,7 @@ export async function isSessionReadyForPrompt(session: string, host: string | nu
   const first = capturePane(session, host)
   if (first == null) return false
   if (saturationRefusesDispatch(first, session)) {
-    logger.warn({ session }, 'dispatch: refusing prompt — session shows context saturation (100% context)')
+    logger[saturationLog]({ session }, 'dispatch: refusing prompt — session shows context saturation (100% context)')
     return false
   }
   if (!idleOrGhost(first)) return false
@@ -3270,7 +3846,7 @@ export async function isSessionReadyForPrompt(session: string, host: string | nu
   const second = capturePane(session, host)
   if (second == null) return false
   if (saturationRefusesDispatch(second, session)) {
-    logger.warn({ session }, 'dispatch: refusing prompt — session shows context saturation (100% context)')
+    logger[saturationLog]({ session }, 'dispatch: refusing prompt — session shows context saturation (100% context)')
     return false
   }
   return idleOrGhost(second)
@@ -3568,8 +4144,9 @@ async function clearStaleParkedInputInLane(
       notifyChannel(
         `🚨 A fo agens (${session}) input-mezojeben ~${Math.round((fails * UNWEDGE_COOLDOWN_MS) / 60000)} perce all egy parkolt sor, ` +
         `es emiatt a csatorna nem dolgoz fel bejovo uzenetet. KEZI FELOLDAS (par masodperc): ` +
-        `tmux attach -t ${session}, majd Ctrl-C es utana Ctrl-U (a sor torlese), vegul kilepes: Ctrl-B d. ` +
-        `A parkolt sor eleje: "${preview}"`,
+        `tmux attach -t ${session}, majd Ctrl-C es utana Ctrl-U (a sor torlese), vegul kilepes: Ctrl-B d.` +
+        // No conversation content in an alert that goes to a non-owner chat.
+        (alertIsRedirected() ? '' : ` A parkolt sor eleje: "${preview}"`),
       ).catch(() => { /* notify is best-effort */ })
       escalated = true
       logger.warn({ session, parked: parked.slice(0, 60), fails }, 'message-router: main-agent parked input -- owner notified with manual fix (box untouched)')
@@ -3617,7 +4194,7 @@ async function clearStaleParkedInputInLane(
   // immediately instead of spending the whole budget.
   const sequence = parkedClearSequence(parkedInputRowCount(a))
   for (let i = 0; i < sequence.length; i++) {
-    runTmux(host, ['send-keys', '-t', session, sequence[i]], { timeout: 5000 })
+    runTmux(host, ['send-keys', '-t', exactTmuxTarget(session), sequence[i]], { timeout: 5000 })
     if (i % PARKED_CLEAR_RECHECK_EVERY === PARKED_CLEAR_RECHECK_EVERY - 1) {
       await delay(PARKED_CLEAR_SETTLE_MS)
       const after = capturePane(session, host)
@@ -3642,7 +4219,8 @@ async function clearStaleParkedInputInLane(
       const preview = parked.slice(0, 80).replace(/[<>&]/g, ' ')
       notifyChannel(
         `⚠️ Egy sub-agent (${session}) input-mezojebe beragadt egy parkolt sor, ` +
-        `az auto-tisztitas ${fails}x sikertelen -- lehet kezi beavatkozas kell. Reszlet: "${preview}"`,
+        `az auto-tisztitas ${fails}x sikertelen -- lehet kezi beavatkozas kell.` +
+        (alertIsRedirected() ? '' : ` Reszlet: "${preview}"`),
       ).catch(() => { /* notify is best-effort */ })
       escalated = true
       logger.warn({ session, parked: parked.slice(0, 60), fails }, 'message-router: sub-agent parked input resisted clearing -- escalated to operator')

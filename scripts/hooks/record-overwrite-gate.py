@@ -3,7 +3,7 @@
 
 Why this exists. Five times between 2026-08-06 and 2026-08-24, four different
 fleet agents destroyed a real stored record by answering a CAPABILITY question
-with a WRITE: `PUT /api/memories/<id>` carrying a throwaway body ("x", "probe").
+with a WRITE: a PUT to the dashboard memory endpoint (by id) carrying a throwaway body ("x", "probe").
 The endpoint exists, so the answer arrives as HTTP 200 -- and the 200 IS the
 damage, because `content` is unconditionally overwritten.
 

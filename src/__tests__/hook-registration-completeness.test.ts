@@ -47,6 +47,7 @@ const SEEDING_SURFACES = [
   'templates/settings.json.template',
   'src/web/agent-scaffold.ts',
   'scripts/install-telegram-progress-hook.sh',
+  'scripts/install-slack-progress-hook.sh',
   'scripts/install-channel-image-hook.sh',
 ]
 const CHECKOUT_SURFACES = ['.claude/settings.json']
@@ -55,10 +56,18 @@ const REGISTRATION_SURFACES = [...SEEDING_SURFACES, ...CHECKOUT_SURFACES]
 // name -> why it is allowed to be unregistered. Keep every reason concrete;
 // "misc" entries defeat the lint.
 const EXEMPT: Record<string, string> = {
+  'pr-uzenetsor-kapu.py':
+    'LOCAL: dev-agent gate (no gh pr create/merge while a message waits unread), wired only in agents/bit settings (gitignored); seeding it is a separate decision',
   'ledger_lib.py':
     'shared library imported by the ledger hooks; not itself a hook',
+  'command_prompt.py':
+    'shared library: the one "is this prompt an owner slash command" check, imported by marveen-commands.py, inbox-drain.py and channel-inbox-drain.py; not itself a hook',
+  'hook_errlog.py':
+    'shared library imported by hooks to record a swallowed failure in store/hook-errors.log (SILENTOLLAMA926); not itself a hook',
   'clearstate_lib.py':
     'shared library imported by clear-capture.py / clear-replay.py; not itself a hook',
+  'memory_frontmatter_lib.py':
+    'shared library: the one memory-frontmatter check, imported by memory-frontmatter-gate.py (Write/Edit) and memory-frontmatter-bash-gate.py (Bash, KAPUEGYUT918); not itself a hook',
   'email_extract.py':
     'shared library imported by outgoing-copy-gate.py (and the level-2 email approval gate, EMAILKAPU901 PR2); not itself a hook',
   'memory-save.sh':
@@ -84,8 +93,6 @@ const EXEMPT: Record<string, string> = {
     'agent-invoked CLI (manual Bot API fallback sender, see scripts/lib/send-telegram.sh), not a settings hook; since #1305 the progress installer no longer copies or names it',
   'channel-process-gate.py':
     'scheduled/CLI gate (--only / --notify / --json), not a settings hook: it compares the channels a session DECLARES against the plugin processes actually alive under it, which is a periodic check rather than a per-tool-call one',
-  'telegram-image-resize.sh':
-    'legacy predecessor of channel-image-resize.sh; only its old installer migration path named it, and since #1305 that installer is a no-op stub -- kept pending a maintainer decision to remove it',
   'browser-content-notice.py':
     'OPT-IN by construction (BROWSERNOTICE920): it envelopes browser-MCP / WebSearch payloads as untrusted content, and an install without a browser MCP server gains nothing from it. Wiring it here would fire it on every fleet member, most of which have no browser. Operators add it to their own PostToolUse hooks -- the procedure is in docs/security-hardening.md.',
   'mio-orszem-precheck.sh':
@@ -130,6 +137,16 @@ function registrationCorpus(): string {
 // every agent. Keep every reason concrete and sourced (docstring, docs, PR):
 // a "misc" entry here would re-open exactly the blind spot this split closes.
 const CHECKOUT_ONLY: Record<string, string> = {
+  // LOCAL (v1.42.0 merge): three main-agent gates committed with the merge.
+  // Seeding them to every agent is a separate, fleet-wide change -- done inside
+  // a merge it would reach all eleven agents on their next respawn as a side
+  // effect, unreviewed.
+  'titok-kimenet-kapu.py':
+    'LOCAL: secret-in-tool-output gate for the main session (2026-09-28); fleet seeding pending a separate decision',
+  'ssh-burst-gate.py':
+    'LOCAL: limits SSH bursts against the shared host WAF from the main session (2026-09-26); fleet seeding pending a separate decision',
+  'launchagent-path-kapu.py':
+    'LOCAL: no launchctl load of a PATH-less job, main session (2026-10-09); fleet seeding pending a separate decision',
   'email-approval-gate.py':
     'level-aware email gate for the MAIN agent (EMAILKAPU901 PR2, #1149): its docstring scopes it to sessions rooted at PROJECT_ROOT, and sub-agents keep their unconditional hard-deny (email-send-gate.mjs), behind which this gate would be a no-op',
   'inbox-drain.py':
@@ -140,6 +157,8 @@ const CHECKOUT_ONLY: Record<string, string> = {
     'conversation-continuity ledger: same design as ledger-capture.py (docs/conversation-continuity.md, project settings only)',
   'ledger-replay.py':
     'conversation-continuity ledger: same design as ledger-capture.py; the docs state it is "wired in the repo\'s project settings only (the main agent)"',
+  'persona-change-notify.py':
+    'fleet-wide BY CONSTRUCTION, so one wiring already covers every agent: it resolves the repo root from its own file location, and watched() enumerates agents/*/CLAUDE.md and SOUL.md alongside the main pair. Seeding it per-agent would point every seeded session at the SAME store/.persona-hashes.json, and because the hook stamps the new digest BEFORE it sends, whichever session reaches it first silences the others -- the race can only LOSE an alert, so seeding would weaken the guard rather than extend it',
   'telegram-reply-guard.py':
     'the Stop-hook half of the Telegram reply enforcement (#856) decides from ledger_lib.open_question_with_age, i.e. the conversation_log the main-only ledger trio writes; seeded alone it would read an empty ledger and allow every stop, a silent no-op -- seeding it means seeding the ledger trio with it, a separate design decision',
 }

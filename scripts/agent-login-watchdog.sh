@@ -47,7 +47,7 @@ for session in $($TMUX list-sessions -F '#{session_name}' 2>/dev/null | grep -E 
   CHECKED=$((CHECKED + 1))
   SEEN="$SEEN $session"
   # Only the tail matters: an agent QUOTING this text mid-answer must not trigger us.
-  tail_lines=$($TMUX capture-pane -p -t "$session" 2>/dev/null | grep -v '^[[:space:]]*$' | tail -4)
+  tail_lines=$($TMUX capture-pane -p -t "=$session:" 2>/dev/null | grep -v '^[[:space:]]*$' | tail -4)
   case "$tail_lines" in
     *"Not logged in"*)
       # SECOND failure shape, measured 2026-09-19 01:2x: Atlas sat in a healthy-looking
@@ -103,10 +103,10 @@ except Exception:
       esac
       ;;
     *"Press Enter to continue"*)
-      before=$($TMUX capture-pane -p -t "$session" 2>/dev/null)
-      $TMUX send-keys -t "$session" Enter
+      before=$($TMUX capture-pane -p -t "=$session:" 2>/dev/null)
+      $TMUX send-keys -t "=$session:" Enter
       sleep 3
-      after=$($TMUX capture-pane -p -t "$session" 2>/dev/null)
+      after=$($TMUX capture-pane -p -t "=$session:" 2>/dev/null)
       # Verdict is CHANGE, not the absence of the phrase. Measured 2026-08-22 with a
       # synthetic control: the Enter landed (the pane's reader ran) while the login
       # text was still sitting in the scrollback, so a phrase-based recheck called a
