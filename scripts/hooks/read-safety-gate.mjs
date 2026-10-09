@@ -60,6 +60,27 @@ function isMirroredAttachment(norm) {
   }
 }
 
+// SECOND NARROW EXCEPTION (2026-10-09, Nova): the scheduler's run bodies. A scheduled
+// task with a body-file attribute tells the agent to Read store/scheduled-runs/<run>.md,
+// and the store/ deny made every body-file task unrunnable for every gated agent (Signal's
+// email round failed twice that day). Same shape as the attachment mirror: only *.md
+// files directly inside the directory, still inside it after symlink resolution.
+// The run bodies are the task text (the SKILL.md the scheduler already reads from
+// ~/.claude/scheduled-tasks/, which is itself readable), never credentials.
+const SCHEDULED_RUNS_DIR = '/Users/macmini/marveen/store/scheduled-runs/'
+
+function isScheduledRunBody(norm) {
+  if (!norm.startsWith(SCHEDULED_RUNS_DIR) || !norm.endsWith('.md')) return false
+  if (norm.slice(SCHEDULED_RUNS_DIR.length).includes('/')) return false
+  try {
+    const dir = realpathSync(SCHEDULED_RUNS_DIR)
+    const real = realpathSync(norm)
+    return real.startsWith(dir + '/') && !real.slice(dir.length + 1).includes('/')
+  } catch {
+    return false
+  }
+}
+
 // Pure decision: 'allow' (silent) | 'deny' | 'defer' (normal prompt).
 export function gateDecision(toolName, toolInput) {
   if (!READ_TOOLS.has(String(toolName ?? ''))) return { decision: 'defer' }
@@ -70,6 +91,7 @@ export function gateDecision(toolName, toolInput) {
   // `normalize` has already collapsed any '..', so a traversal out of the mirror is
   // re-tested against SECRET_PATH below rather than riding this allow.
   if (isMirroredAttachment(norm)) return { decision: 'allow' }
+  if (isScheduledRunBody(norm)) return { decision: 'allow' }
   if (SECRET_PATH.test(norm)) return { decision: 'deny', reason: SECRET_MSG }
   if (norm.startsWith('/')) {
     if (ALLOWED_ROOTS.some((r) => norm.startsWith(r))) return { decision: 'allow' }
