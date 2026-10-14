@@ -15,6 +15,10 @@
  *   --site=dev|prod [--oldal=<ID>|jelolt]             SZARAZ: megmutatja a tervet es a kockazatokat
  *   ... --apply                                        ELES a deven
  *   ... --apply --yes-prod                             ELES a prodon (Zsolt OK utan)
+ *   --leiras=<md> --leiras-sha=<8+ hex>                a ket uj kurzus LEIRASA (post_content) Copy fajljabol
+ *                                                      (## 1. Ingyenes ... / ## 2. VIP ...; mindketto: leiras-bekezdes +
+ *                                                      "Kezdes: ..."). Csak a JOVAHAGYOTT fajlra (sha), es csak ures vagy
+ *                                                      altalunk irt leirast ir felul -- kezzel szerkesztettet NEM (Nova 20528).
  *   --k4-nelkul                                        CSAK kurzusok + urlap + feed, a landinghez NEM nyul
  *                                                      (Zsolt OK, 2026-10-14: prod K1-K3+VIP 10-20-an, K4 a
  *                                                      10-22-i valtasnal). Ilyenkor --oldal nem kell, es a
@@ -78,6 +82,11 @@ $EXPORT = in_array('--export', $ARGV, true);
 $APPLY = in_array('--apply', $ARGV, true);
 $YESPROD = in_array('--yes-prod', $ARGV, true);
 $K4NELKUL = in_array('--k4-nelkul', $ARGV, true);
+$LEIRAS_FAJL = ''; $LEIRAS_SHA = '';
+foreach ($ARGV as $a) {
+    if (strpos($a, '--leiras=') === 0)     { $LEIRAS_FAJL = substr($a, 9); }
+    if (strpos($a, '--leiras-sha=') === 0) { $LEIRAS_SHA = strtolower(substr($a, 13)); }
+}
 $SITE = ''; $OLDAL = 0; $WP = ''; $FAJL = '';
 foreach ($ARGV as $a) {
     if (strpos($a, '--site=') === 0)  { $SITE = substr($a, 7); }
@@ -146,6 +155,36 @@ if ($EXPORT) {
 /* ================================================================ CEL (dev / prod) */
 ki($APPLY ? '*** ELES MENET: IRNI FOG ***' : 'SZARAZ MENET: semmit nem ir');
 if ($APPLY && $SITE === 'prod' && !$YESPROD) { ki('!! Prod iras csak --yes-prod-dal (Zsolt OK utan).'); exit(2); }
+/* --- a kurzus-leirasok (opcionalis) --- */
+$LEIRAS = null;
+if ($LEIRAS_FAJL !== '') {
+    if (!is_readable($LEIRAS_FAJL)) { ki('!! nincs meg a leiras-fajl: '.$LEIRAS_FAJL); exit(2); }
+    $lny = file_get_contents($LEIRAS_FAJL);
+    $lsha = hash('sha256', $lny);
+    ki('LEIRAS-FAJL: '.$LEIRAS_FAJL.' ('.strlen($lny).' byte, sha256='.substr($lsha, 0, 8).')');
+    if ($APPLY && (strlen($LEIRAS_SHA) < 8 || strpos($lsha, $LEIRAS_SHA) !== 0)) {
+        ki('!! az eleshez a --leiras-sha= a JOVAHAGYOTT fajl sha256-janak eleje kell (legalabb 8 jegy); ez a fajl '.substr($lsha, 0, 8).'. NEM IROK.');
+        exit(2);
+    }
+    $LEIRAS = array();
+    foreach (array('ingyenes' => '/^##\s+1\./m', 'vip' => '/^##\s+2\./m') as $szerep => $minta) {
+        if (!preg_match($minta, $lny, $mm, PREG_OFFSET_CAPTURE)) { ki('!! a leiras-fajlban nincs "## '.($szerep === 'ingyenes' ? '1' : '2').'." szakasz.'); exit(2); }
+        $tor = substr($lny, $mm[0][1]);
+        $tor = substr($tor, strpos($tor, "\n") + 1);
+        $veg = preg_match('/^(---|##\s)/m', $tor, $vv, PREG_OFFSET_CAPTURE) ? $vv[0][1] : strlen($tor);
+        $bek = array_values(array_filter(array_map('trim', preg_split('/\n\s*\n/', substr($tor, 0, $veg))), 'strlen'));
+        if (count($bek) !== 2 || strpos($bek[1], 'Kezdés:') !== 0) {
+            ki('!! a(z) '.$szerep.' leiras '.count($bek).' bekezdes, 2-t vartam (leiras + "Kezdés: ..."). NEM talalgatok.'); exit(2);
+        }
+        foreach ($REGI_TEMA as $w) { if (mb_stripos($bek[0].' '.$bek[1], $w) !== false) { ki('!! a(z) '.$szerep.' leirasban REGI TEMA all ('.$w.'). NEM IROK.'); exit(2); } }
+        $html = '';
+        foreach ($bek as $b) {
+            $html .= ($html === '' ? '' : "\n\n")."<!-- wp:paragraph -->\n<p>".htmlspecialchars(preg_replace('/\s+/u', ' ', $b), ENT_NOQUOTES, 'UTF-8')."</p>\n<!-- /wp:paragraph -->";
+        }
+        $LEIRAS[$szerep] = $html;
+        ki(sprintf('  leiras (%s): %d byte; "%s" | "%s"', $szerep, strlen($html), rov($bek[0], 70), $bek[1]));
+    }
+}
 if (!file_exists($FAJL)) { ki('!! nincs export-fajl: '.$FAJL.' -- elobb a prodon: --export'); exit(2); }
 $nyers = file_get_contents($FAJL); $cs = json_decode($nyers, true);
 if (!is_array($cs) || ($cs['honap'] ?? '') !== $HONAP) { ki('!! az export-fajl nem ertelmezheto vagy masik honape.'); exit(2); }
@@ -449,6 +488,23 @@ if (!$ujUrlap) {
     update_option($OPCIO, $kesz, false);
 }
 
+/* KL: a kurzus-leirasok */
+if ($LEIRAS !== null) {
+    foreach (array('ingyenes' => $ujKurzus, 'vip' => $ujVip) as $szerep => $cel) {
+        $p = get_post($cel);
+        if (!$p) { ki('!! KL '.$szerep.': nincs kurzus'); exit(1); }
+        if ($p->post_content === $LEIRAS[$szerep]) { ki('KL '.$szerep.' #'.$cel.': a leiras mar ez.'); continue; }
+        if ($p->post_content !== '' && get_post_meta($cel, '_landing_leiras_sha', true) === '') {
+            ki('!! KL '.$szerep.' #'.$cel.': a leiras NEM ures es nem mi irtuk ('.strlen($p->post_content).' byte) -- kezzel szerkesztettek, NEM irom felul.');
+            continue;
+        }
+        $r = wp_update_post(array('ID' => $cel, 'post_content' => wp_slash($LEIRAS[$szerep])), true);
+        if (is_wp_error($r)) { ki('!! KL '.$szerep.': '.$r->get_error_message()); exit(1); }
+        update_post_meta($cel, '_landing_leiras_sha', substr(hash('sha256', $LEIRAS[$szerep]), 0, 16));
+        ki('KL '.$szerep.' #'.$cel.': leiras irva ('.strlen($LEIRAS[$szerep]).' byte).');
+    }
+}
+
 /* K4 */
 if ($K4NELKUL) {
     ki('K4: kihagyva (--k4-nelkul).');
@@ -489,6 +545,16 @@ foreach (array(array($ujKurzus, $lezIngy, 'ingyenes'), array($ujVip, $lezVip, 'V
     ki(sprintf('  %s #%d: zarodatum %s%s; hozzaferes-tipus %s; regi tema a beallitasban: %s', $nev, $cel, $most,
         $most === $vart ? ' (jo)' : ' !! vart: '.$vart, is_array($sf) ? ($sf['sfwd-courses_course_price_type'] ?? '?') : '?', $regiK ? '!! '.implode(',', $regiK) : 'nincs'));
     if ($most !== $vart || $regiK) { $rossz++; }
+}
+if ($LEIRAS !== null) {
+    foreach (array('ingyenes' => $ujKurzus, 'vip' => $ujVip) as $szerep => $cel) {
+        $most = get_post($cel) ? get_post($cel)->post_content : null;
+        $ok = ($most === $LEIRAS[$szerep]);
+        ki('  leiras '.$szerep.' #'.$cel.': '.($ok ? 'a jovahagyott szoveg (jo)' : '!! NEM a vart ('.strlen((string) $most).' byte)'));
+        if (!$ok) { $rossz++; }
+    }
+} else {
+    ki('  leiras: nem kertuk (--leiras nelkul) -- a ket kurzus leirasa '.strlen((string) get_post($ujKurzus)->post_content).' / '.strlen((string) get_post($ujVip)->post_content).' byte');
 }
 $vk = get_post($ujVip);
 ki('  VIP kurzus #'.$ujVip.': '.($vk ? '"'.$vk->post_title.'" '.$vk->post_status : '!! NINCS'));
