@@ -26,6 +26,7 @@ if (PHP_SAPI !== 'cli') { exit("Csak CLI-bol.\n"); }
 define('WP_USE_THEMES', false);
 $HONAP = '2026-11';
 $FORRAS_ID = 17544;
+$UJ_CIM = '7 napos ingyenes kihívás - Pihentető alvás 2026.11';
 $TILTOTT = array(17544, 17153);
 $PROD_IDEIGLENES = 'novemberi-kihivas-eloke';
 $PAROK = array(
@@ -211,6 +212,9 @@ foreach ($PAROK as $par) {
     unset($elem);
 }
 ki('');
+$cimValtozik = ($p->post_title !== $UJ_CIM);
+ki('OLDAL CIME: "'.$p->post_title.'"'.($cimValtozik ? '  ->  "'.$UJ_CIM.'"' : '  (mar ez)'));
+ki('');
 ki(sprintf('OSSZESEN: %d hiba/kihagyas', $hiba));
 if (!$APPLY) { ki('SZARAZ MENET VEGE. Semmit nem irtunk.'); exit($hiba > 0 ? 1 : 0); }
 if ($hiba > 0) { ki('!! VOLT HIBA -- NEM IRUNK AZ OLDALRA. Reszleges szoveg rosszabb, mint a regi.'); exit(1); }
@@ -231,6 +235,11 @@ else { ki('litespeed_purge_post: NINCS ilyen action'); }
 if (has_action('litespeed_purge_all')) { do_action('litespeed_purge_all'); ki('litespeed_purge_all: kiadva'); }
 else { ki('litespeed_purge_all: NINCS ilyen action -- a lap-cache-t kezzel kell uriteni.'); }
 
+if ($cimValtozik) {
+    $r = wp_update_post(array('ID' => $OLDAL, 'post_title' => $UJ_CIM), true);
+    ki(is_wp_error($r) ? '!! a cim irasa elbukott: '.$r->get_error_message() : 'cim irva.');
+    clean_post_cache($OLDAL);
+}
 ki('');
 ki('VISSZAMERES -- mezonkent:');
 $faV = json_decode(get_post_meta($OLDAL, '_elementor_data', true), true);
@@ -249,6 +258,8 @@ foreach ($MARAD as $m) {
     unset($e);
 }
 ki(sprintf('  %d/%d uj mezo a vart erteket adja; %d/%d valtozatlan mezo valtozatlan.', $ok, count($PAROK), $mOk, count($MARAD)));
+$cimMost = get_post($OLDAL)->post_title;
+if ($cimMost !== $UJ_CIM) { $rossz++; ki('  !! a cim: "'.$cimMost.'"'); } else { ki('  cim: "'.$cimMost.'" (jo)'); }
 foreach (array('_elementor_css', '_elementor_page_assets', '_elementor_element_cache') as $mk) {
     ki('  '.$mk.' eldobva: '.(get_post_meta($OLDAL, $mk, true) === '' ? 'igen' : '!! MEGVAN'));
 }

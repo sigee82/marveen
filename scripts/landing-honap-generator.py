@@ -35,6 +35,11 @@ FORRAS_ID = 17544                    # az oldal, amibol a masolat keszul (az elo
 TILTOTT_IDK = [17544, 17153]         # elo es korabbi landingek: ezekre a csere SOSEM ir
 PROD_IDEIGLENES = 'novemberi-kihivas-eloke'   # landing-rotacio.php $IDEIGLENES -- egyezzen!
 KIZART_WIDGETEK = {'8ce0efc'}        # lablec: nem a landing szovege
+# Az oldal CIME (bongeszo-ful, keresok). A korpusz mintaja: "7 napos ingyenes kihivas - <Tema> <EEEE.HH>"
+# (elo 17544: "7 napos ingyenes kihívás - Egészséges reggeli 2026.10"; a " - "-bol a wptexturize rajzol "–"-t).
+# 2026-10-14-en a dev-elonezeten derult ki, hogy a csere ezt nem vitte: a ful a regi temat irta, a prodon
+# pedig a --duplikal belso cime ("... (elokeszites)") maradt volna kint.
+UJ_CIM = '7 napos ingyenes kihívás - Pihentető alvás 2026.11'
 KI_JSON = f'/Users/macmini/marveen/scripts/landing-{HONAP}-parositas.json'
 KI_PHP = f'/Users/macmini/marveen/scripts/landing-{HONAP}-szoveg-csere.php'
 SZOVEG_KAPU = '/Users/macmini/marveen/scripts/kihivas-landing-szoveg-kapu.py'
@@ -321,7 +326,9 @@ def main():
               io.open(KI_JSON, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
     fej = FEJ.replace('__HONAP__', HONAP).replace('__FORRAS_MD__', os.path.basename(COPY_MD)) \
              .replace('__MD5__', md5).replace('__MTIME__', mtime).replace('__MERES__', meres['mikor_utc'])
-    konf = (f"$HONAP = '{HONAP}';\n$FORRAS_ID = {FORRAS_ID};\n"
+    if not UJ_CIM.strip() or "'" in UJ_CIM or '\\' in UJ_CIM:
+        hiba('az UJ_CIM ures, vagy aposztrofot/backslasht tartalmaz.')
+    konf = (f"$HONAP = '{HONAP}';\n$FORRAS_ID = {FORRAS_ID};\n$UJ_CIM = '{UJ_CIM}';\n"
             f"$TILTOTT = array({', '.join(str(x) for x in TILTOTT_IDK)});\n"
             f"$PROD_IDEIGLENES = '{PROD_IDEIGLENES}';\n")
     io.open(KI_PHP, 'w', encoding='utf-8').write(
@@ -511,6 +518,9 @@ foreach ($PAROK as $par) {
     unset($elem);
 }
 ki('');
+$cimValtozik = ($p->post_title !== $UJ_CIM);
+ki('OLDAL CIME: "'.$p->post_title.'"'.($cimValtozik ? '  ->  "'.$UJ_CIM.'"' : '  (mar ez)'));
+ki('');
 ki(sprintf('OSSZESEN: %d hiba/kihagyas', $hiba));
 if (!$APPLY) { ki('SZARAZ MENET VEGE. Semmit nem irtunk.'); exit($hiba > 0 ? 1 : 0); }
 if ($hiba > 0) { ki('!! VOLT HIBA -- NEM IRUNK AZ OLDALRA. Reszleges szoveg rosszabb, mint a regi.'); exit(1); }
@@ -531,6 +541,11 @@ else { ki('litespeed_purge_post: NINCS ilyen action'); }
 if (has_action('litespeed_purge_all')) { do_action('litespeed_purge_all'); ki('litespeed_purge_all: kiadva'); }
 else { ki('litespeed_purge_all: NINCS ilyen action -- a lap-cache-t kezzel kell uriteni.'); }
 
+if ($cimValtozik) {
+    $r = wp_update_post(array('ID' => $OLDAL, 'post_title' => $UJ_CIM), true);
+    ki(is_wp_error($r) ? '!! a cim irasa elbukott: '.$r->get_error_message() : 'cim irva.');
+    clean_post_cache($OLDAL);
+}
 ki('');
 ki('VISSZAMERES -- mezonkent:');
 $faV = json_decode(get_post_meta($OLDAL, '_elementor_data', true), true);
@@ -549,6 +564,8 @@ foreach ($MARAD as $m) {
     unset($e);
 }
 ki(sprintf('  %d/%d uj mezo a vart erteket adja; %d/%d valtozatlan mezo valtozatlan.', $ok, count($PAROK), $mOk, count($MARAD)));
+$cimMost = get_post($OLDAL)->post_title;
+if ($cimMost !== $UJ_CIM) { $rossz++; ki('  !! a cim: "'.$cimMost.'"'); } else { ki('  cim: "'.$cimMost.'" (jo)'); }
 foreach (array('_elementor_css', '_elementor_page_assets', '_elementor_element_cache') as $mk) {
     ki('  '.$mk.' eldobva: '.(get_post_meta($OLDAL, $mk, true) === '' ? 'igen' : '!! MEGVAN'));
 }
