@@ -1,15 +1,15 @@
 {
  "honap": "2026-11",
  "forras": {
-  "ut": "/Users/macmini/marveen/agents/copy/munka/2026-11-ingyenes-kihivas-landing-szoveg.md",
-  "md5": "4a6b5acea11005a8121418bbfa9fab24",
-  "mtime": "2026-10-14 15:12:03"
+  "ut": "scripts/landing-2026-11-doksi-landing.md",
+  "md5": "a03f6eb8f85fea8a9cb50ba4b048d569",
+  "mtime": "2026-10-14 16:02:07"
  },
  "meres": {
   "ut": "/Users/macmini/marveen/scripts/landing-17544-teljes-allapot.json",
   "mikor_utc": "2026-10-14T13:08:30.436Z"
  },
- "keszult": "2026-10-14 15:29:08",
+ "keszult": "2026-10-14 16:02:07",
  "parok": [
   {
    "elem_id": "6b45d9c",
@@ -22,7 +22,7 @@
    "elem_id": "b3e8629",
    "ut": "editor",
    "horgony": "Csatlakozz a kihíváshoz, és készíts velünk hét laktató reggelit egyszerű",
-   "uj": "<p>Csatlakozz a kihíváshoz, és rakjuk össze együtt, lépésről lépésre a pihentető estéd rutinját! Minden napra egy apró lépéssel és egy könnyű vacsorával, hogy este könnyebben jöhessen az álom.</p><ul><li>7 apró lépés a pihentető estékért</li><li>6 könnyű vacsora és 1 esti ital</li><li>heti bevásárlólista</li><li>iOS és Android applikáció</li></ul>",
+   "uj": "<p>Csatlakozz a kihíváshoz, és rakjuk össze együtt, lépésről lépésre a pihentető estéd rutinját! Minden napra egy apró lépéssel és egy könnyű vacsorával, hogy este könnyebben aludj el.</p><ul><li>7 apró lépés a pihentető estékért</li><li>6 könnyű vacsora és 1 esti ital</li><li>heti bevásárlólista</li><li>iOS és Android applikáció</li></ul>",
    "cimke": "1. szekció -- Hero / Text-editor (bevezető + felsorolás)"
   },
   {
@@ -36,22 +36,22 @@
    "elem_id": "6c78b0f2",
    "ut": "title",
    "horgony": "Reggelizz úgy, hogy délig kitartson",
-   "uj": "Készülj úgy az estére, hogy könnyebben jöjjön az álom",
+   "uj": "Készülj úgy az estére, hogy könnyebben elaludj",
    "cimke": "2. szekció -- Ígéret-cím + a jelenet / Heading"
   },
   {
    "elem_id": "370bdfea",
    "ut": "editor",
    "horgony": "Reggel kapkodsz, és a végén marad a kávé meg valami gyors édesség. Ismerős?",
-   "uj": "<p>Este fáradtan bebújsz az ágyba, aztán mégis csak forgolódsz. Ismerős? Vagy elalszol, de hajnalban felébredsz, és azon jár az eszed, mennyi időd van még a csörgésig. Reggel pedig úgy kelsz, mintha nem is aludtál volna, és az első kávéval próbálod összeszedni magad.</p><p>Pedig a pihentető éjszaka nem csak este dől el. Már reggel elkezdődik, amikor kilépsz a fényre, folytatódik délután, amikor az utolsó kávédat iszod, és este, amikor vacsorázol és lecsendesedsz.</p><p>A pihentető alvás kihívásban minden nap kapsz egy rövid leckét egy apró lépéssel, amit még aznap este kipróbálhatsz, és mellé egy könnyű vacsorareceptet. Így nem neked kell kitalálnod, hol kezdd: reggel elolvasod, este kipróbálod.</p><p>És nem kell felforgatnod az estéidet! Nincs szigorú szabály, és semmit nem kell tökéletesen csinálnod. Egy hét alatt, lépésről lépésre összeáll a saját esti rutinod, a Te ébredésedhez igazítva.</p>",
+   "uj": "<p>Este fáradtan esel ágyba, de csak csak forgolódsz és nem tudsz aludni? Vagy elalszol ugyan, de hajnalban felébredsz, és órákig nem tudsz visszaaludni és csak számolod a percekig az ébresztő csörgéséig? Reggel gyakran ébredsz úgy, mintha egész éjjel nem is aludtál volna, és az első kávéval próbálod összeszedni magad.</p><p>Pedig a pihentető éjszaka nem csak este dől el. Már reggel elkezdődik, amikor kilépsz a fényre, folytatódik délután, amikor az utolsó kávédat iszod, és este, amikor vacsorázol és lecsendesedsz.</p><p>A pihentető alvás kihívásban minden nap kapsz egy rövid leckét egy apró lépéssel, amit még aznap este kipróbálhatsz, és mellé egy könnyű vacsorareceptet. Így nem neked kell kitalálnod, hol kezdd: reggel elolvasod, este kipróbálod.</p><p>És nem kell felforgatnod az estéidet! Nincs szigorú szabály, és semmit nem kell tökéletesen csinálnod. Egy hét alatt, lépésről lépésre összeáll a saját esti rutinod, a Te ébredésedhez igazítva.</p>",
    "cimke": "2. szekció -- Ígéret-cím + a jelenet / Text-editor"
   },
   {
    "elem_id": "8c97ba3",
    "ut": "editor",
    "horgony": "Brian Tracy gyakorlás törvénye kimondja, hogy ha egy tevékenységet elég sokszor",
-   "uj": "<p>Brian Tracy gyakorlás törvénye kimondja, hogy ha egy tevékenységet elég sokszor ismételsz, akkor az szokássá válik. A megfelelő önfegyelemmel egy felnőtt embernek tizennégy és huszonegy nap közötti időre van szüksége ahhoz, hogy egy új szokást kialakítson. Ez idő alatt pedig rendszeresen kell ismételni az adott cselekvést. Az ingyenes kihívásban ehhez kapsz egy óriási lökést, és ha tetszik, folytasd tovább!</p><p>Nem az a cél, hogy egyik napról a másikra mindent megváltoztass, hanem az, hogy megtapasztald, milyen egy este, amikor nem kapkodva zuhansz az ágyba, hanem szépen, lépésről lépésre ráhangolódsz az alvásra.</p><p>A 21napalatt VIP Klubban nem állunk meg 7 napnál, további 14 napig folytatjuk együtt a pihentető esték építését a zárt klubban. Ha kedvet kapsz, Téged is sok szeretettel várunk, csatlakozz hozzánk!</p>",
-   "cimke": "3. szekció -- Miért éppen 7 nap? [VÁLTOZ / Text-editor"
+   "uj": "<p>Brian Tracy gyakorlás törvénye kimondja, hogy ha egy tevékenységet elég sokszor ismételsz, akkor az szokássá válik. A megfelelő önfegyelemmel egy felnőtt embernek tizennégy és huszonegy nap közötti időre van szüksége ahhoz, hogy egy új szokást kialakítson. Ez idő alatt pedig rendszeresen kell ismételni az adott cselekvést. Az ingyenes kihívásban ehhez kapsz egy óriási lökést, és ha tetszik, folytasd tovább!</p><p>Nem az a cél, hogy egyik napról a másikra mindent megváltoztass, hanem az, hogy megtapasztald, milyen egy este, amikor nem kimerülve zuhansz az ágyba, hanem szépen, lépésről lépésre ráhangolódsz az alvásra.</p><p>A 21napalatt VIP Klubban nem állunk meg 7 napnál, további 14 napig folytatjuk együtt a pihentető esték építését a zárt klubban. Ha kedvet kapsz, Téged is sok szeretettel várunk, csatlakozz hozzánk!</p>",
+   "cimke": "3. szekció -- Miért éppen 7 nap? / Text-editor"
   },
   {
    "elem_id": "17c1f49",
@@ -78,7 +78,7 @@
    "elem_id": "360da42",
    "ut": "icon_list.0.text",
    "horgony": "kitarthat a jóllakottság délig, és elmaradhat a délelőtti éhségroham",
-   "uj": "este könnyebben jöhet az álom",
+   "uj": "este könnyebben elalhatsz",
    "cimke": "5. szekció -- Mi változhat az estéidben? / Ikonos lista (4 elem) #1"
   },
   {
@@ -120,7 +120,7 @@
    "elem_id": "bb2a697",
    "ut": "icon_list.1.text",
    "horgony": "délelőtt tízkor már a keksz után nyúlsz, pedig reggeliztél,",
-   "uj": "hajnalban felébredsz, és nehezen jön vissza az álom,",
+   "uj": "hajnalban felébredsz, és nehezen alszol vissza,",
    "cimke": "6. szekció -- Imádni fogod a kihívást, h / Ikonos lista (8 elem) #2"
   },
   {

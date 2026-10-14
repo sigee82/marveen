@@ -156,7 +156,7 @@ if ($EXPORT) {
 ki($APPLY ? '*** ELES MENET: IRNI FOG ***' : 'SZARAZ MENET: semmit nem ir');
 if ($APPLY && $SITE === 'prod' && !$YESPROD) { ki('!! Prod iras csak --yes-prod-dal (Zsolt OK utan).'); exit(2); }
 /* --- a kurzus-leirasok (opcionalis) --- */
-$LEIRAS = null;
+$LEIRAS = null; $KARTYA = array();
 if ($LEIRAS_FAJL !== '') {
     if (!is_readable($LEIRAS_FAJL)) { ki('!! nincs meg a leiras-fajl: '.$LEIRAS_FAJL); exit(2); }
     $lny = file_get_contents($LEIRAS_FAJL);
@@ -166,15 +166,23 @@ if ($LEIRAS_FAJL !== '') {
         ki('!! az eleshez a --leiras-sha= a JOVAHAGYOTT fajl sha256-janak eleje kell (legalabb 8 jegy); ez a fajl '.substr($lsha, 0, 8).'. NEM IROK.');
         exit(2);
     }
-    $LEIRAS = array();
+    $LEIRAS = array(); $KARTYA = array();
     foreach (array('ingyenes' => '/^##\s+1\./m', 'vip' => '/^##\s+2\./m') as $szerep => $minta) {
         if (!preg_match($minta, $lny, $mm, PREG_OFFSET_CAPTURE)) { ki('!! a leiras-fajlban nincs "## '.($szerep === 'ingyenes' ? '1' : '2').'." szakasz.'); exit(2); }
         $tor = substr($lny, $mm[0][1]);
         $tor = substr($tor, strpos($tor, "\n") + 1);
         $veg = preg_match('/^(---|##\s)/m', $tor, $vv, PREG_OFFSET_CAPTURE) ? $vv[0][1] : strlen($tor);
         $bek = array_values(array_filter(array_map('trim', preg_split('/\n\s*\n/', substr($tor, 0, $veg))), 'strlen'));
+        /* opcionalis 3. bekezdes: "Kártya: <egy mondat>" -- a kurzuskartya rovid leirasa (Eszter doksija, 4. pont) */
+        $kartya = null;
+        if (count($bek) === 3 && strpos($bek[2], 'Kártya:') === 0) { $kartya = trim(substr($bek[2], strlen('Kártya:'))); array_pop($bek); }
         if (count($bek) !== 2 || strpos($bek[1], 'Kezdés:') !== 0) {
-            ki('!! a(z) '.$szerep.' leiras '.count($bek).' bekezdes, 2-t vartam (leiras + "Kezdés: ..."). NEM talalgatok.'); exit(2);
+            ki('!! a(z) '.$szerep.' leiras '.count($bek).' bekezdes, 2-t vartam (leiras + "Kezdés: ...", opcionalisan + "Kártya: ..."). NEM talalgatok.'); exit(2);
+        }
+        if ($kartya !== null) {
+            foreach ($REGI_TEMA as $w) { if (mb_stripos($kartya, $w) !== false) { ki('!! a(z) '.$szerep.' kartya-mondatban REGI TEMA all. NEM IROK.'); exit(2); } }
+            $KARTYA[$szerep] = $kartya;
+            ki('  kartya ('.$szerep.'): "'.$kartya.'"');
         }
         foreach ($REGI_TEMA as $w) { if (mb_stripos($bek[0].' '.$bek[1], $w) !== false) { ki('!! a(z) '.$szerep.' leirasban REGI TEMA all ('.$w.'). NEM IROK.'); exit(2); } }
         $html = '';
@@ -503,6 +511,16 @@ if ($LEIRAS !== null) {
         update_post_meta($cel, '_landing_leiras_sha', substr(hash('sha256', $LEIRAS[$szerep]), 0, 16));
         ki('KL '.$szerep.' #'.$cel.': leiras irva ('.strlen($LEIRAS[$szerep]).' byte).');
     }
+    /* a kurzuskartya rovid leirasa: ket helyen el (a forrasban mindketto a "Probald ki..." mondat volt) */
+    foreach ($KARTYA as $szerep => $mondat) {
+        $cel = $szerep === 'vip' ? $ujVip : $ujKurzus;
+        $sf = get_post_meta($cel, '_sfwd-courses', true);
+        $most = is_array($sf) ? (string) ($sf['sfwd-courses_course_short_description'] ?? '') : '';
+        if ($most !== '' && $most !== $mondat) { ki('!! KL kartya '.$szerep.' #'.$cel.': nem ures es mas ("'.rov($most, 50).'") -- NEM irom felul.'); continue; }
+        if (is_array($sf)) { $sf['sfwd-courses_course_short_description'] = $mondat; update_post_meta($cel, '_sfwd-courses', $sf); }
+        update_post_meta($cel, '_learndash_course_grid_short_description', $mondat);
+        ki('KL kartya '.$szerep.' #'.$cel.': irva.');
+    }
 }
 
 /* K4 */
@@ -552,6 +570,14 @@ if ($LEIRAS !== null) {
         $ok = ($most === $LEIRAS[$szerep]);
         ki('  leiras '.$szerep.' #'.$cel.': '.($ok ? 'a jovahagyott szoveg (jo)' : '!! NEM a vart ('.strlen((string) $most).' byte)'));
         if (!$ok) { $rossz++; }
+        if (isset($KARTYA[$szerep])) {
+            $sf = get_post_meta($cel, '_sfwd-courses', true);
+            $k1 = is_array($sf) ? ($sf['sfwd-courses_course_short_description'] ?? '') : '';
+            $k2 = (string) get_post_meta($cel, '_learndash_course_grid_short_description', true);
+            $kok = ($k1 === $KARTYA[$szerep] && $k2 === $KARTYA[$szerep]);
+            ki('  kartya '.$szerep.' #'.$cel.': '.($kok ? 'mindket helyen a jovahagyott mondat (jo)' : '!! elter'));
+            if (!$kok) { $rossz++; }
+        }
     }
 } else {
     ki('  leiras: nem kertuk (--leiras nelkul) -- a ket kurzus leirasa '.strlen((string) get_post($ujKurzus)->post_content).' / '.strlen((string) get_post($ujVip)->post_content).' byte');

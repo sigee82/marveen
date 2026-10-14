@@ -240,7 +240,13 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--regi-meres-ok', action='store_true',
                     help='24 oranal regebbi meres elfogadasa (a PHP futaskor ugyis horgonyt ellenoriz)')
+    ap.add_argument('--forras', default=None,
+                    help='a szoveg-forras (alapertelmezes: Copy fajlja). 2026-10-14 ota a JOVAHAGYOTT szoveg Eszter '
+                         'doksija: landing-doksi-atalakito.py kimenete adhato meg itt.')
     a = ap.parse_args()
+    global COPY_MD
+    if a.forras:
+        COPY_MD = a.forras
 
     for f in (COPY_MD, ELO, SZOVEG_KAPU):
         if not os.path.exists(f):
