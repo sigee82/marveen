@@ -13,7 +13,7 @@
  * az ellenorzes az ADATOT nezi, a csere uj, sajat feltoltest tesz be).
  * Az ikonokhoz, az emblemahoz es a 3 lepes ikonjaihoz NEM nyulunk.
  *
- *   --site=dev|prod --oldal=<ID>|jelolt --kepek=<mappa>              SZARAZ (kiirja a sha256-okat)
+ *   --site=dev|prod --oldal=<ID>|jelolt --kepek=<mappa> [--ikon]     SZARAZ (kiirja a sha256-okat)
  *   ... --apply --sha=<s1>,<s2>,<s3>                                  ELES a deven
  *   ... --apply --sha=<s1>,<s2>,<s3> --yes-prod                       ELES a prodon (draft masolat)
  *
@@ -21,6 +21,12 @@
  * Eszter elutasitotta, a v2 UGYANAZON a fajlneven es UGYANAZON a Drive-ID-n jott. A fajlnev
  * tehat NEM azonositja a jovahagyott valtozatot. A sha-t a jovahagyott fajlokbol kell venni
  * (a szaraz menet kiirja), es a szkript csak azt tolti fel, ami bitre az. <<<
+ *
+ * --ikon: a "Mire szamithatsz?" cim feletti IKONT is csereli (3eacd38, ma #13794 2025/12/mire-szamithatsz,
+ * a turmixgep-rajz) Lumen holdsarlos ikonjara (mire-szamithatsz-alvas.png, 200x200 -- a sablon eredetijenek
+ * merete; a 150x150-es valtozatot a WP maga kesziti). Kulon kapcsolo, mert kulon jovahagyas: ha Eszter a
+ * fotokat igen, az ikont nem hagyja jova, a harom foto nelkule is mehet. Ilyenkor a --sha NEGY erteket var.
+ * Az eredeti ikont a regi landingek is hasznaljak: NEM irjuk felul, uj mediaelem megy fel (Lumen 20510).
  *
  * A REGI KEPEKET NEM TOROLJUK. A mentes a $HOME-ba megy (nem a webrootba).
  * PROBAPAD: LANDING_CSERE_PROBAPAD=1 + --wp=<gyoker>: CSAK a hoszt-ellenorzest kapcsolja ki.
@@ -32,14 +38,18 @@ $FORRAS_ID = 17544;
 $TILTOTT = array(17544, 17153);
 $PROD_IDEIGLENES = 'novemberi-kihivas-eloke';
 $KEPEK_TERV = array(
-    array('elem' => '043088b', 'slot' => 'HERO',              'vart_id' => 17548, 'vart_nev' => 'honlapkep_egeszseges_reggeli_1', 'fajl' => 'honlapkep_pihentato_alvas_1.png'),
-    array('elem' => '18e743f', 'slot' => 'Mire szamithatsz?', 'vart_id' => 17549, 'vart_nev' => 'honlapkep_egeszseges_reggeli_2', 'fajl' => 'honlapkep_pihentato_alvas_2.png'),
-    array('elem' => '62377a6', 'slot' => 'Mit kapsz meg?',    'vart_id' => 17550, 'vart_nev' => 'honlapkep_egeszseges_reggeli_3', 'fajl' => 'honlapkep_pihentato_alvas_3.png'),
+    array('elem' => '043088b', 'slot' => 'HERO',              'vart_id' => 17548, 'vart_nev' => 'honlapkep_egeszseges_reggeli_1', 'fajl' => 'honlapkep_pihentato_alvas_1.png', 'meret' => 900),
+    array('elem' => '18e743f', 'slot' => 'Mire szamithatsz?', 'vart_id' => 17549, 'vart_nev' => 'honlapkep_egeszseges_reggeli_2', 'fajl' => 'honlapkep_pihentato_alvas_2.png', 'meret' => 900),
+    array('elem' => '62377a6', 'slot' => 'Mit kapsz meg?',    'vart_id' => 17550, 'vart_nev' => 'honlapkep_egeszseges_reggeli_3', 'fajl' => 'honlapkep_pihentato_alvas_3.png', 'meret' => 900),
 );
+/* Merve 2026-10-14 (Playwright, wp-image-N): a "Mire szamithatsz?" cim feletti ikon a 3eacd38, #13794. */
+$IKON_TERV = array('elem' => '3eacd38', 'slot' => 'IKON "Mire szamithatsz?"', 'vart_id' => 13794, 'vart_nev' => 'mire-szamithatsz', 'fajl' => 'mire-szamithatsz-alvas.png', 'meret' => 200);
 
 $ARGV = $argv ?: array();
 $APPLY = in_array('--apply', $ARGV, true);
 $YESPROD = in_array('--yes-prod', $ARGV, true);
+if (in_array('--ikon', $ARGV, true)) { $KEPEK_TERV[] = $IKON_TERV; }
+$DB = count($KEPEK_TERV);
 $SITE = ''; $OLDAL = 0; $WP = ''; $KEPEK = ''; $SHA = array();
 foreach ($ARGV as $a) {
     if (strpos($a, '--site=') === 0)  { $SITE = substr($a, 7); }
@@ -90,8 +100,8 @@ if ($SITE === 'prod' && ($p->post_name !== $PROD_IDEIGLENES || $p->post_status !
     ki('!! A prodon csak a draft, "'.$PROD_IDEIGLENES.'" slugu masolatra irok. Ez nem az.'); exit(2);
 }
 if ($APPLY && $SITE === 'prod' && !$YESPROD) { ki('!! Prod iras csak --yes-prod-dal (Zsolt OK utan).'); exit(2); }
-if ($APPLY && count($SHA) !== 3) {
-    ki('!! Az eles menethez KOTELEZO a --sha=<s1>,<s2>,<s3> (a JOVAHAGYOTT fajlok sha256-janak eleje,');
+if ($APPLY && count($SHA) !== $DB) {
+    ki('!! Az eles menethez KOTELEZO a --sha= '.$DB.' ertekkel, a fenti sorrendben (a JOVAHAGYOTT fajlok sha256-janak eleje,');
     ki('   legalabb 8 jegy). A fajlnev nem azonositja a valtozatot: 2026-10-14-en a v1 es a v2 ugyanazon a neven jott.');
     exit(2);
 }
@@ -122,8 +132,8 @@ foreach ($KEPEK_TERV as $i => $t) {
     if (!is_readable($ut)) { ki(sprintf('  !! [%s] nincs meg a fajl: %s', $t['elem'], $ut)); $hiba++; continue; }
     $meret = @getimagesize($ut);
     if (!$meret || $meret[2] !== IMAGETYPE_PNG) { ki(sprintf('  !! [%s] nem PNG: %s', $t['elem'], $ut)); $hiba++; continue; }
-    if ($meret[0] !== 900 || $meret[1] !== 900) {
-        ki(sprintf('  !! [%s] %dx%d, nem 900x900', $t['elem'], $meret[0], $meret[1])); $hiba++; continue;
+    if ($meret[0] !== $t['meret'] || $meret[1] !== $t['meret']) {
+        ki(sprintf('  !! [%s] %dx%d, nem %dx%d', $t['elem'], $meret[0], $meret[1], $t['meret'], $t['meret'])); $hiba++; continue;
     }
     $sha = hash_file('sha256', $ut);
     if ($SHA) {
@@ -147,7 +157,7 @@ foreach ($KEPEK_TERV as $i => $t) {
     ki(sprintf('        uj:   %s (%dx%d, %d byte, sha256=%s)', $t['fajl'], $meret[0], $meret[1], filesize($ut), substr($sha, 0, 8)));
 }
 if ($hiba > 0) { ki(''); ki(sprintf('!! %d ELLENORZES BUKOTT -- semmit nem toltunk fel es nem irunk.', $hiba)); exit(1); }
-if (!$APPLY) { ki(''); ki('SZARAZ MENET VEGE. Az eleshez a fenti harom sha256-ot add at --sha=...-ként, ha EZEK a jovahagyott kepek.'); exit(0); }
+if (!$APPLY) { ki(''); ki('SZARAZ MENET VEGE. Az eleshez a fenti sha256-okat add at --sha=...-ként (ebben a sorrendben), ha EZEK a jovahagyott kepek.'); exit(0); }
 
 /* 2. FELTOLTES (a sideload elviszi a forrast, ezert masolatot kap). */
 $ujak = array();
@@ -199,9 +209,9 @@ foreach ($KEPEK_TERV as $t) {
         $ok++; ki(sprintf('  [%s] #%d %s', $t['elem'], $vart['id'], basename($vart['url'])));
     } else { ki(sprintf('  !! [%s] NEM az uj kepet adja vissza', $t['elem'])); }
 }
-ki(sprintf('  %d/3 kep-mezo a vart uj erteket adja.', $ok));
+ki(sprintf('  %d/%d kep-mezo a vart uj erteket adja.', $ok, $DB));
 foreach (array('_elementor_css', '_elementor_page_assets', '_elementor_element_cache') as $mk) {
     ki('  '.$mk.' eldobva: '.(get_post_meta($OLDAL, $mk, true) === '' ? 'igen' : '!! MEGVAN'));
 }
-ki($ok === 3 ? 'ELES MENET VEGE. Mind a harom kep a helyen.' : '!! ELES MENET VEGE, DE VOLT ELTERES.');
-exit($ok === 3 ? 0 : 1);
+ki($ok === $DB ? 'ELES MENET VEGE. Mind a(z) '.$DB.' kep a helyen.' : '!! ELES MENET VEGE, DE VOLT ELTERES.');
+exit($ok === $DB ? 0 : 1);
