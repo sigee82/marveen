@@ -15,6 +15,11 @@
  *   --site=dev|prod [--oldal=<ID>|jelolt]             SZARAZ: megmutatja a tervet es a kockazatokat
  *   ... --apply                                        ELES a deven
  *   ... --apply --yes-prod                             ELES a prodon (Zsolt OK utan)
+ *   --k4-nelkul                                        CSAK kurzusok + urlap + feed, a landinghez NEM nyul
+ *                                                      (Zsolt OK, 2026-10-14: prod K1-K3+VIP 10-20-an, K4 a
+ *                                                      10-22-i valtasnal). Ilyenkor --oldal nem kell, es a
+ *                                                      visszameres azt is igazolja, hogy az ELO landing meg a
+ *                                                      forras-urlapot mutatja, es az uj urlapot SEHOL nem agyazza be lap.
  *
  * MIT CSINAL (ebben a sorrendben, mindegyik visszaolvasva):
  *   K1  uj ingyenes kurzus a 17551 BEALLITASAIBOL -- leckek, lepesek, felhasznalok, csoport-kotes,
@@ -42,6 +47,12 @@ $UJ_URLAP_CIM   = '7 napos ingyenes pihentető alvás kihívás';
 /* A 21 napos VIP kurzus (Nova 20514): ugyanaz a K1, a 17563 (oktoberi VIP) beallitasaibol. Urlap/feed nincs hozza. */
 $VIP_FORRAS_KURZUS = 17563;
 $UJ_VIP_CIM     = '21 napos pihentető alvás kihívás';
+/* A KURZUS ZARODATUMA (ACF tanfolyam_lezaras). Ebbol szamol a tema (functions.php: lejart/grace badge), a
+   kihivas-lista (aktiv/hamarosan) es a push-pro (FREE: kezdet = zaro - 6 nap). Az oktoberi ertek atmasolva a
+   novemberi kurzust azonnal LEJARTNAK mutatna, es a push rossz napra szamolna. A kezdes Nessa adata
+   (sheet kihivasok: kezdodatum / kezdodatum_ingyenes = 2026-11-01, napok_szama 21). */
+$KEZDES         = '2026-11-01';
+$NAPOK          = array('ingyenes' => 7, 'vip' => 21);
 $REGI_TEMA      = array('reggeli', 'október', 'oktober');        // ha az atvitt szovegben marad: FIGYELMEZTETES
 /* Az ertesito level(ek) uj szovege, ertesites-NEV szerint (a szaraz menet kiirja a neveket es a mai torzset).
    Uresen: a forras szovege megy at -- ha abban regi tema all, a szaraz menet "!!"-lel jelzi.
@@ -60,12 +71,13 @@ $OPCIO          = 'landing_urlap_2026_11';                        // a celhelyen
    ezen at kap hozzaferest a csoport. A VIP kurzusnal ugyanez a VIP-csoportok kotese: nelkule a VIP-tagok nem
    latnak bele. A masolat tehat a forras hozzaferesi modelljet tukrozi, nem egy szukebbet. */
 $KURZUS_NEM = array('ld_course_steps', '_ld_course_steps', 'ld_course_', '_edit_', '_km_',
-                    '_thumbnail_id', 'course_', '_wp_old_slug', '_elementor_', '_landing_urlap_');
+                    '_thumbnail_id', 'course_', '_wp_old_slug', '_wp_old_date', '_elementor_', '_landing_urlap_');
 
 $ARGV = $argv ?: array();
 $EXPORT = in_array('--export', $ARGV, true);
 $APPLY = in_array('--apply', $ARGV, true);
 $YESPROD = in_array('--yes-prod', $ARGV, true);
+$K4NELKUL = in_array('--k4-nelkul', $ARGV, true);
 $SITE = ''; $OLDAL = 0; $WP = ''; $FAJL = '';
 foreach ($ARGV as $a) {
     if (strpos($a, '--site=') === 0)  { $SITE = substr($a, 7); }
@@ -140,14 +152,49 @@ if (!is_array($cs) || ($cs['honap'] ?? '') !== $HONAP) { ki('!! az export-fajl n
 ki(sprintf('FAJL: %s (sha256=%s, exportalva %s, %s)', $FAJL, substr(hash('sha256', $nyers), 0, 8), $cs['mikor_utc'], $cs['forras_host']));
 
 /* a landing-celpont (K4) -- ugyanazok az orok, mint a szoveg-/kep-csere szkriptekben */
-if ($OLDAL === -1) {
+/* Az ELO /ingyenes-kihivas/ lap shortcode-ja (csak olvas). --k4-nelkul eseten ez a kontroll: a landing
+   NEM mozdulhat, es az uj urlapot egyetlen lap sem agyazhatja be. */
+function eles_landing_shortcode($elem) {
+    $p = get_page_by_path('ingyenes-kihivas');
+    if (!$p) { return array(null, null); }
+    $fa = json_decode((string) get_post_meta($p->ID, '_elementor_data', true), true);
+    $talal = null;
+    $jar = function ($n) use (&$jar, &$talal, $elem) {
+        if (!is_array($n) || $talal !== null) { return; }
+        if (isset($n['id']) && $n['id'] === $elem && isset($n['settings']['shortcode'])) { $talal = (string) $n['settings']['shortcode']; return; }
+        foreach ($n as $k => $v) { if ($k !== 'settings') { $jar($v); } }
+    };
+    $jar($fa);
+    return array((int) $p->ID, $talal);
+}
+function urlapot_beagyazo_lapok($urlapId) {
+    global $wpdb;
+    if (!$urlapId) { return array(); }
+    $sorok = $wpdb->get_results("SELECT p.ID, p.post_content, m.meta_value AS el FROM {$wpdb->posts} p
+        LEFT JOIN {$wpdb->postmeta} m ON m.post_id=p.ID AND m.meta_key='_elementor_data'
+        WHERE p.post_status IN ('publish','draft','private') AND p.post_type NOT IN ('revision')
+          AND (p.post_content LIKE '%gravityform%' OR m.meta_value LIKE '%gravityform%')");
+    $ki = array();
+    foreach ($sorok as $r) {
+        $t = $r->post_content.' '.str_replace('\\"', '"', (string) $r->el);
+        if (preg_match('/\[gravityforms?\b[^\]]*\bid=["\']?'.(int) $urlapId.'["\']?(?![0-9])/i', $t)) { $ki[] = (int) $r->ID; }
+    }
+    return array_values(array_unique($ki));
+}
+$regiMintaK = '/\[gravityforms?\b[^\]]*\bid=["\']?'.$FORRAS_URLAP.'["\']?(?![0-9])/i';
+if ($K4NELKUL) {
+    list($elId, $elSc) = eles_landing_shortcode($SHORTCODE_ELEM);
+    ki('K4 KIHAGYVA (--k4-nelkul). Az elo /ingyenes-kihivas/ (#'.($elId ?: '-').') shortcode-ja: '.($elSc ?? '-'));
+    $OLDAL = 0;
+} elseif ($OLDAL === -1) {
     if ($SITE !== 'dev') { ki('!! Az --oldal=jelolt csak a deven ervenyes.'); exit(2); }
     $j = $wpdb->get_col($wpdb->prepare("SELECT p.ID FROM {$wpdb->posts} p JOIN {$wpdb->postmeta} m ON m.post_id=p.ID
         WHERE m.meta_key='_landing_atvitel_forras' AND m.meta_value=%s AND p.post_status NOT IN ('trash','inherit','auto-draft')", (string) $LANDING_FORRAS));
     if (count($j) !== 1) { ki('!! '.count($j).' jelolt oldal van, pontosan egyet vartam.'); exit(2); }
     $OLDAL = (int) $j[0];
 }
-if ($OLDAL <= 0) { ki('!! KOTELEZO a --oldal=<ID>|jelolt (a K4 shortcode-csere celja).'); exit(2); }
+if (!$K4NELKUL) {
+if ($OLDAL <= 0) { ki('!! KOTELEZO a --oldal=<ID>|jelolt (a K4 shortcode-csere celja), vagy --k4-nelkul.'); exit(2); }
 $lap = get_post($OLDAL);
 if (!$lap) { ki('!! a '.$OLDAL.' nem letezik.'); exit(2); }
 if ($SITE === 'dev' && get_post_meta($OLDAL, '_landing_atvitel_forras', true) !== (string) $LANDING_FORRAS) { ki('!! A deven csak az atvitt (jelolt) landingre irok.'); exit(2); }
@@ -155,6 +202,7 @@ if ($SITE === 'prod' && (in_array($OLDAL, array(17544, 17153), true) || $lap->po
     ki('!! A prodon csak a draft, "'.$PROD_IDEIGLENES.'" slugu masolatra irok. Ez nem az.'); exit(2);
 }
 ki('landing: '.$OLDAL.'  slug='.$lap->post_name.'  status='.$lap->post_status);
+}
 
 /* --- kockazat-sorok --- */
 ki('');
@@ -227,10 +275,35 @@ function kurzus_meta_terv($exp, $NEM, $REGI_TEMA, $cimke) {
             $csop ? '  <- CSOPORT-KOTES: '.(get_post((int) substr($m['k'], 25)) ? '"'.get_the_title((int) substr($m['k'], 25)).'"' : '!! a csoport ezen a peldanyon NINCS') : '',
             $talal ? '  <- REGI TEMA ('.implode(',', $talal).'): '.rov($v, 80) : ''));
     }
+    foreach ($visz as $m) {
+        if ($m['k'] !== '_sfwd-courses') { continue; }
+        $arr = maybe_unserialize($m['v']);
+        if (!is_array($arr)) { continue; }
+        foreach (sfwd_regi_kulcsok($arr, $REGI_TEMA) as $kk) { ki('       _sfwd-courses['.$kk.'] REGI TEMAT hordoz -> URESEN megy (Copy tolti): '.rov($arr[$kk], 70)); }
+        ki('       hozzaferes-tipus (sfwd-courses_course_price_type): '.($arr['sfwd-courses_course_price_type'] ?? '?'));
+    }
     ki('     cimkek: '.json_encode($exp['terms'], JSON_UNESCAPED_UNICODE).'  leiras: '.$exp['post']['post_content_byte'].' byte (NEM visszuk, ures lesz)');
     return $visz;
 }
-function kurzus_letrehoz($exp, $visz, $cim, $honap, $szerep) {
+function sfwd_regi_kulcsok($arr, $REGI_TEMA) {
+    $ki = array();
+    foreach ($arr as $k => $v) {
+        if (!is_string($v)) { continue; }
+        foreach ($REGI_TEMA as $w) { if (mb_stripos($v, $w) !== false) { $ki[] = $k; break; } }
+    }
+    return $ki;
+}
+/* az uj zarodatum a forras FORMATUMABAN (Ymd vagy Y-m-d) */
+function uj_lezaras($forras, $kezdes, $napok) {
+    $d = new DateTime($kezdes, new DateTimeZone('Europe/Budapest'));
+    $d->modify('+'.($napok - 1).' days');
+    return preg_match('/^\d{8}$/', (string) $forras) ? $d->format('Ymd') : $d->format('Y-m-d');
+}
+function lezaras_forras($exp) {
+    foreach ($exp['metak'] as $m) { if ($m['k'] === 'tanfolyam_lezaras') { return (string) $m['v']; } }
+    return null;
+}
+function kurzus_letrehoz($exp, $visz, $cim, $honap, $szerep, $lezaras, $REGI_TEMA) {
     $kp = $exp['post'];
     $id = wp_insert_post(array('post_type' => 'sfwd-courses', 'post_status' => $kp['post_status'], 'post_title' => $cim,
         'post_content' => '', 'post_excerpt' => '', 'comment_status' => $kp['comment_status'], 'menu_order' => $kp['menu_order']), true);
@@ -239,7 +312,9 @@ function kurzus_letrehoz($exp, $visz, $cim, $honap, $szerep) {
         $v = maybe_unserialize($m['v']);
         if ($m['k'] === '_sfwd-courses' && is_array($v)) {
             foreach (array('sfwd-courses_course_access_list', 'course_access_list') as $al) { if (isset($v[$al])) { $v[$al] = ''; } }
+            foreach (sfwd_regi_kulcsok($v, $REGI_TEMA) as $kk) { $v[$kk] = ''; }
         }
+        if ($m['k'] === 'tanfolyam_lezaras') { $v = $lezaras; }
         add_post_meta($id, $m['k'], wp_slash($v));
     }
     foreach ($exp['terms'] as $tx => $slugs) { if (taxonomy_exists($tx)) { wp_set_object_terms($id, $slugs, $tx); } }
@@ -263,6 +338,11 @@ ki('');
 ki('=== TERV ===');
 $viszIngy = kurzus_meta_terv($cs['kurzus'], $KURZUS_NEM, $REGI_TEMA, 'INGYENES kurzus "'.$UJ_KURZUS_CIM.'"');
 $viszVip  = kurzus_meta_terv($cs['vip_kurzus'], $KURZUS_NEM, $REGI_TEMA, 'VIP kurzus "'.$UJ_VIP_CIM.'"');
+$lezIngy = uj_lezaras(lezaras_forras($cs['kurzus']), $KEZDES, $NAPOK['ingyenes']);
+$lezVip  = uj_lezaras(lezaras_forras($cs['vip_kurzus']), $KEZDES, $NAPOK['vip']);
+ki(sprintf('  ZARODATUM (tanfolyam_lezaras): ingyenes %s -> %s (%s + %d nap - 1);  VIP %s -> %s (%s + %d nap - 1)',
+    lezaras_forras($cs['kurzus']) ?? 'NINCS', $lezIngy, $KEZDES, $NAPOK['ingyenes'],
+    lezaras_forras($cs['vip_kurzus']) ?? 'NINCS', $lezVip, $KEZDES, $NAPOK['vip']));
 $ujKurzus = (int) ($kesz['kurzus'] ?? 0); $ujUrlap = (int) ($kesz['urlap'] ?? 0); $ujVip = (int) ($kesz['vip_kurzus'] ?? 0);
 if ($ujUrlap) {
     ki('  K1-K3 MAR KESZ ezen a peldanyon: kurzus #'.$ujKurzus.', urlap '.$ujUrlap.', feed '.$kesz['feed'].' -- nem ismetlem');
@@ -274,11 +354,29 @@ if ($ujUrlap) {
     ki('  K3 UR-feed "'.($urFeed['feedName'] ?? '').'": kurzus = K1, csoport = '.implode(',', $csoportok));
 }
 ki('  KV VIP kurzus: '.($ujVip ? 'MAR KESZ (#'.$ujVip.')' : 'letrehozando'));
-ki('  K4 shortcode a '.$SHORTCODE_ELEM.' elemben: id="'.$FORRAS_URLAP.'" -> az uj urlap ID-ja');
-
-$d = get_post_meta($OLDAL, '_elementor_data', true);
-$fa = json_decode((string) $d, true);
-if (!is_array($fa)) { ki('!! a landing _elementor_data nem dekodolhato.'); exit(2); }
+/* K1c: egy KORABBI futas altal letrehozott kurzuson a zarodatum es a regi-temas beallitas-szoveg javitasa
+   (a 2026-10-14-i dev-kurzusok 16708/16709 meg az oktoberi zarodatummal es leirassal keszultek). */
+function kurzus_javitas($cel, $vartLez, $REGI_TEMA, $apply) {
+    if (!$cel || !get_post($cel)) { return array(); }
+    $teendo = array();
+    $most = (string) get_post_meta($cel, 'tanfolyam_lezaras', true);
+    if ($most !== '' && $most !== $vartLez) { $teendo[] = 'zarodatum '.$most.' -> '.$vartLez; if ($apply) { update_post_meta($cel, 'tanfolyam_lezaras', $vartLez); } }
+    $sf = get_post_meta($cel, '_sfwd-courses', true);
+    if (is_array($sf)) {
+        $kk = sfwd_regi_kulcsok($sf, $REGI_TEMA);
+        if ($kk) { $teendo[] = '_sfwd-courses['.implode(',', $kk).'] uritve'; if ($apply) { foreach ($kk as $k) { $sf[$k] = ''; } update_post_meta($cel, '_sfwd-courses', $sf); } }
+    }
+    foreach (array('_learndash_course_grid_short_description') as $mk) {
+        $v = (string) get_post_meta($cel, $mk, true);
+        foreach ($REGI_TEMA as $w) { if ($v !== '' && mb_stripos($v, $w) !== false) { $teendo[] = $mk.' uritve'; if ($apply) { delete_post_meta($cel, $mk); } break; } }
+    }
+    return $teendo;
+}
+foreach (array(array($ujKurzus, $lezIngy, 'ingyenes'), array($ujVip, $lezVip, 'VIP')) as $par) {
+    if (!$par[0]) { continue; }
+    $t = kurzus_javitas($par[0], $par[1], $REGI_TEMA, false);
+    ki('  K1c '.$par[2].' #'.$par[0].' javitas: '.($t ? implode('; ', $t) : 'nincs mit'));
+}
 function &ku_elem(&$node, $id) {
     $nincs = null;
     if (!is_array($node)) { return $nincs; }
@@ -286,6 +384,13 @@ function &ku_elem(&$node, $id) {
     foreach ($node as $k => &$gy) { if ($k === 'settings' || !is_array($gy)) { continue; } $t =& ku_elem($gy, $id); if ($t !== null) { return $t; } }
     return $nincs;
 }
+$k4kell = false;
+if (!$K4NELKUL) {
+ki('  K4 shortcode a '.$SHORTCODE_ELEM.' elemben: id="'.$FORRAS_URLAP.'" -> az uj urlap ID-ja');
+
+$d = get_post_meta($OLDAL, '_elementor_data', true);
+$fa = json_decode((string) $d, true);
+if (!is_array($fa)) { ki('!! a landing _elementor_data nem dekodolhato.'); exit(2); }
 $e =& ku_elem($fa, $SHORTCODE_ELEM);
 $sc = ($e !== null && isset($e['settings']['shortcode'])) ? (string) $e['settings']['shortcode'] : null;
 unset($e);
@@ -296,6 +401,7 @@ if ($sc === null) { ki('!! a shortcode-elem hianyzik -- NEM IROK.'); exit(1); }
 if (!$k4kell && !($ujUrlap && preg_match('/\bid=["\']?'.$ujUrlap.'["\']?/', $sc))) {
     ki('!! a shortcode sem a forras ('.$FORRAS_URLAP.'), sem az uj urlapra nem mutat -- a lap elmozdult, NEM IROK.'); exit(1);
 }
+}
 if (!$APPLY) { ki(''); ki('SZARAZ MENET VEGE. Semmit nem irtunk.'); exit(0); }
 
 /* ================================================================ ELES */
@@ -303,13 +409,18 @@ ki('');
 if ($ujUrlap) {
     foreach (csoport_hiany($cs['kurzus'], $ujKurzus) as $m) { add_post_meta($ujKurzus, $m['k'], $m['v'], true); ki('K1b csoport-kotes potolva: '.$m['k']); }
 }
+foreach (array(array($ujKurzus, $lezIngy, 'ingyenes'), array($ujVip, $lezVip, 'VIP')) as $par) {
+    if (!$par[0]) { continue; }
+    $t = kurzus_javitas($par[0], $par[1], $REGI_TEMA, true);
+    if ($t) { ki('K1c '.$par[2].' #'.$par[0].' javitva: '.implode('; ', $t)); }
+}
 if (!$ujVip) {
-    $ujVip = kurzus_letrehoz($cs['vip_kurzus'], $viszVip, $UJ_VIP_CIM, $HONAP, 'vip');
+    $ujVip = kurzus_letrehoz($cs['vip_kurzus'], $viszVip, $UJ_VIP_CIM, $HONAP, 'vip', $lezVip, $REGI_TEMA);
     $kesz['vip_kurzus'] = $ujVip; update_option($OPCIO, $kesz, false);
 }
 if (!$ujUrlap) {
     /* K1 */
-    $ujKurzus = kurzus_letrehoz($cs['kurzus'], $viszIngy, $UJ_KURZUS_CIM, $HONAP, 'ingyenes');
+    $ujKurzus = kurzus_letrehoz($cs['kurzus'], $viszIngy, $UJ_KURZUS_CIM, $HONAP, 'ingyenes', $lezIngy, $REGI_TEMA);
 
     /* K2 */
     $uf = $cs['urlap'];
@@ -339,7 +450,9 @@ if (!$ujUrlap) {
 }
 
 /* K4 */
-if ($k4kell) {
+if ($K4NELKUL) {
+    ki('K4: kihagyva (--k4-nelkul).');
+} elseif ($k4kell) {
     $mentes = rtrim(getenv('HOME') ?: dirname($WP), '/').'/landing-urlap-mentes-'.$SITE.'-'.$OLDAL.'-'.gmdate('Ymd-His').'.txt';
     if (file_put_contents($mentes, $d) === false) { ki('!! a mentes nem sikerult -- a K4-et NEM irom.'); exit(1); }
     $e =& ku_elem($fa, $SHORTCODE_ELEM);
@@ -368,6 +481,15 @@ foreach (array(array($cs['kurzus'], $ujKurzus, 'ingyenes'), array($cs['vip_kurzu
     ki(sprintf('  %s kurzus #%d csoport-kotes: %d/%d a forras szerint%s', $nev, $cel, $db - count($hiany), $db, $hiany ? '  !! hianyzik' : '  (jo)'));
     if ($hiany || !get_post($cel)) { $rossz++; }
 }
+foreach (array(array($ujKurzus, $lezIngy, 'ingyenes'), array($ujVip, $lezVip, 'VIP')) as $par) {
+    list($cel, $vart, $nev) = $par;
+    $most = (string) get_post_meta($cel, 'tanfolyam_lezaras', true);
+    $sf = get_post_meta($cel, '_sfwd-courses', true);
+    $regiK = is_array($sf) ? sfwd_regi_kulcsok($sf, $REGI_TEMA) : array();
+    ki(sprintf('  %s #%d: zarodatum %s%s; hozzaferes-tipus %s; regi tema a beallitasban: %s', $nev, $cel, $most,
+        $most === $vart ? ' (jo)' : ' !! vart: '.$vart, is_array($sf) ? ($sf['sfwd-courses_course_price_type'] ?? '?') : '?', $regiK ? '!! '.implode(',', $regiK) : 'nincs'));
+    if ($most !== $vart || $regiK) { $rossz++; }
+}
 $vk = get_post($ujVip);
 ki('  VIP kurzus #'.$ujVip.': '.($vk ? '"'.$vk->post_title.'" '.$vk->post_status : '!! NINCS'));
 $fo = GFAPI::get_form($ujUrlap);
@@ -382,12 +504,22 @@ if (function_exists('vip_ld_from_ur_feed')) {
     $c = is_wp_error($fb) || !$fb ? array() : array_keys(array_filter((array) ($fb[0]['meta']['gf_user_registration_ldcourses'] ?? array())));
     ki('     kurzus a feedben: '.implode(',', $c).($c == array($ujKurzus) ? '  (jo)' : '  !! NEM a vart')); if ($c != array($ujKurzus)) { $rossz++; }
 }
+if ($K4NELKUL) {
+    list($elId, $elSc) = eles_landing_shortcode($SHORTCODE_ELEM);
+    $elOk = ($elSc !== null && preg_match($regiMintaK, $elSc));
+    ki('  elo landing #'.($elId ?: '-').' shortcode: '.($elSc ?? '-').($elOk ? '  (meg a '.$FORRAS_URLAP.'-es urlap -- jo, a landing nem mozdult)' : '  !! NEM a forras-urlap'));
+    if (!$elOk) { $rossz++; }
+    $lapok = urlapot_beagyazo_lapok($ujUrlap);
+    ki('  az uj urlapot ('.$ujUrlap.') beagyazo lap: '.($lapok ? '!! '.implode(',', $lapok) : 'egy sincs (jo, latogato nem eri el)'));
+    if ($lapok) { $rossz++; }
+} else {
 $faV = json_decode(get_post_meta($OLDAL, '_elementor_data', true), true);
 $e =& ku_elem($faV, $SHORTCODE_ELEM);
 $scV = $e === null ? '' : (string) ($e['settings']['shortcode'] ?? '');
 unset($e);
 $scOk = (bool) preg_match('/\bid=["\']?'.$ujUrlap.'["\']?/', $scV);
 ki('  shortcode: '.$scV.($scOk ? '  (jo)' : '  !! NEM az uj urlap')); if (!$scOk) { $rossz++; }
+}
 ki('');
 ki('KOVETKEZO (nem ez a szkript): Nessa a Sheet kihivasok fulre: kurzus_id_ingyenes = '.$ujKurzus.', kurzus_id_vip = '.$ujVip.' (a '.$SITE.'-hoz tartozo ID-k!),');
 ki('  utana az importer feltolti a leckeket. A kurzus leirasat Copy adja.');
