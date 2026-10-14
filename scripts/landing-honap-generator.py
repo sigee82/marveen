@@ -353,7 +353,7 @@ FEJ = r'''<?php
  * FORRAS: __FORRAS_MD__  md5=__MD5__  mtime=__MTIME__
  * MERT ELO ALLAPOT: __MERES__
  *
- *   --site=dev --oldal=<ID>                       SZARAZ a deven (semmit nem ir)
+ *   --site=dev --oldal=<ID>|jelolt                SZARAZ a deven (semmit nem ir)
  *   --site=dev --oldal=<ID> --apply               ELES a deven: csak a landing-dev-atvitel.php
  *                                                 altal jelolt oldalra ir
  *   --site=prod --oldal=<ID>                      SZARAZ a prodon
@@ -381,7 +381,7 @@ $YESPROD = in_array('--yes-prod', $ARGV, true);
 $SITE = ''; $OLDAL = 0; $WP = '';
 foreach ($ARGV as $a) {
     if (strpos($a, '--site=') === 0)  { $SITE = substr($a, 7); }
-    if (strpos($a, '--oldal=') === 0) { $OLDAL = (int) substr($a, 8); }
+    if (strpos($a, '--oldal=') === 0) { $OLDAL = substr($a, 8) === 'jelolt' ? -1 : (int) substr($a, 8); }
     if (strpos($a, '--wp=') === 0)    { $WP = rtrim(substr($a, 5), '/'); }
 }
 $PROBAPAD = getenv('LANDING_CSERE_PROBAPAD') === '1';
@@ -402,6 +402,18 @@ ki('LANDING '.$HONAP.' SZOVEG-CSERE  '.gmdate('c').' UTC   site='.$SITE.'  home=
 if ($PROBAPAD) { ki('*** PROBAPAD: a hoszt-ellenorzes KI van kapcsolva (a cel-orok elnek). ***'); }
 ki($APPLY ? '*** ELES MENET: IRNI FOG ***' : 'SZARAZ MENET: semmit nem ir');
 if (!$PROBAPAD && $host !== $HOSTOK[$SITE]) { ki('!! --site='.$SITE.', de ez a telepites: '.$host.'. ALLJ MEG.'); exit(2); }
+/* --oldal=jelolt: CSAK a deven, es csak ha PONTOSAN EGY atvitt (jelolt) oldal van. Igy a teljes
+   dev-menet (export, import, csere) egy SSH-korben futhat, az uj ID elore ismerete nelkul. */
+if ($OLDAL === -1) {
+    if ($SITE !== 'dev') { ki('!! Az --oldal=jelolt csak a deven ervenyes.'); exit(2); }
+    global $wpdb;
+    $j = $wpdb->get_col($wpdb->prepare("SELECT p.ID FROM {$wpdb->posts} p JOIN {$wpdb->postmeta} m ON m.post_id=p.ID
+        WHERE m.meta_key='_landing_atvitel_forras' AND m.meta_value=%s AND p.post_status NOT IN ('trash','inherit','auto-draft')",
+        (string) $FORRAS_ID));
+    if (count($j) !== 1) { ki('!! '.count($j).' jelolt oldal van, pontosan egyet vartam. Add meg az ID-t.'); exit(2); }
+    $OLDAL = (int) $j[0];
+    ki('--oldal=jelolt -> '.$OLDAL);
+}
 if ($OLDAL <= 0) { ki('!! KOTELEZO a --oldal=<ID>, szarazon is. Nem talalgatok.'); exit(2); }
 if (in_array($OLDAL, $TILTOTT, true) && $SITE === 'prod') {
     ki('!! A '.$OLDAL.' elo vagy korabbi landing -- NEM irunk ra.'); exit(2);
