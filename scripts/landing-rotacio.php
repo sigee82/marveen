@@ -5,7 +5,7 @@
  *   (alapertelmezes)  MERES: semmit nem ir. Kiirja a forras-oldal szerkezetet, a szoveg-elemeit
  *                     (elem-ID + a jelenlegi szoveg eleje) es a TELJES postameta-kulcslistat.
  *                     EZ KELL AHHOZ, hogy a szoveg-behelyettesitest VALODI adatra lehessen irni.
- *   --duplikal        Letrehozza az UJ oldalt a 17153 masolatakent, DRAFT statuszban, IDEIGLENES
+ *   --duplikal        Letrehozza az UJ oldalt a $FORRAS masolatakent, DRAFT statuszban, IDEIGLENES
  *                     slugon. A generalt metakat NEM masolja, a CSS-cache-t nem viszi at.
  *   --proba           CSAK a `--duplikal` mellett: a keletkezo oldalt ELDOBHATONAK jeloli.
  *                     Enelkul a `--proba-takarit` megtagadja a torleset -- mert a proba es az
@@ -154,10 +154,18 @@ $PROBA     = in_array('--proba', $ARGV, true);
 $UJ_ID = 0;
 foreach ($ARGV as $a) { if (strpos($a, '--uj-id=') === 0) { $UJ_ID = (int) substr($a, 8); } }
 
-$FORRAS       = (int) (getenv('LANDING_FORRAS') ?: 17153);   // a jelenlegi /ingyenes-kihivas/
-$REGI_UJ_SLUG = 'meal-prep-kihivas';          // amit a REGI kap (merve: SZABAD)
+/* A HONAPRA SZOLO ERTEKEK -- MINDEN ROTACIO ELOTT ITT, ES CSAK ITT KELL ATIRNI.
+ * 2026.10: forras 17153 (meal prep), regi -> 'meal-prep-kihivas', ideiglenes 'oktoberi-kihivas-eloke'.
+ * 2026.11: forras 17544 (egeszseges reggeli). Merve 2026-10-14 15:03 (Bit, Playwright): az elo
+ *   /ingyenes-kihivas/ body-classa page-id-17544, es a /egeszseges-reggeli-kihivas/ HTTP 404 (URL-szinten
+ *   szabad; a DB-szintu foglaltsagot a MERES fazis 3. pontja mondja meg, draftot/privatot is beleertve).
+ * A forrast NEM env-bol allitjuk at honaprol honapra: a LANDING_FORRAS probapadi feluliras, es a
+ * slug-cseret MEGTAGADJA -- vagyis egy eles menetben pont a lenyeget tiltana le. */
+$FORRAS       = (int) (getenv('LANDING_FORRAS') ?: 17544);   // a jelenlegi /ingyenes-kihivas/
+$REGI_UJ_SLUG = 'egeszseges-reggeli-kihivas'; // amit a REGI kap (HTTP 404 2026-10-14; DB: a meres mondja meg)
 $AKTIV_SLUG   = 'ingyenes-kihivas';
-$IDEIGLENES   = 'oktoberi-kihivas-eloke';     // az uj oldal slugja a csere ELOTT
+$IDEIGLENES   = 'novemberi-kihivas-eloke';    // az uj oldal slugja a csere ELOTT
+$UJ_CIM       = 'INGYENES KIHIVAS -- november (elokeszites)';
 
 /* A generalt metak: ezeket NEM masoljuk. Minden mast IGEN. */
 $NEM_MASOLANDO = array('_elementor_css', '_elementor_page_assets', '_elementor_element_cache',
@@ -306,7 +314,7 @@ if ($DUPLIKAL) {
     $uj = wp_insert_post(array(
         'post_type'    => $forras->post_type,
         'post_status'  => 'draft',                       // draftban szuletik, nem publikusan
-        'post_title'   => 'INGYENES KIHIVAS -- oktober (elokeszites)',
+        'post_title'   => $UJ_CIM,
         'post_name'    => $IDEIGLENES,
         'post_content' => $forras->post_content,
         'post_excerpt' => $forras->post_excerpt,
@@ -407,7 +415,7 @@ if ($DUPLIKAL) {
         ki('EZ ELDOBHATO PROBAOLDAL. A slugcsere ra NEM ervenyes; a menete a takaritas:');
         ki('  php -- --proba-takarit --uj-id='.$uj);
     } else {
-        ki('KOVETKEZO LEPES: a szoveg es a kepek bevitele az Elementorban (ember), MAJD:');
+        ki('KOVETKEZO LEPES: a szoveg-csere szkript (--site=prod --oldal='.$uj.'), a kepek, MAJD:');
         ki('  php -- --slugcsere --uj-id='.$uj);
         ki('');
         ki('EZ NEM PROBAOLDAL: `--proba` nelkul keszult, tehat ELES oldalkent kezeljuk, es a');

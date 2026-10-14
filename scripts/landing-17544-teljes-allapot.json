@@ -1,0 +1,382 @@
+{
+ "mikor_utc": "2026-10-14T13:08:30.436Z",
+ "forras": "https://vip.21napalatt.hu/ingyenes-kihivas/",
+ "oldal_id": "17544",
+ "hogyan": "Playwright, a RENDERELT DOM-bol, MEGJELENESI SORRENDBEN, minden [data-element_type=widget] elem. heading: .elementor-heading-title; text-editor: .elementor-widget-container innerText (+ a tagok szama); icon-list: az egyes .elementor-icon-list-text; button: .elementor-button-text. nbsp->szokoz, whitespace osszevonva. A szoveg RENDERELT (wptexturize utani), nem a tarolt. text-editor: a .elementor-widget-container innerHTML-je is (html), whitespace osszevonva -- ebbol jon a formazasi vaz (p/ul/li/strong/span/br).",
+ "mezok": [
+  {
+   "id": "1cc83f7b",
+   "ut": null,
+   "tipus": "social-icons",
+   "szoveg": "Facebook-f Instagram Youtube"
+  },
+  {
+   "id": "192b2dc9",
+   "ut": null,
+   "tipus": "image",
+   "szoveg": ""
+  },
+  {
+   "id": "74150e5",
+   "ut": null,
+   "tipus": "shortcode",
+   "szoveg": ""
+  },
+  {
+   "id": "38f46d80",
+   "ut": null,
+   "tipus": "nav-menu",
+   "szoveg": "Főoldal Program Tudásanyagok Kihívások Heti menü Receptek Közösség"
+  },
+  {
+   "id": "50544912",
+   "ut": null,
+   "tipus": "search-form",
+   "szoveg": "Keresés"
+  },
+  {
+   "id": "41adc9f",
+   "ut": null,
+   "tipus": "image",
+   "szoveg": ""
+  },
+  {
+   "id": "6b45d9c",
+   "ut": "title",
+   "tipus": "heading",
+   "szoveg": "Indul a 7 napos egészséges reggeli kihívás"
+  },
+  {
+   "id": "b3e8629",
+   "ut": "editor",
+   "tipus": "text-editor",
+   "szoveg": "Csatlakozz a kihíváshoz, és készíts velünk hét laktató reggelit egyszerű alapanyagokból, amelyek délig is kitarthatnak. 7 laktató, tápláló, egészséges reggeli heti bevásárlólista könnyen elkészíthető receptek iOS és Android applikáció",
+   "tag_db": 6,
+   "html": "<p>Csatlakozz a kihíváshoz, és készíts velünk hét laktató reggelit egyszerű alapanyagokból, amelyek délig is kitarthatnak.</p><ul><li>7 laktató, tápláló, egészséges reggeli</li><li>heti bevásárlólista</li><li>könnyen elkészíthető receptek</li><li>iOS és Android applikáció</li></ul>"
+  },
+  {
+   "id": "ed700ab",
+   "ut": "editor",
+   "tipus": "text-editor",
+   "szoveg": "Regisztrálj most, a kihívás teljesen ingyenes. Indulás: 2026. október 1.",
+   "tag_db": 3,
+   "html": "<p><strong>Regisztrálj most, a kihívás teljesen ingyenes.</strong> <br>Indulás: 2026. október 1.</p>"
+  },
+  {
+   "id": "2aec29b",
+   "ut": "text",
+   "tipus": "button",
+   "szoveg": "Én is kipróbálom"
+  },
+  {
+   "id": "043088b",
+   "ut": null,
+   "tipus": "image",
+   "szoveg": ""
+  },
+  {
+   "id": "6c78b0f2",
+   "ut": "title",
+   "tipus": "heading",
+   "szoveg": "Reggelizz úgy, hogy délig kitartson"
+  },
+  {
+   "id": "370bdfea",
+   "ut": "editor",
+   "tipus": "text-editor",
+   "szoveg": "Reggel kapkodsz, és a végén marad a kávé meg valami gyors édesség. Ismerős? Aztán tíz óra körül megjön az éhség, és már a keksz után nyúlsz, pedig reggeliztél. Nem a jó recept hiányzik. Reggel van a legkevesebb időd, és pont olyankor a legnehezebb kitalálni, mi kerüljön az asztalra. Az egészséges reggeli kihívás segít megismerni, mitől lesz egy reggeli igazán laktató, és hogyan kerülheted el, hogy tíz óra körül újra rád törjön az éhség. A kihívásban 7 különböző receptet készítünk el, és pontos bevásárlólistát is kapsz, így nem neked kell kitalálni, mit egyél reggel, egyszerűen csak készítsd el és élvezd. Nem az a cél, hogy holnaptól mindent másképp csinálj, hanem hogy egy hét alatt kipróbálj hét reggelit, és kiderüljön, melyik az a kettő-három, ami tényleg belefér a Te hétköznapodba.",
+   "tag_db": 4,
+   "html": "<p>Reggel kapkodsz, és a végén marad a kávé meg valami gyors édesség. Ismerős? Aztán tíz óra körül megjön az éhség, és már a keksz után nyúlsz, pedig reggeliztél.</p><p>Nem a jó recept hiányzik. Reggel van a legkevesebb időd, és pont olyankor a legnehezebb kitalálni, mi kerüljön az asztalra.</p><p>Az egészséges reggeli kihívás segít megismerni, mitől lesz egy reggeli igazán laktató, és hogyan kerülheted el, hogy tíz óra körül újra rád törjön az éhség. A kihívásban 7 különböző receptet készítünk el, és pontos bevásárlólistát is kapsz, így nem neked kell kitalálni, mit egyél reggel, egyszerűen csak készítsd el és élvezd.</p><p>Nem az a cél, hogy holnaptól mindent másképp csinálj, hanem hogy egy hét alatt kipróbálj hét reggelit, és kiderüljön, melyik az a kettő-három, ami tényleg belefér a Te hétköznapodba.</p>"
+  },
+  {
+   "id": "4aa9c3b",
+   "ut": "title",
+   "tipus": "heading",
+   "szoveg": "Miért éppen 7 nap?"
+  },
+  {
+   "id": "8c97ba3",
+   "ut": "editor",
+   "tipus": "text-editor",
+   "szoveg": "Brian Tracy gyakorlás törvénye kimondja, hogy ha egy tevékenységet elég sokszor ismételsz, akkor az szokássá válik. A megfelelő önfegyelemmel egy felnőtt embernek tizennégy és huszonegy nap közötti időre van szüksége ahhoz, hogy egy új szokást kialakítson. Ez idő alatt pedig rendszeresen kell ismételni az adott cselekvést. Az ingyenes kihívásban ehhez kapsz egy óriási lökést, és ha tetszik, folytasd tovább! Nem az a cél, hogy egyik napról a másikra mindent megváltoztass, hanem az, hogy megtapasztald, működik-e neked ez a fajta reggeli, egyszerűbb-e így reggelente jól dönteni. A 21napalatt VIP Klubban nem állunk meg 7 napnál, további 14 napig építjük együtt a reggeli-rendszeredet a zárt klubban. Ha kedvet kapsz, Téged is sok szeretettel várunk, csatlakozz hozzánk!",
+   "tag_db": 3,
+   "html": "<p>Brian Tracy gyakorlás törvénye kimondja, hogy ha egy tevékenységet elég sokszor ismételsz, akkor az szokássá válik. A megfelelő önfegyelemmel egy felnőtt embernek tizennégy és huszonegy nap közötti időre van szüksége ahhoz, hogy egy új szokást kialakítson. Ez idő alatt pedig rendszeresen kell ismételni az adott cselekvést. Az ingyenes kihívásban ehhez kapsz egy óriási lökést, és ha tetszik, folytasd tovább!</p><p>Nem az a cél, hogy egyik napról a másikra mindent megváltoztass, hanem az, hogy megtapasztald, működik-e neked ez a fajta reggeli, egyszerűbb-e így reggelente jól dönteni.</p><p>A 21napalatt VIP Klubban nem állunk meg 7 napnál, további 14 napig építjük együtt a reggeli-rendszeredet a zárt klubban. Ha kedvet kapsz, Téged is sok szeretettel várunk, csatlakozz hozzánk!</p>"
+  },
+  {
+   "id": "c0f829f",
+   "ut": "text",
+   "tipus": "button",
+   "szoveg": "Már megyek is"
+  },
+  {
+   "id": "18e743f",
+   "ut": null,
+   "tipus": "image",
+   "szoveg": ""
+  },
+  {
+   "id": "3eacd38",
+   "ut": null,
+   "tipus": "image",
+   "szoveg": ""
+  },
+  {
+   "id": "64ff707",
+   "ut": "title",
+   "tipus": "heading",
+   "szoveg": "Mire számíthatsz?"
+  },
+  {
+   "id": "17c1f49",
+   "ut": "editor",
+   "tipus": "text-editor",
+   "szoveg": "Minden reggel ott vár egy recept, és hozzá a heti bevásárlólista, hogy ne a hűtő előtt állva kelljen döntened. Hét reggelit próbálunk ki egy hét alatt, és mindet úgy raktuk össze, hogy segítsen egyensúlyban tartani a vércukrodat. A recepteket úgy válogattam össze, hogy IR-barátok, táplálóak és reggel is reálisan elkészíthetőek legyenek. A hozzávalókat a piacokon, boltok polcain könnyen megtalálod. Nem kell hozzájuk különleges konyhai tudás, és nem kell semmilyen speciális eszköz sem. Minden recept gluténmentes, tejmentes, és hozzáadott cukortól mentes. A kihívás teljesítésével egy csapásra két legyet is üthetsz: a 7. nap végén megveregetheted a válladat, hogy teljesítetted a tervet. De ami fontosabb, elindulhatsz az úton egy új, egészséges szokás kialakításához, amelyet csak folytatnod kell. A kihívás hét reggelén kipróbálhatod, milyen érzés egészséges, laktató reggelivel indítani a napot. Ha megszereted, a 21napalatt VIP Klubban együtt haladunk tovább!",
+   "tag_db": 4,
+   "html": "<p>Minden reggel ott vár egy recept, és hozzá a heti bevásárlólista, hogy ne a hűtő előtt állva kelljen döntened. Hét reggelit próbálunk ki egy hét alatt, és mindet úgy raktuk össze, hogy segítsen egyensúlyban tartani a vércukrodat.</p><p>A recepteket úgy válogattam össze, hogy IR-barátok, táplálóak és reggel is reálisan elkészíthetőek legyenek. A hozzávalókat a piacokon, boltok polcain könnyen megtalálod. Nem kell hozzájuk különleges konyhai tudás, és nem kell semmilyen speciális eszköz sem. Minden recept gluténmentes, tejmentes, és hozzáadott cukortól mentes.</p><p>A kihívás teljesítésével egy csapásra két legyet is üthetsz: a 7. nap végén megveregetheted a válladat, hogy teljesítetted a tervet. De ami fontosabb, elindulhatsz az úton egy új, egészséges szokás kialakításához, amelyet csak folytatnod kell.</p><p>A kihívás hét reggelén kipróbálhatod, milyen érzés egészséges, laktató reggelivel indítani a napot. Ha megszereted, a 21napalatt VIP Klubban együtt haladunk tovább!</p>"
+  },
+  {
+   "id": "e2e10c5",
+   "ut": "text",
+   "tipus": "button",
+   "szoveg": "Vágjunk bele, csatlakozom"
+  },
+  {
+   "id": "647b9fb",
+   "ut": null,
+   "tipus": "image",
+   "szoveg": ""
+  },
+  {
+   "id": "9a135ee",
+   "ut": "title",
+   "tipus": "heading",
+   "szoveg": "Mi változhat a reggeleidben?"
+  },
+  {
+   "id": "c927586",
+   "ut": "editor",
+   "tipus": "text-editor",
+   "szoveg": "Ebben a hétben nem kell reggelente kapkodva döntened. Reggelre ott a terv, neked már csak elő kell venned. A kihívás alatt megtapasztalhatod, hogy",
+   "tag_db": 2,
+   "html": "<p>Ebben a hétben nem kell reggelente kapkodva döntened. Reggelre ott a terv, neked már csak elő kell venned.</p><p>A kihívás alatt megtapasztalhatod, hogy</p>"
+  },
+  {
+   "id": "360da42",
+   "ut": "icon_list.0.text",
+   "tipus": "icon-list",
+   "szoveg": "kitarthat a jóllakottság délig, és elmaradhat a délelőtti éhségroham"
+  },
+  {
+   "id": "360da42",
+   "ut": "icon_list.1.text",
+   "tipus": "icon-list",
+   "szoveg": "milyen egyszerű egészségesen indítani a napot"
+  },
+  {
+   "id": "360da42",
+   "ut": "icon_list.2.text",
+   "tipus": "icon-list",
+   "szoveg": "negyedóra alatt is összeáll egy laktató reggeli"
+  },
+  {
+   "id": "360da42",
+   "ut": "icon_list.3.text",
+   "tipus": "icon-list",
+   "szoveg": "mennyivel nyugodtabb egy reggel, ha nem akkor kell kitalálni, mit egyél"
+  },
+  {
+   "id": "6a0ce87",
+   "ut": "editor",
+   "tipus": "text-editor",
+   "szoveg": "Ez nem egy méregtelenítő- vagy fogyókúra. A kihívás alatt nem kell semmit sem kihagynod a táplálkozásodból, nyugodtan eheted és ihatod ugyanazokat, amiket korábban is, mindössze a reggelidet rakjuk össze együtt egy kicsit másképp.",
+   "tag_db": 1,
+   "html": "<p>Ez nem egy méregtelenítő- vagy fogyókúra. A kihívás alatt nem kell semmit sem kihagynod a táplálkozásodból, nyugodtan eheted és ihatod ugyanazokat, amiket korábban is, mindössze a reggelidet rakjuk össze együtt egy kicsit másképp.</p>"
+  },
+  {
+   "id": "2053b90",
+   "ut": "text",
+   "tipus": "button",
+   "szoveg": "Wow, erre rámegyek"
+  },
+  {
+   "id": "62377a6",
+   "ut": null,
+   "tipus": "image",
+   "szoveg": ""
+  },
+  {
+   "id": "94b920d",
+   "ut": "title",
+   "tipus": "heading",
+   "szoveg": "Imádni fogod a kihívást, ha"
+  },
+  {
+   "id": "bb2a697",
+   "ut": "icon_list.0.text",
+   "tipus": "icon-list",
+   "szoveg": "reggelente kapkodsz, és a végén marad a kávé meg valami gyors édesség,"
+  },
+  {
+   "id": "bb2a697",
+   "ut": "icon_list.1.text",
+   "tipus": "icon-list",
+   "szoveg": "délelőtt tízkor már a keksz után nyúlsz, pedig reggeliztél,"
+  },
+  {
+   "id": "bb2a697",
+   "ut": "icon_list.2.text",
+   "tipus": "icon-list",
+   "szoveg": "unod a megszokott reggeliket, és nem jut eszedbe semmi új,"
+  },
+  {
+   "id": "bb2a697",
+   "ut": "icon_list.3.text",
+   "tipus": "icon-list",
+   "szoveg": "szeretnél egészségesebben reggelizni, de kevés időd van reggelenként,"
+  },
+  {
+   "id": "bb2a697",
+   "ut": "icon_list.4.text",
+   "tipus": "icon-list",
+   "szoveg": "kezdő életmódváltó vagy, és valami egyszerűvel kezdenél,"
+  },
+  {
+   "id": "bb2a697",
+   "ut": "icon_list.5.text",
+   "tipus": "icon-list",
+   "szoveg": "gluténmentesen vagy tejmentesen étkezel, és elfogytak az ötleteid,"
+  },
+  {
+   "id": "bb2a697",
+   "ut": "icon_list.6.text",
+   "tipus": "icon-list",
+   "szoveg": "munka és család mellett jól jönne egy kis segítség a reggelekhez,"
+  },
+  {
+   "id": "bb2a697",
+   "ut": "icon_list.7.text",
+   "tipus": "icon-list",
+   "szoveg": "vagy egyszerűen kíváncsi vagy, hogy mitől lesz laktató egy reggeli."
+  },
+  {
+   "id": "be0d9b5",
+   "ut": "editor",
+   "tipus": "text-editor",
+   "szoveg": "Remélem, a hét végére Te is úgy nézel majd a reggeli asztalon álló tányérodra, hogy ezt miért nem csináltam eddig?",
+   "tag_db": 1,
+   "html": "<p>Remélem, a hét végére Te is úgy nézel majd a reggeli asztalon álló tányérodra, hogy ezt miért nem csináltam eddig?</p>"
+  },
+  {
+   "id": "4ac6aea",
+   "ut": "text",
+   "tipus": "button",
+   "szoveg": "Naná, regisztrálok is"
+  },
+  {
+   "id": "e2e740b",
+   "ut": "title",
+   "tipus": "heading",
+   "szoveg": "A kihívás menete"
+  },
+  {
+   "id": "82a8a5a",
+   "ut": null,
+   "tipus": "image",
+   "szoveg": ""
+  },
+  {
+   "id": "fb7e110",
+   "ut": "title",
+   "tipus": "heading",
+   "szoveg": "Regisztrálj a kihívásra"
+  },
+  {
+   "id": "eadbb3d",
+   "ut": "editor",
+   "tipus": "text-editor",
+   "szoveg": "Utána máris be tudsz lépni a kihívás felületére.",
+   "tag_db": 2,
+   "html": "<p><span style=\"font-weight: 400;\">Utána máris be tudsz lépni a kihívás felületére.</span></p>"
+  },
+  {
+   "id": "3e5f4f7",
+   "ut": null,
+   "tipus": "image",
+   "szoveg": ""
+  },
+  {
+   "id": "1ed9313",
+   "ut": "title",
+   "tipus": "heading",
+   "szoveg": "Töltsd le az applikációt"
+  },
+  {
+   "id": "c0ad3ec",
+   "ut": "editor",
+   "tipus": "text-editor",
+   "szoveg": "iOS vagy Android készülékedre és lépj be!",
+   "tag_db": 2,
+   "html": "<p><span style=\"font-weight: 400;\">iOS vagy Android készülékedre és lépj be!</span></p>"
+  },
+  {
+   "id": "6e875be",
+   "ut": null,
+   "tipus": "image",
+   "szoveg": ""
+  },
+  {
+   "id": "cd7ec3e",
+   "ut": "title",
+   "tipus": "heading",
+   "szoveg": "Keresd a bevásárlólistát"
+  },
+  {
+   "id": "84b9598",
+   "ut": "editor",
+   "tipus": "text-editor",
+   "szoveg": "és szerezd be a hozzávalókat!",
+   "tag_db": 2,
+   "html": "<p><span style=\"font-weight: 400;\">és szerezd be a hozzávalókat!</span></p>"
+  },
+  {
+   "id": "76c4bce",
+   "ut": "title",
+   "tipus": "heading",
+   "szoveg": "Nyerj 1 hónap 21napalatt VIP Klub előfizetést Facebook nyereményjátékunkon"
+  },
+  {
+   "id": "1cfd5a8",
+   "ut": "editor",
+   "tipus": "text-editor",
+   "szoveg": "Készíts fotót az elkészült reggelidről. Posztold a kihívás Facebook csoportjában a @21napalatt_kihivas hashtaggel Október 8-án a legalább 1 képet feltöltők között kisorsolunk egy szerencsés résztvevőt, aki 1 hónapos 21napalatt VIP Klub előfizetést nyer. A 21napalatt VIP Klubtagság teljes hozzáférést ad a klub minden tartalmához: 21 napos életmódprogramhoz, a hetente frissülő menütervekhez, 600+ tej-, cukor- és gluténmentes recepthez, 21 napos kihívásokhoz, tudásanyagokhoz, a zárt Facebook csoporthoz.",
+   "tag_db": 8,
+   "html": "<ul><li><strong>Készíts fotót az elkészült reggelidről.</strong></li><li><strong>Posztold a kihívás Facebook csoportjában a @21napalatt_kihivas hashtaggel</strong></li></ul><p>Október 8-án a legalább 1 képet feltöltők között kisorsolunk egy szerencsés résztvevőt,<br>aki 1 hónapos 21napalatt VIP Klub előfizetést nyer.</p><p>A 21napalatt VIP Klubtagság teljes hozzáférést ad a klub minden tartalmához: 21 napos életmódprogramhoz, a hetente frissülő menütervekhez, 600+ tej-, cukor- és gluténmentes recepthez, 21 napos kihívásokhoz, tudásanyagokhoz, a zárt Facebook csoporthoz.</p>"
+  },
+  {
+   "id": "5b4972b",
+   "ut": "text",
+   "tipus": "button",
+   "szoveg": "Itt a helyem, regisztrálok"
+  },
+  {
+   "id": "3685e05",
+   "ut": "title",
+   "tipus": "heading",
+   "szoveg": "Jelentkezem a 7 napos egészséges reggeli kihívásra"
+  },
+  {
+   "id": "09fb214",
+   "ut": null,
+   "tipus": "shortcode",
+   "szoveg": "Töltsd ki az űrlapot és azonnal részt vehetsz az ingyenes kihíváson! Vezetéknév*"
+  },
+  {
+   "id": "8ce0efc",
+   "ut": "editor",
+   "tipus": "text-editor",
+   "szoveg": "© 21napalatt VIP – Minden jog fenntartva. – Kapcsolat |Adatvédelem |ÁSZF",
+   "tag_db": 8,
+   "html": "<span style=\"color: #ffffff;\"><b>© 21napalatt VIP</b>&nbsp;– Minden jog fenntartva. –</span> <strong><a style=\"color: #ffffff;\" href=\"https://vip.21napalatt.hu/profil/#kapcsolat\">Kapcsolat</a></strong> |<strong><a style=\"color: #ffffff;\" href=\"https://vip.21napalatt.hu/adatvedelem/\">Adatvédelem</a></strong> |<strong><a style=\"color: #ffffff;\" href=\"https://vip.21napalatt.hu/aszf/\">ÁSZF</a></strong>"
+  }
+ ]
+}
