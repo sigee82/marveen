@@ -1,0 +1,223 @@
+{
+ "verzio": "vazlat-2026-10-15-b",
+ "megjegyzes": "A SZOVEGKAPU adatfajlja (scripts/hooks/szovegkapu.py olvassa). EZ MEG VAZLAT: a vegleges tartalmat Copy adja at (Nova 20735); addig a meresi vazlat all itt. Szabaly-mezok: id, reteg (global|21napalatt), mufaj (['*'] = mind; tudasanyag, hirlevel, sales-level, landing, poszt), tipus (kifejezes|regex), minta, szint (stop|jelez), miert, rossz_pelda, jo_pelda. A Google-doksi ebbol generalodik (egy iranyban); a kommenteket Copy hozza vissza ide.",
+ "szabalyok": [
+  {
+   "id": "g-gondolatjel",
+   "reteg": "global",
+   "mufaj": [
+    "*"
+   ],
+   "tipus": "regex",
+   "minta": "—",
+   "szint": "stop",
+   "miert": "gondolatjel (em dash) sehol"
+  },
+  {
+   "id": "g-kis-extra",
+   "reteg": "global",
+   "mufaj": [
+    "*"
+   ],
+   "tipus": "regex",
+   "minta": "(?i)\\b(és )?egy kis extra\\s*:",
+   "szint": "stop",
+   "miert": "erzelemmentes AI-atvezetes (Eszter 2026-10-15)"
+  },
+  {
+   "id": "g-nincs-szigoru-szabaly",
+   "reteg": "global",
+   "mufaj": [
+    "*"
+   ],
+   "tipus": "regex",
+   "minta": "(?i)nincs(enek)? szigorú szabály",
+   "szint": "stop",
+   "miert": "AI-felmentes (Eszter ketszer jelolte)"
+  },
+  {
+   "id": "g-nem-kell-tokeletes",
+   "reteg": "global",
+   "mufaj": [
+    "*"
+   ],
+   "tipus": "regex",
+   "minta": "(?i)semmit nem kell tökéletesen",
+   "szint": "stop",
+   "miert": "AI-felmentes"
+  },
+  {
+   "id": "g-nem-kell-egyszerre-mindent",
+   "reteg": "global",
+   "mufaj": [
+    "*"
+   ],
+   "tipus": "regex",
+   "minta": "(?i)nem kell egyszerre mindent megváltoztat",
+   "szint": "stop",
+   "miert": "AI-felmentes"
+  },
+  {
+   "id": "g-ha-megszereted",
+   "reteg": "global",
+   "mufaj": [
+    "*"
+   ],
+   "tipus": "regex",
+   "minta": "(?i)\\bha megszereted\\b",
+   "szint": "stop",
+   "miert": "AI-tovabbhivas-sablon"
+  },
+  {
+   "id": "g-het-vegere-osszeall",
+   "reteg": "global",
+   "mufaj": [
+    "*"
+   ],
+   "tipus": "regex",
+   "minta": "(?i)a hét végére (szépen )?összeáll",
+   "szint": "stop",
+   "miert": "AI-osszeall-sablon"
+  },
+  {
+   "id": "g-szepen-osszeallnak",
+   "reteg": "global",
+   "mufaj": [
+    "*"
+   ],
+   "tipus": "regex",
+   "minta": "(?i)szépen összeáll",
+   "szint": "stop",
+   "miert": "AI-osszeall-sablon"
+  },
+  {
+   "id": "g-mi-valtozhat",
+   "reteg": "global",
+   "mufaj": [
+    "*"
+   ],
+   "tipus": "regex",
+   "minta": "(?i)mi változhat a(z)? \\w+(eid|aid|idben|eidben|aidban)\\b",
+   "szint": "stop",
+   "miert": "AI-valtozas-kerdes (nem a valtozas a fokusz)"
+  },
+  {
+   "id": "g-nem-x-hanem-y",
+   "reteg": "global",
+   "mufaj": [
+    "*"
+   ],
+   "tipus": "regex",
+   "minta": "(?i)\\bnem\\b[^.!?\\n]{1,80}?,\\s*hanem\\b",
+   "szint": "jelez",
+   "miert": "'nem X, hanem Y' AI-szerkezet -- JELZO (Nova 20748: Eszter jovahagyott szovegeben is van)"
+  },
+  {
+   "id": "21-porogjon-a-fejed",
+   "reteg": "21napalatt",
+   "mufaj": [
+    "*"
+   ],
+   "tipus": "regex",
+   "minta": "(?i)pörögjön a fejed",
+   "szint": "stop",
+   "miert": "Eszter: 'ilyet nem mondunk'"
+  },
+  {
+   "id": "21-kaves-vonal",
+   "reteg": "21napalatt",
+   "mufaj": [
+    "landing",
+    "hirlevel",
+    "poszt"
+   ],
+   "tipus": "regex",
+   "minta": "(?i)jólesik egy kávé",
+   "szint": "stop",
+   "miert": "Eszter: 'ne hozzuk be a kávés vonalat' (alvas)"
+  },
+  {
+   "id": "21-meregtelenito-irrelevans",
+   "reteg": "21napalatt",
+   "mufaj": [
+    "*"
+   ],
+   "tipus": "regex",
+   "minta": "(?i)nem egy méregtelenítő",
+   "szint": "stop",
+   "miert": "Eszter: irrelevans kiséro"
+  },
+  {
+   "id": "21-mind-uj-recept",
+   "reteg": "21napalatt",
+   "mufaj": [
+    "*"
+   ],
+   "tipus": "regex",
+   "minta": "(?i)mind a \\d+ recept új",
+   "szint": "stop",
+   "miert": "Eszter: hamis/irrelevans"
+  },
+  {
+   "id": "21-egy-het-az-egesz",
+   "reteg": "21napalatt",
+   "mufaj": [
+    "*"
+   ],
+   "tipus": "regex",
+   "minta": "(?i)egy hét az egész",
+   "szint": "stop",
+   "miert": "Eszter: az ingyenes hetet nem zarjuk le"
+  },
+  {
+   "id": "21-feladat-lista",
+   "reteg": "21napalatt",
+   "mufaj": [
+    "*"
+   ],
+   "tipus": "regex",
+   "minta": "(?i)amit még aznap este kipróbálhatsz",
+   "szint": "stop",
+   "miert": "Eszter: ne adjunk tobb feladatot"
+  },
+  {
+   "id": "21-vip-klub-nev",
+   "reteg": "21napalatt",
+   "mufaj": [
+    "*"
+   ],
+   "tipus": "regex",
+   "minta": "(?<!VIP )\\b[Kk]lub(ba|ban|bol|ból|hoz|nak|ot|ja|tagság|tagsag)?\\b",
+   "szint": "stop",
+   "miert": "Eszter: mindig 'VIP Klub'"
+  }
+ ],
+ "ugyfelek": {
+  "21napalatt": {
+   "jelek": [
+    "21napalatt",
+    "VIP Klub",
+    "vip.21napalatt.hu"
+   ],
+   "ugynokok": [
+    "nessa"
+   ],
+   "celok": {
+    "innosocial_client_id": [
+     55
+    ],
+    "innoplan_projekt": [
+     58,
+     68
+    ]
+   }
+  }
+ },
+ "mufaj_tipusok": [
+  "tudasanyag",
+  "hirlevel",
+  "sales-level",
+  "landing",
+  "poszt"
+ ]
+}
