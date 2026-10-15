@@ -243,11 +243,17 @@ def main():
     ap.add_argument('--forras', default=None,
                     help='a szoveg-forras (alapertelmezes: Copy fajlja). 2026-10-14 ota a JOVAHAGYOTT szoveg Eszter '
                          'doksija: landing-doksi-atalakito.py kimenete adhato meg itt.')
-    ap.add_argument('--horgony-elozo', default=None,
+    ap.add_argument('--horgony-elozo', action='append', default=None,
                     help='egy KORABBI kor parositas-JSON-ja, ami a celoldalon MAR LEFUTOTT: a CSERE-mezok horgonya '
                          'annak "uj" erteke lesz, nem a mert forras-allapot. Igy egy javitott doksi a mar atirt oldalra '
                          'mehet, visszaallitas nelkul (Nova 20674: a kepek veglegesek, a visszaallitas azokat is '
-                         'visszavinne). A formazas vaza tovabbra is a mert forras-HTML.')
+                         'visszavinne). A formazas vaza tovabbra is a mert forras-HTML. TOBBSZOR is megadhato, a futas '
+                         'SORRENDJEBEN (1. kor, 2. kor, ...): egy mezo az utolso olyan kor szovegen all, amelyik irta, es '
+                         'a korabbi korok listaelem-torlesei ($TOROL) is levonodnak.')
+    ap.add_argument('--kezi-html', action='append', default=None,
+                    help='<elem_id>=<fajl>: egy text-editor mezo KEZI HTML-je, ha a doksi blokkszerkezete elter a vaztol '
+                         '(2026-10-15: a 11. szekcio ket felsorolas-pontja egy mondat lett). A fajl tag nelkuli szovegenek '
+                         'BETURE egyeznie kell a doksi mezojevel, kulonben a generator megall; a horgony es a kapu ugyanugy fut.')
     ap.add_argument('--kapu-elfogad-allando', default='',
                     help='a szoveg-kapu --elfogad-allando kapcsoloja: CSAK a jovahagyo sajat, nevvel megnevezett '
                          'allando-blokk valtoztatasara (a kimenetben ELFOGADVA sorkent all).')
@@ -272,16 +278,19 @@ def main():
 
     # --horgony-elozo: a mar lefutott kor "uj" erteke a mezo jelenlegi szovege (a horgony forrasa);
     # a 'html' (a formazas vaza) a mert forras-allapot marad.
-    elozo = None
-    if a.horgony_elozo:
-        ej = json.load(io.open(a.horgony_elozo, encoding='utf-8'))
+    for ut_elozo in (a.horgony_elozo or []):
+        ej = json.load(io.open(ut_elozo, encoding='utf-8'))
         if ej.get('honap') != HONAP:
-            hiba(f'a --horgony-elozo a {ej.get("honap")} honape, nem a {HONAP}-e.')
+            hiba(f'a --horgony-elozo ({ut_elozo}) a {ej.get("honap")} honape, nem a {HONAP}-e.')
         elozo = {(p['elem_id'], p['ut']): p['uj'] for p in ej['parok']}
         for w in widgetek:
             u = elozo.get((w['id'], w['ut']))
             if u is not None:
                 w['szoveg'] = tagtalan(u)
+        # a kor altal mar torolt listaelemek az oldalon nincsenek tobbe (2026-10-15: a 2. kor 8 -> 7)
+        tor = {(t['elem_id'], 'icon_list.%d.text' % int(t['index'])) for t in ej.get('torol', [])}
+        if tor:
+            widgetek = [w for w in widgetek if (w['id'], w['ut']) not in tor]
 
     # PAROSITAS SORRENDBEN. Egy ikonos lista RÖVIDÜLHET (2026-10-15, Eszter: 8 -> 7 elem): a Copy N tetele az
     # oldal listajanak elso N elemere megy, a maradek a lista VEGEROL torlodik ($TOROL; a PHP csak akkor
@@ -319,6 +328,12 @@ def main():
         hiba(f'Copy {len(copy)} mezot ad, az oldalon {len(widgetek)} szoveges mezo van; a parositas nem ert a vegere.')
     torolt = {(t['elem_id'], 'icon_list.%d.text' % t['index']) for t in torol}
 
+    kezi = {}
+    for k in (a.kezi_html or []):
+        if '=' not in k:
+            hiba(f'--kezi-html alakja <elem_id>=<fajl>, ez nem az: {k}')
+        eid, ut_k = k.split('=', 1)
+        kezi[eid.strip()] = io.open(ut_k.strip(), encoding='utf-8').read().strip()
     parok, marad, bajok, megjegyzesek = [], [], [], []
     for i, (c, w) in enumerate(paros):
         hol = f'#{i} {c["szekcio"][:28]} / {c["cimke"]} <-> {w["id"]} {w["ut"]}'
@@ -336,7 +351,12 @@ def main():
             else:
                 marad.append({'elem_id': w['id'], 'ut': w['ut'], 'horgony': horgony(mert), 'cimke': c['cimke']})
             continue
-        if c['tipus'] == 'text-editor':
+        if c['tipus'] == 'text-editor' and w['id'] in kezi:
+            uj = kezi[w['id']]
+            if tagtalan(uj) != copy_sz:
+                hiba(f'--kezi-html {w["id"]}: a fajl szovege nem a doksie.\n      fajl:  {tagtalan(uj)[:110]}\n      doksi: {copy_sz[:110]}')
+            megjegyzesek.append(f'{w["id"]} ({c["cimke"]}): KEZI HTML (--kezi-html), a szovege betura a doksie')
+        elif c['tipus'] == 'text-editor':
             uj, megj = editor_html(w['html'], c['egysegek'], c['blokkok'], hol)
             if megj:
                 megjegyzesek.append(f'{w["id"]} ({c["cimke"]}): {megj}')
@@ -383,12 +403,12 @@ def main():
     json.dump({'honap': HONAP, 'forras': {'ut': COPY_MD, 'md5': md5, 'mtime': mtime},
                'meres': {'ut': ELO, 'mikor_utc': meres['mikor_utc']},
                'keszult': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-               'horgony_elozo': a.horgony_elozo,
+               'horgony_elozo': a.horgony_elozo or [],
                'parok': parok, 'marad': marad, 'torol': torol, 'megjegyzesek': megjegyzesek},
               io.open(KI_JSON, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
     fej = FEJ.replace('__HONAP__', HONAP).replace('__FORRAS_MD__', os.path.basename(COPY_MD)) \
              .replace('__MD5__', md5).replace('__MTIME__', mtime).replace('__MERES__', meres['mikor_utc']) \
-             .replace('__HORGONY__', ('a CSERE-mezok horgonya a mar lefutott kor szovege: ' + os.path.basename(a.horgony_elozo))
+             .replace('__HORGONY__', ('a CSERE-mezok horgonya a mar lefutott korok szovege: ' + ' -> '.join(os.path.basename(x) for x in a.horgony_elozo))
                       if a.horgony_elozo else 'a mert forras-allapot')
     if not UJ_CIM.strip() or "'" in UJ_CIM or '\\' in UJ_CIM:
         hiba('az UJ_CIM ures, vagy aposztrofot/backslasht tartalmaz.')
@@ -404,7 +424,7 @@ def main():
     print(f'@@ {len(copy)} Copy-mezo = {len(widgetek)} oldal-mezo; {len(parok)} VALTOZIK, '
           f'{len(marad)} valtozatlan (a MARAD mezok betura egyeznek -- a parositas nem csuszott el)')
     if a.horgony_elozo:
-        print(f'@@ HORGONY: a lefutott kor szovege ({os.path.basename(a.horgony_elozo)}), nem a mert forras-allapot')
+        print('@@ HORGONY: a lefutott korok szovege (' + ' -> '.join(os.path.basename(x) for x in a.horgony_elozo) + '), nem a mert forras-allapot')
     for p in parok:
         print(f"@@   CSERE {p['elem_id']:9} {p['ut']:18} {p['cimke'][:60]}")
     for t in torol:
