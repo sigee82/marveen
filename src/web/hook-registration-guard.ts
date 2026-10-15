@@ -59,6 +59,8 @@ export const KNOWN_HOOK_SCRIPTS: readonly string[] = [
   // The /clear continuity pair: SessionEnd capture + SessionStart replay.
   'clear-capture.py',
   'clear-replay.py',
+  // The AI-slop text gate on client-bound writes (Drive/Docs, mail, newsletter curl).
+  'szovegkapu.py',
 ]
 
 // Path fragment that marks a checkout as an agent worktree. Kept

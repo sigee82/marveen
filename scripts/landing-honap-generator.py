@@ -43,6 +43,7 @@ UJ_CIM = '7 napos ingyenes kihívás - Pihentető alvás 2026.11'
 KI_JSON = f'/Users/macmini/marveen/scripts/landing-{HONAP}-parositas.json'
 KI_PHP = f'/Users/macmini/marveen/scripts/landing-{HONAP}-szoveg-csere.php'
 SZOVEG_KAPU = '/Users/macmini/marveen/scripts/kihivas-landing-szoveg-kapu.py'
+SZOVEGKAPU = '/Users/macmini/marveen/scripts/hooks/szovegkapu.py'   # the fleet's AI-slop gate (Nova 20748)
 # ------------------------------------------------------------------
 
 NYITO, ZARO = '=== BEMENO-SZOVEG-KEZDETE ===', '=== BEMENO-SZOVEG-VEGE ==='
@@ -394,9 +395,16 @@ def main():
     print('@@ SZOVEG-KAPU az oldal VEGSO szovegen (exit %d):' % r.returncode)
     for s in r.stdout.strip().split('\n'):
         print('@@   ' + s)
+    r2 = subprocess.run([sys.executable, SZOVEGKAPU, 'ellenoriz', '--fajl', oldal_txt, '--ugyfel', '21napalatt',
+                         '--mufaj', 'landing'], capture_output=True, text=True)
+    print('@@ SZOVEGKAPU (AI-slop szabalyok) az oldal VEGSO szovegen (exit %d):' % r2.returncode)
+    for s in (r2.stdout + r2.stderr).strip().split('\n'):
+        print('@@   ' + s)
     os.unlink(oldal_txt)
     if r.returncode != 0:
         hiba('a szoveg-kapu nem 0-val tert vissza; a generalt PHP NEM keszult el.')
+    if r2.returncode != 0:
+        hiba('a SZOVEGKAPU nem 0-val tert vissza; a generalt PHP NEM keszult el.')
 
     md5 = hashlib.md5(copy_nyers).hexdigest()
     mtime = datetime.datetime.fromtimestamp(os.path.getmtime(COPY_MD)).strftime('%Y-%m-%d %H:%M:%S')

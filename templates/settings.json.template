@@ -235,6 +235,16 @@
         ]
       },
       {
+        "matcher": "Bash|mcp__google-drive__.*|mcp__claude_ai_Google_Drive__.*|mcp__claude_ai_Claude_Docs__.*|mcp__email__.*|.*send_email.*|.*draft.*|.*[Gg]mail.*__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c '[ -f {{PROJECT_ROOT}}/scripts/hooks/szovegkapu.py ] && exec python3 {{PROJECT_ROOT}}/scripts/hooks/szovegkapu.py; exit 0'",
+            "timeout": 15
+          }
+        ]
+      },
+      {
         "matcher": "Bash",
         "hooks": [
           {

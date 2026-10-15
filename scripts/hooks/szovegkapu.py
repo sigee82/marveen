@@ -185,6 +185,28 @@ def kapu(szoveg, ugyfel=None, mufaj='*', ugynok='', szabaly_ut=None):
     return stop, [x for x in t if x['szint'] == 'jelez']
 
 
+def pipeline(darabok, ugyfel, mufaj, ut_cimke):
+    """Pipeline-belepo a csomag-szkripteknek (InnoSocial, InnoPlan, landing): darabok = [(cimke, szoveg), ...].
+    Vissza: (stop_uzenet vagy None, jelzes_uzenet vagy None). Barmilyen hiba kivetelt dob: a hivo alljon meg (fail-closed)."""
+    stop_sor, jelez_sor = [], []
+    for cimke, szoveg in darabok:
+        if not (szoveg or '').strip():
+            continue
+        stop, jelez = kapu(szoveg, ugyfel, mufaj)
+        if stop:
+            naplo('STOP', stop, ut_cimke)
+            stop_sor.append(szoveges(stop, f'{cimke}:'))
+        if jelez:
+            naplo('JELEZ', jelez, ut_cimke)
+            jelez_sor.append(szoveges(jelez, f'{cimke}:'))
+    stop_txt = None
+    if stop_sor:
+        stop_txt = ('SZOVEGKAPU: megalltam, tiltott fordulat (' + ut_cimke + '):\n' + '\n'.join(stop_sor) +
+                    '\nJavitsd a mondatot. Ha SZANDEKOSAN idezed: python3 ' + os.path.join(REPO, 'scripts/hooks/szovegkapu.py') +
+                    ' idezet-engedely --mondat "<a mondat>" --indok "<miert>"')
+    return stop_txt, (('SZOVEGKAPU jelzes (' + ut_cimke + ', nem allitott meg):\n' + '\n'.join(jelez_sor)) if jelez_sor else None)
+
+
 def szoveges(talalatok, cim):
     sorok = [cim]
     for x in talalatok:
@@ -412,7 +434,31 @@ def cli(argv):
     ap.print_help(); return 2
 
 
+def hook_vedett():
+    """Egy varatlan kivetel exit 1 lenne, amit a Claude Code NEM blokkolonak vesz: az ugyfel fele meno uton ez nema
+    atengedes volna. Ezert a hook hibaja exit 2, kiveve a Telegramot (ott fail-open, Nova 20748 b)."""
+    nyers = sys.stdin.read()
+    try:
+        sys.stdin = io.StringIO(nyers)
+        return hook()
+    except Exception as e:
+        try:
+            bemenet = json.loads(nyers)
+            tool = bemenet.get('tool_name') or ''
+            cmd = str((bemenet.get('tool_input') or {}).get('command') or '')
+        except Exception:
+            tool, cmd = '', ''
+        if tool == 'Bash' and not any(cel in cmd for cel, _ in CURL_CELOK):
+            return 0   # a Bash-hivasok tulnyomo resze nem ugyfel fele megy: ott a kapu hibaja ne allitsa meg a flottat
+        if TELEGRAM_RX.search(tool):
+            print(json.dumps({'systemMessage': f'SZOVEGKAPU hiba (Telegram, atengedve): {type(e).__name__}: {e}'}, ensure_ascii=False))
+            return 0
+        naplo('HIBA-STOP', [], tool)
+        print(f'SZOVEGKAPU: belso hiba ({type(e).__name__}: {e}) -- ugyfel fele meno uton megallok (fail-closed).', file=sys.stderr)
+        return 2
+
+
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         sys.exit(cli(sys.argv[1:]))
-    sys.exit(hook())
+    sys.exit(hook_vedett())
