@@ -1,5 +1,5 @@
 {
-  "verzio": "copy-2026-10-15.2",
+  "verzio": "copy-2026-10-15.3",
   "forras": "agents/copy/munka/szovegszabalyok-20261015/build_tiltolista.py (ebbol generalva, kezzel NE szerkeszd)",
   "megjegyzes": "A 'manual' (szemantikus) szabalyok itt nincsenek: azok a Google-doksiban (1m4WUpnxInyQYaXqNQopPoQhHfMCa5mcncuA42ILU_9c) es a szovegszabalyok-tiltolista.json-ban allnak. Mufajok a Bit-listan tul: lecke, hirdetes.",
   "szabalyok": [
@@ -145,6 +145,32 @@
       "miert": "Tukrozott, ritmusos mondatpar ('Reggel elolvasod, este kipróbálod') -- 'ilyet ember nem mond'. Forras: Eszter TG 3234 (2026-10-13), Nessa hang-profil 819. sor",
       "rossz_pelda": "Így nem neked kell kitalálnod, hol kezdd: reggel elolvasod, este kipróbálod.",
       "jo_pelda": "így az sem stresszel esténként, hogy mi legyen a vacsora."
+    },
+    {
+      "id": "G-egyszer-szlogen",
+      "reteg": "global",
+      "mufaj": [
+        "*"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)^(egyszer\\s+\\w+|\\w+\\s+egyszer)\\b",
+      "szint": "stop",
+      "miert": "Jelmondat-szeru 'ige + egyszer' mondat ('Bevásárolsz egyszer', 'Főzöl egyszer', 'Egyszer főzöl, és...') -- kijelento, semmitmondo. Forras: Zsolt hangban, TG 20791 + 20793 (2026-10-15, Nova msg 20964/20965): 'ilyen kijelentő, semmitmondó, AI-slopos szar mondatok'",
+      "rossz_pelda": "Bevásárolsz egyszer",
+      "jo_pelda": "A hozzávalókat egy bevásárlólistára gyűjtöttük a heti menüdben."
+    },
+    {
+      "id": "G-csak-elo-kell-venned",
+      "reteg": "global",
+      "mufaj": [
+        "*"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\bcsak\\s+elő\\s+kell\\s+venned",
+      "szint": "stop",
+      "miert": "'3 napig csak elő kell venned' -- szlogen-kijelentes. Forras: Zsolt hangban, TG 20791 + 20793 (2026-10-15, Nova msg 20964/20965): 'ilyen kijelentő, semmitmondó, AI-slopos szar mondatok'",
+      "rossz_pelda": "3 napig csak elő kell venned",
+      "jo_pelda": "A heti menüben megnézheted, melyik nap melyik dobozt veszed elő."
     },
     {
       "id": "G-nem-x-hanem-y",
