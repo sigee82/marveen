@@ -5,7 +5,7 @@ MIERT (Zsolt, 2026-10-15, TG 20497/20499/20505/20507; Nova 20734/20748): Eszter 
 dobta ki ugyanazokat a fordulatokat ("Nincs szigorú szabály", "Ha megszereted", "A hét végére összeáll", "És egy kis
 extra:"). Egy szabaly-lista nem eleg: a kovetkezo szovegben visszajonnek. Ezert GEPI KAPU, ugynoktol fuggetlenul.
 
-KET RETEG, EGY ADATFAJLBAN (config/szovegszabalyok.json -- a minta nincs kodba egetve):
+KET RETEG, EGY ADATFAJLBAN (config/szovegszabalyok.json, Copy generalja; az ugyfel-felismeres: config/szovegkapu-ugyfelek.json):
   global       minden ugyfelre
   21napalatt   csak a 21napalatt szovegeire (Eszter hangja), mufaj-cimkevel
 Ugyfel: a hivo mondja meg (CLI/pipeline), vagy az ugynok (cwd), vagy a szoveg jele ("21napalatt", "VIP Klub").
@@ -37,6 +37,8 @@ import time
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SZABALY_UT = os.environ.get('SZOVEGKAPU_SZABALYOK') or os.path.join(REPO, 'config', 'szovegszabalyok.json')
+# az ugyfel-felismeres KULON fajl: a szabalyfajlt Copy generalja (build_tiltolista.py), az felulirna
+UGYFEL_UT = os.environ.get('SZOVEGKAPU_UGYFELEK') or os.path.join(REPO, 'config', 'szovegkapu-ugyfelek.json')
 ENGEDELY_UT = os.environ.get('SZOVEGKAPU_ENGEDELYEK') or os.path.join(REPO, 'store', 'szovegkapu-engedelyek.json')
 NAPLO_UT = os.environ.get('SZOVEGKAPU_NAPLO') or os.path.join(REPO, 'store', 'szovegkapu.log')
 ENGEDELY_PERC = 15
@@ -68,7 +70,12 @@ def betolt(ut=None):
         ki.append(dict(s, _rx=rx))
     if not ki:
         raise SzabalyHiba(f'a szabalyfajlban nincs szabaly ({ut})')
-    return ki, d.get('ugyfelek') or {}
+    ugyfelek = d.get('ugyfelek') or {}
+    try:
+        ugyfelek = json.load(io.open(UGYFEL_UT, encoding='utf-8')).get('ugyfelek') or ugyfelek
+    except Exception:
+        pass   # ugyfel-fajl nelkul csak a globalis reteg es a hivo altal megnevezett ugyfel fut
+    return ki, ugyfelek
 
 
 # ---------------------------------------------------------------- szoveg

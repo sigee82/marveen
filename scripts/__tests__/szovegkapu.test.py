@@ -23,7 +23,9 @@ TMP = tempfile.mkdtemp(prefix='szovegkapu-teszt-')
 ENV = dict(os.environ, SZOVEGKAPU_ENGEDELYEK=os.path.join(TMP, 'eng.json'), SZOVEGKAPU_NAPLO=os.path.join(TMP, 'naplo.log'))
 
 poz = json.load(io.open(os.path.join(FIX, 'eszter-elutasitott-2026-10-15.json'), encoding='utf-8'))
-neg = io.open(os.path.join(FIX, 'alvas-landing-rev734-jovahagyott.txt'), encoding='utf-8').read()
+# a jovahagyott szoveg a doksi-vaz NELKUL (Copy kontroll.py approved_texts(): szekciocimek, '->' linkek, mezocimkek kivagva)
+NEG = {m: io.open(os.path.join(FIX, f'alvas-rev734-{m}-jovahagyott.txt'), encoding='utf-8').read() for m in ('landing', 'hirlevel')}
+neg = NEG['landing'] + '\n' + NEG['hirlevel']
 
 ok = bad = 0
 def check(nev, cond, reszlet=''):
@@ -59,24 +61,24 @@ for nev, mk in UTAK.items():
 
 # --- a megallas a mondatot es a szabalyt nevezi meg
 rc, out, err = hook(UTAK['Drive (google-drive MCP createGoogleDoc)']('Ez nagyon jó. Ha megszereted, maradj velünk a VIP Klubban!'))
-check('a megallas szovege: a mondat, a szabaly-id es a kijelolt idezes-ut', rc == 2 and 'g-ha-megszereted' in err and 'Ha megszereted, maradj' in err and 'idezet-engedely' in err, err)
+check('a megallas szovege: a mondat, a szabaly-id es a kijelolt idezes-ut', rc == 2 and 'G-ha-megszereted' in err and 'Ha megszereted, maradj' in err and 'idezet-engedely' in err, err)
 
 # --- jelzo szint: a 'nem X, hanem Y' nem allit meg, de jelez
 rc, out, err = hook(UTAK['Drive (google-drive MCP createGoogleDoc)']('Nem az a cél, hogy rohanj, hanem az, hogy pihenj.'))
-check("'nem X, hanem Y' = JELZO: atmegy, systemMessage-ben jelez", rc == 0 and 'g-nem-x-hanem-y' in out, (rc, out, err))
+check("'nem X, hanem Y' = JELZO: atmegy, systemMessage-ben jelez", rc == 0 and 'G-nem-x-hanem-y' in out, (rc, out, err))
 
 # --- ugyfel-reteg: a 21napalatt szabaly csak 21napalatt szovegen (vagy Nessa cwd-jen) fut
 klub = 'A klubban minden héten új recept vár.'
 rc, out, err = hook({'tool_name': 'mcp__google-drive__createGoogleDoc', 'tool_input': {'content': klub}, 'cwd': '/Users/macmini/marveen/agents/pixel'})
 check('21napalatt-reteg: masik ugyfel szovegen (pixel cwd, jel nelkul) a "klub" szo nem all meg', rc == 0, err)
 rc, out, err = hook({'tool_name': 'mcp__google-drive__createGoogleDoc', 'tool_input': {'content': klub}, 'cwd': NESSA})
-check('21napalatt-reteg: Nessa cwd-jen a csupasz "klub" megall (mindig VIP Klub)', rc == 2 and '21-vip-klub-nev' in err, err)
+check('21napalatt-reteg: Nessa cwd-jen a csupasz "klub" megall (mindig VIP Klub)', rc == 2 and 'E-vip-klub' in err, err)
 rc, out, err = hook({'tool_name': 'mcp__google-drive__createGoogleDoc', 'tool_input': {'content': 'A 21napalatt ' + klub}, 'cwd': '/Users/macmini/marveen/agents/pixel'})
 check('21napalatt-reteg: a szoveg jele ("21napalatt") barhonnan bekapcsolja', rc == 2, err)
 
 # --- Telegram: SOHA nem allit meg, csak jelez (Nova 20748)
 rc, out, err = hook({'tool_name': 'mcp__plugin_telegram_telegram__reply', 'tool_input': {'chat_id': '1', 'text': 'Eszter kivette: Nincs szigorú szabály, és semmit nem kell tökéletesen csinálnod.'}, 'cwd': NESSA})
-check('Telegram: tiltott fordulat -> atmegy (exit 0), systemMessage-ben jelez', rc == 0 and 'g-nincs-szigoru-szabaly' in out, (rc, out, err))
+check('Telegram: tiltott fordulat -> atmegy (exit 0), systemMessage-ben jelez', rc == 0 and 'G-nincs-szigoru-szabaly' in out, (rc, out, err))
 
 # --- nem figyelt eszkoz / parancs: nem nez bele
 rc, out, err = hook({'tool_name': 'Bash', 'tool_input': {'command': 'echo "Ha megszereted" > /tmp/x.txt'}, 'cwd': NESSA})
@@ -122,8 +124,9 @@ sk = importlib.import_module('szovegkapu')
 sk.ENGEDELY_UT, sk.NAPLO_UT = ENV['SZOVEGKAPU_ENGEDELYEK'], ENV['SZOVEGKAPU_NAPLO']
 stop_db = sum(1 for p in poz if sk.kapu(p['mondat'], '21napalatt', 'poszt')[0])
 check(f'pipeline kapu(): pozitiv {len(poz)}/{len(poz)} stop (21napalatt, poszt)', stop_db == len(poz), stop_db)
-st, je = sk.kapu(neg, '21napalatt', 'landing')
-check('pipeline kapu(): negativ rev 734 -> 0 stop', not st, st)
+for m, txt in NEG.items():
+    st, je = sk.kapu(txt, '21napalatt', m)
+    check(f'pipeline kapu(): negativ rev 734 ({m}) -> 0 stop', not st, st)
 f = os.path.join(TMP, 'poszt.txt'); io.open(f, 'w', encoding='utf-8').write(poz[0]['mondat'])
 r = subprocess.run([sys.executable, KAPU, 'ellenoriz', '--fajl', f, '--ugyfel', '21napalatt', '--mufaj', 'poszt'], capture_output=True, text=True, env=ENV)
 check('CLI ellenoriz: tiltott -> exit 1, kiirja a szabalyt', r.returncode == 1 and 'STOP' in r.stdout, r.stdout)

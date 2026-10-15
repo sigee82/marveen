@@ -1,223 +1,646 @@
 {
- "verzio": "vazlat-2026-10-15-b",
- "megjegyzes": "A SZOVEGKAPU adatfajlja (scripts/hooks/szovegkapu.py olvassa). EZ MEG VAZLAT: a vegleges tartalmat Copy adja at (Nova 20735); addig a meresi vazlat all itt. Szabaly-mezok: id, reteg (global|21napalatt), mufaj (['*'] = mind; tudasanyag, hirlevel, sales-level, landing, poszt), tipus (kifejezes|regex), minta, szint (stop|jelez), miert, rossz_pelda, jo_pelda. A Google-doksi ebbol generalodik (egy iranyban); a kommenteket Copy hozza vissza ide.",
- "szabalyok": [
-  {
-   "id": "g-gondolatjel",
-   "reteg": "global",
-   "mufaj": [
-    "*"
-   ],
-   "tipus": "regex",
-   "minta": "—",
-   "szint": "stop",
-   "miert": "gondolatjel (em dash) sehol"
-  },
-  {
-   "id": "g-kis-extra",
-   "reteg": "global",
-   "mufaj": [
-    "*"
-   ],
-   "tipus": "regex",
-   "minta": "(?i)\\b(és )?egy kis extra\\s*:",
-   "szint": "stop",
-   "miert": "erzelemmentes AI-atvezetes (Eszter 2026-10-15)"
-  },
-  {
-   "id": "g-nincs-szigoru-szabaly",
-   "reteg": "global",
-   "mufaj": [
-    "*"
-   ],
-   "tipus": "regex",
-   "minta": "(?i)nincs(enek)? szigorú szabály",
-   "szint": "stop",
-   "miert": "AI-felmentes (Eszter ketszer jelolte)"
-  },
-  {
-   "id": "g-nem-kell-tokeletes",
-   "reteg": "global",
-   "mufaj": [
-    "*"
-   ],
-   "tipus": "regex",
-   "minta": "(?i)semmit nem kell tökéletesen",
-   "szint": "stop",
-   "miert": "AI-felmentes"
-  },
-  {
-   "id": "g-nem-kell-egyszerre-mindent",
-   "reteg": "global",
-   "mufaj": [
-    "*"
-   ],
-   "tipus": "regex",
-   "minta": "(?i)nem kell egyszerre mindent megváltoztat",
-   "szint": "stop",
-   "miert": "AI-felmentes"
-  },
-  {
-   "id": "g-ha-megszereted",
-   "reteg": "global",
-   "mufaj": [
-    "*"
-   ],
-   "tipus": "regex",
-   "minta": "(?i)\\bha megszereted\\b",
-   "szint": "stop",
-   "miert": "AI-tovabbhivas-sablon"
-  },
-  {
-   "id": "g-het-vegere-osszeall",
-   "reteg": "global",
-   "mufaj": [
-    "*"
-   ],
-   "tipus": "regex",
-   "minta": "(?i)a hét végére (szépen )?összeáll",
-   "szint": "stop",
-   "miert": "AI-osszeall-sablon"
-  },
-  {
-   "id": "g-szepen-osszeallnak",
-   "reteg": "global",
-   "mufaj": [
-    "*"
-   ],
-   "tipus": "regex",
-   "minta": "(?i)szépen összeáll",
-   "szint": "stop",
-   "miert": "AI-osszeall-sablon"
-  },
-  {
-   "id": "g-mi-valtozhat",
-   "reteg": "global",
-   "mufaj": [
-    "*"
-   ],
-   "tipus": "regex",
-   "minta": "(?i)mi változhat a(z)? \\w+(eid|aid|idben|eidben|aidban)\\b",
-   "szint": "stop",
-   "miert": "AI-valtozas-kerdes (nem a valtozas a fokusz)"
-  },
-  {
-   "id": "g-nem-x-hanem-y",
-   "reteg": "global",
-   "mufaj": [
-    "*"
-   ],
-   "tipus": "regex",
-   "minta": "(?i)\\bnem\\b[^.!?\\n]{1,80}?,\\s*hanem\\b",
-   "szint": "jelez",
-   "miert": "'nem X, hanem Y' AI-szerkezet -- JELZO (Nova 20748: Eszter jovahagyott szovegeben is van)"
-  },
-  {
-   "id": "21-porogjon-a-fejed",
-   "reteg": "21napalatt",
-   "mufaj": [
-    "*"
-   ],
-   "tipus": "regex",
-   "minta": "(?i)pörögjön a fejed",
-   "szint": "stop",
-   "miert": "Eszter: 'ilyet nem mondunk'"
-  },
-  {
-   "id": "21-kaves-vonal",
-   "reteg": "21napalatt",
-   "mufaj": [
-    "landing",
-    "hirlevel",
-    "poszt"
-   ],
-   "tipus": "regex",
-   "minta": "(?i)jólesik egy kávé",
-   "szint": "stop",
-   "miert": "Eszter: 'ne hozzuk be a kávés vonalat' (alvas)"
-  },
-  {
-   "id": "21-meregtelenito-irrelevans",
-   "reteg": "21napalatt",
-   "mufaj": [
-    "*"
-   ],
-   "tipus": "regex",
-   "minta": "(?i)nem egy méregtelenítő",
-   "szint": "stop",
-   "miert": "Eszter: irrelevans kiséro"
-  },
-  {
-   "id": "21-mind-uj-recept",
-   "reteg": "21napalatt",
-   "mufaj": [
-    "*"
-   ],
-   "tipus": "regex",
-   "minta": "(?i)mind a \\d+ recept új",
-   "szint": "stop",
-   "miert": "Eszter: hamis/irrelevans"
-  },
-  {
-   "id": "21-egy-het-az-egesz",
-   "reteg": "21napalatt",
-   "mufaj": [
-    "*"
-   ],
-   "tipus": "regex",
-   "minta": "(?i)egy hét az egész",
-   "szint": "stop",
-   "miert": "Eszter: az ingyenes hetet nem zarjuk le"
-  },
-  {
-   "id": "21-feladat-lista",
-   "reteg": "21napalatt",
-   "mufaj": [
-    "*"
-   ],
-   "tipus": "regex",
-   "minta": "(?i)amit még aznap este kipróbálhatsz",
-   "szint": "stop",
-   "miert": "Eszter: ne adjunk tobb feladatot"
-  },
-  {
-   "id": "21-vip-klub-nev",
-   "reteg": "21napalatt",
-   "mufaj": [
-    "*"
-   ],
-   "tipus": "regex",
-   "minta": "(?<!VIP )\\b[Kk]lub(ba|ban|bol|ból|hoz|nak|ot|ja|tagság|tagsag)?\\b",
-   "szint": "stop",
-   "miert": "Eszter: mindig 'VIP Klub'"
-  }
- ],
- "ugyfelek": {
-  "21napalatt": {
-   "jelek": [
-    "21napalatt",
-    "VIP Klub",
-    "vip.21napalatt.hu"
-   ],
-   "ugynokok": [
-    "nessa"
-   ],
-   "celok": {
-    "innosocial_client_id": [
-     55
-    ],
-    "innoplan_projekt": [
-     58,
-     68
-    ]
-   }
-  }
- },
- "mufaj_tipusok": [
-  "tudasanyag",
-  "hirlevel",
-  "sales-level",
-  "landing",
-  "poszt"
- ]
+  "verzio": "copy-2026-10-15",
+  "forras": "agents/copy/munka/szovegszabalyok-20261015/build_tiltolista.py (ebbol generalva, kezzel NE szerkeszd)",
+  "megjegyzes": "A 'manual' (szemantikus) szabalyok itt nincsenek: azok a Google-doksiban (1m4WUpnxInyQYaXqNQopPoQhHfMCa5mcncuA42ILU_9c) es a szovegszabalyok-tiltolista.json-ban allnak. Mufajok a Bit-listan tul: lecke, hirdetes.",
+  "szabalyok": [
+    {
+      "id": "G-gondolatjel",
+      "reteg": "global",
+      "mufaj": [
+        "*"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)—|(?<=\\S )[–-]{1,2}(?= )",
+      "szint": "stop",
+      "miert": "Gondolatjel (em/en dash vagy szokozzel kort kotojel) a szovegben. Forras: Nova CLAUDE.md 'Nincs gondolatjel. Soha.' (Zsolt); Zsolt, TG 20497/20499/20505/20507, 2026-10-15 (Nova msg 20734/20735)",
+      "rossz_pelda": "Pihentető esték – kipihent reggelek",
+      "jo_pelda": "Pihentetőbb éjszakák, energikus reggelek"
+    },
+    {
+      "id": "G-kis-extra",
+      "reteg": "global",
+      "mufaj": [
+        "*"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\bkis\\s+extra\\b",
+      "szint": "stop",
+      "miert": "'És egy kis extra:' -- erzelemmentes AI-fordulat. Forras: Zsolt, TG 20497/20499/20505/20507, 2026-10-15 (Nova msg 20734/20735); Eszter doksi-komment, alvas landing+hirlevel doksi 1edz1Mlm9ZpjAeDheGMUwkwGTh4fh8c5mS1_QMiYeHI0 AAACIy0GnLg (Eszter: 'megint az AI-os érzelemmentes megfogalmazás')",
+      "rossz_pelda": "És egy kis extra: ha lefotózod az elkészült vacsorádat vagy esti italodat, ... 1 hónap VIP Klub-tagságot nyerhetsz.",
+      "jo_pelda": "És hoztunk egy kis meglepetést is! 🎁"
+    },
+    {
+      "id": "G-nincs-szigoru-szabaly",
+      "reteg": "global",
+      "mufaj": [
+        "*"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\bnincs(enek)?\\s+szigorú\\s+szabály",
+      "szint": "stop",
+      "miert": "'Nincs szigorú szabály' -- felmento AI-formula. Forras: Zsolt, TG 20497/20499/20505/20507, 2026-10-15 (Nova msg 20734/20735); Eszter doksi-komment, alvas landing+hirlevel doksi 1edz1Mlm9ZpjAeDheGMUwkwGTh4fh8c5mS1_QMiYeHI0 AAACIIL47gA + AAACIy0GnL4 (ketszer jelolve)",
+      "rossz_pelda": "Nincs szigorú szabály, és semmit nem kell tökéletesen csinálnod, csak apró lépések jönnek, amelyektől este könnyebben jöhet az álom, reggel pedig kipihentebben ébredhetsz.",
+      "jo_pelda": "Milyen jó lenne három hét múlva úgy lefeküdni, hogy nem forgolódsz órákig, és reggel kipihenten, jókedvvel kezdeni a napot!"
+    },
+    {
+      "id": "G-nem-kell-tokeletes",
+      "reteg": "global",
+      "mufaj": [
+        "*"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\bnem\\s+kell\\s+(\\w+\\s+)?tökéletesen\\b",
+      "szint": "stop",
+      "miert": "'(semmit) nem kell tökéletesen csinálnod' -- felmento AI-formula. Forras: Zsolt, TG 20497/20499/20505/20507, 2026-10-15 (Nova msg 20734/20735); Eszter doksi-komment, alvas landing+hirlevel doksi 1edz1Mlm9ZpjAeDheGMUwkwGTh4fh8c5mS1_QMiYeHI0 AAACIIL47gA, AAACIy0GnL4",
+      "rossz_pelda": "És nem kell felforgatnod az estéidet! Nincs szigorú szabály, és semmit nem kell tökéletesen csinálnod.",
+      "jo_pelda": "Nem kell felforgatnod az életed, és nem kerül több feladat a listádra."
+    },
+    {
+      "id": "G-nem-kell-tokeletesnek",
+      "reteg": "global",
+      "mufaj": [
+        "*"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\bnem\\s+kell\\s+(\\w+\\s+)?tökéletesnek\\b",
+      "szint": "jelez",
+      "miert": "'Nem kell tökéletesnek lenned' -- a felmento formula rokona, nezd meg, hol all. Forras: Eszter 2026-08-03: a v3 sales E4 kifogas-valaszaban VALTOZATLANUL hagyta ('Nem kell tökéletesnek lenned. Ha az elvek 80%-át tartod...'); 2026-10-15-en a 'tökéletesen csinálnod' alakot utasitotta el",
+      "rossz_pelda": "Nem kell tökéletesnek lenned, és nem kell egyszerre mindent megváltoztatnod.",
+      "jo_pelda": "Félek, hogy megint feladom majd. Nem kell tökéletesnek lenned. (sales E4 kifogás-válasz, Eszter meghagyta, ezért csak jelez)"
+    },
+    {
+      "id": "G-nem-kell-egyszerre-mindent",
+      "reteg": "global",
+      "mufaj": [
+        "*"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\bnem\\s+kell\\s+egyszerre\\s+mindent",
+      "szint": "stop",
+      "miert": "'nem kell egyszerre mindent megváltoztatnod' -- felmento AI-formula. Forras: Eszter doksi-komment, alvas landing+hirlevel doksi 1edz1Mlm9ZpjAeDheGMUwkwGTh4fh8c5mS1_QMiYeHI0 AAACIy0GnLI (Eszter: 'nagyon ai-os')",
+      "rossz_pelda": "Ezen a héten nem kell egyszerre mindent megváltoztatnod. Minden nap csak egy apró lépés jön, és a hét végére ezek szépen összeállnak.",
+      "jo_pelda": ""
+    },
+    {
+      "id": "G-ha-megszereted",
+      "reteg": "global",
+      "mufaj": [
+        "*"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\bha\\s+megszereted\\b",
+      "szint": "stop",
+      "miert": "'Ha megszereted, ...' -- AI-fordulat. Forras: Zsolt, TG 20497/20499/20505/20507, 2026-10-15 (Nova msg 20734/20735); Eszter doksi-komment, alvas landing+hirlevel doksi 1edz1Mlm9ZpjAeDheGMUwkwGTh4fh8c5mS1_QMiYeHI0 AAACIy0GnLE (Eszter: 'nagyon AI-os')",
+      "rossz_pelda": "Ha megszereted, a 21napalatt VIP Klubban együtt haladunk tovább!",
+      "jo_pelda": "A 21napalatt VIP Klubban nem állunk meg 7 napnál, további 14 napig folytatjuk együtt a pihentető esték építését."
+    },
+    {
+      "id": "G-osszeall",
+      "reteg": "global",
+      "mufaj": [
+        "*"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\b(hét|nap|hónap|kihívás)\\s+végére\\s+(\\w+\\s+){0,2}összeáll|\\bszépen\\s+összeáll",
+      "szint": "stop",
+      "miert": "'A hét végére összeáll ...' / 'szépen összeállnak' -- AI-fordulat. Forras: Zsolt, TG 20497/20499/20505/20507, 2026-10-15 (Nova msg 20734/20735); Eszter TG 3222 (2026-10-13) peldamondata; Eszter doksi-komment, alvas landing+hirlevel doksi 1edz1Mlm9ZpjAeDheGMUwkwGTh4fh8c5mS1_QMiYeHI0 AAACIy0GnLI",
+      "rossz_pelda": "A hét végére összeáll a saját esti rutinod alapja.",
+      "jo_pelda": ""
+    },
+    {
+      "id": "G-mi-valtozhat",
+      "reteg": "global",
+      "mufaj": [
+        "*"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\bmi\\s+változhat\\b",
+      "szint": "stop",
+      "miert": "'Mi változhat az estéidben?' -- AI-cimsor; nem a valtozas a fokusz. Forras: Zsolt, TG 20497/20499/20505/20507, 2026-10-15 (Nova msg 20734/20735); Eszter doksi-komment, alvas landing+hirlevel doksi 1edz1Mlm9ZpjAeDheGMUwkwGTh4fh8c5mS1_QMiYeHI0 AAACIy0GnLM (Eszter: 'ez is ai-os nem a változás a fókusz, hanem a pihentető alvás')",
+      "rossz_pelda": "Mi változhat az estéidben?",
+      "jo_pelda": "Pihentetőbb éjszakák, energikus reggelek"
+    },
+    {
+      "id": "G-porog-a-fej",
+      "reteg": "global",
+      "mufaj": [
+        "*"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\bpörög\\w*\\s+a\\s+fej",
+      "szint": "stop",
+      "miert": "'pörögjön a fejed' -- 'ilyet nem mondunk'. Forras: Eszter doksi-komment, alvas landing+hirlevel doksi 1edz1Mlm9ZpjAeDheGMUwkwGTh4fh8c5mS1_QMiYeHI0 AAACIy0GnLw; Eszter rev 734 sajat atirasa",
+      "rossz_pelda": "hogy ne pörögjön a fejed, amikor végre lefekszel.",
+      "jo_pelda": "hogy ne a napi teendőkön pörögjünk, amikor végre ágyba kerülünk."
+    },
+    {
+      "id": "G-elolvasod-kiprobalod",
+      "reteg": "global",
+      "mufaj": [
+        "*"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\breggel\\s+elolvasod,?\\s+(és\\s+)?este\\s+kipróbálod",
+      "szint": "stop",
+      "miert": "Tukrozott, ritmusos mondatpar ('Reggel elolvasod, este kipróbálod') -- 'ilyet ember nem mond'. Forras: Eszter TG 3234 (2026-10-13), Nessa hang-profil 819. sor",
+      "rossz_pelda": "Így nem neked kell kitalálnod, hol kezdd: reggel elolvasod, este kipróbálod.",
+      "jo_pelda": "így az sem stresszel esténként, hogy mi legyen a vacsora."
+    },
+    {
+      "id": "G-nem-x-hanem-y",
+      "reteg": "global",
+      "mufaj": [
+        "*"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\bnem\\s+[^.!?\\n]{1,60},\\s*hanem\\b",
+      "szint": "jelez",
+      "miert": "'nem X, hanem Y' szembeallitas -- egy szovegben legfeljebb egy. Forras: Zsolt, TG 20497/20499/20505/20507, 2026-10-15 (Nova msg 20734/20735); copy-qa 3. tipus (Zsolt korrekcioja, 2026-08-09: 18-bol 1 maradt)",
+      "rossz_pelda": "",
+      "jo_pelda": "Képzeld el, milyen jó lenne, ha este nem forgolódnál órákig, hanem egyszer csak elnyomna az álom (Eszter jóváhagyta, ezért csak jelez)"
+    },
+    {
+      "id": "G-mikor-harmas",
+      "reteg": "global",
+      "mufaj": [
+        "*"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\bmikor\\b[^.!?\\n]{1,70}\\bmikor\\b[^.!?\\n]{1,70}\\bmikor\\b",
+      "szint": "jelez",
+      "miert": "Gepies harmas felsorolas egy mondatban ('mikor ..., mikor ..., mikor ...'). Forras: Eszter TG 3222 (2026-10-13); Eszter doksi-komment, alvas landing+hirlevel doksi 1edz1Mlm9ZpjAeDheGMUwkwGTh4fh8c5mS1_QMiYeHI0 AAACIy0GnL0, AAACIIL47gM; Zsolt, TG 20497/20499/20505/20507, 2026-10-15 (Nova msg 20734/20735) (leltar-felsorolas)",
+      "rossz_pelda": "Megnézzük, miért reggel kezdődik a jó alvás, mikor érdemes meginni az utolsó kávét, mikor vacsorázz, mikor tompítsd a fényeket.",
+      "jo_pelda": "Megnézzük, mitől leszünk álmosak esténként, és milyen apróságokkal segíthetjük, hogy könnyebben elaludjunk."
+    },
+    {
+      "id": "G-idegen-kifejezes",
+      "reteg": "global",
+      "mufaj": [
+        "*"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\b(game\\s*changer|next\\s+level|must[\\s-]have|boost\\w*|feature\\w*|benefit\\w*|insight\\w*|workflow\\w*|content\\w*|brand\\w*|solution\\w*|mindset\\w*|self[\\s-]?care|wellbeing|wellness|detox\\w*)\\b",
+      "szint": "jelez",
+      "miert": "Idegen (angol) kifejezes magyarazat nelkul. Forras: Zsolt, TG 20497/20499/20505/20507, 2026-10-15 (Nova msg 20734/20735); hu-localization 3b/F (14 bevalt magyar landingen 0 elofordulas)",
+      "rossz_pelda": "",
+      "jo_pelda": ""
+    },
+    {
+      "id": "G-toltelek-nyitany",
+      "reteg": "global",
+      "mufaj": [
+        "*"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\b(a\\s+mai\\s+rohanó\\s+világban|napjainkban|mindannyian\\s+tudjuk,\\s+hogy|nem\\s+titok,\\s+hogy|az\\s+igazság\\s+az,\\s+hogy|egy\\s+dolog\\s+biztos|nem\\s+véletlen,\\s+hogy|fedezd\\s+fel|merülj\\s+el)\\b",
+      "szint": "jelez",
+      "miert": "Toltelek-nyitany / sablonfordulat. Forras: hu-localization 3b/A (korpusz: 14 landing, 0 elofordulas); szoveg-slopcheck.py toltelek-nyitas",
+      "rossz_pelda": "",
+      "jo_pelda": ""
+    },
+    {
+      "id": "G-ures-jelzo",
+      "reteg": "global",
+      "mufaj": [
+        "*"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\b(átfogó|széles\\s+körű|kulcsfontosságú|elengedhetetlen|innovatív\\s+megoldás|testreszabott\\s+megoldás|tökéletes\\s+megoldás|piacvezető|élvonalbeli|forradalmi|forradalmasít\\w*)\\b",
+      "szint": "jelez",
+      "miert": "Ures cimke-melleknev. Forras: hu-localization 3b/B",
+      "rossz_pelda": "",
+      "jo_pelda": ""
+    },
+    {
+      "id": "G-sablon-cta",
+      "reteg": "global",
+      "mufaj": [
+        "*"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\b(tudj\\s+meg\\s+többet|kattints\\s+ide|ne\\s+habozz|ne\\s+várj\\s+tovább|kezdd\\s+el\\s+még\\s+ma|lépj\\s+velünk\\s+kapcsolatba)\\b",
+      "szint": "jelez",
+      "miert": "Sablon-CTA. Forras: hu-localization 3b/C",
+      "rossz_pelda": "",
+      "jo_pelda": ""
+    },
+    {
+      "id": "G-hivatali",
+      "reteg": "global",
+      "mufaj": [
+        "*"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\b(kerül\\s+megrendezésre|megvalósításra\\s+kerül|lehetőséget\\s+nyújt\\s+arra|annak\\s+érdekében,\\s+hogy|tekintetében|vonatkozásában)\\b",
+      "szint": "jelez",
+      "miert": "Hivatali szenvedo / nominalizacio. Forras: hu-localization 3b/E",
+      "rossz_pelda": "",
+      "jo_pelda": ""
+    },
+    {
+      "id": "G-jo-hir",
+      "reteg": "global",
+      "mufaj": [
+        "*"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\ba\\s+jó\\s+hír(,|\\s+az)",
+      "szint": "jelez",
+      "miert": "'A jó hír az, hogy' -- sablon-atkotes. Forras: hu-localization 3b/A; Eszter TG 852 ('A jó hír, hogy van egy harmadik út is' -> 'ai-os')",
+      "rossz_pelda": "A jó hír, hogy van egy harmadik út is.",
+      "jo_pelda": "Érdemesebb inkább arra figyelni, mikor jelentkezik nálad az első valódi éhség."
+    },
+    {
+      "id": "E-vip-klub",
+      "reteg": "21napalatt",
+      "mufaj": [
+        "landing",
+        "hirlevel",
+        "sales-level",
+        "tudasanyag",
+        "poszt",
+        "lecke",
+        "hirdetes"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)(?<!VIP\\s)(?<!VIP-)\\b[Kk]lub\\w*",
+      "szint": "stop",
+      "miert": "Csupasz 'klub/Klubban' -- MINDIG 'VIP Klub'. Forras: Eszter TG 1804 (2026-10-01) + Eszter doksi-komment, alvas landing+hirlevel doksi 1edz1Mlm9ZpjAeDheGMUwkwGTh4fh8c5mS1_QMiYeHI0 AAACBBZ5GSU ('Mindig VIP Klubként hivatkozunk rá!!!')",
+      "rossz_pelda": "Friss, őszi ízek érkeztek a klubba!",
+      "jo_pelda": "Friss, őszi ízek érkeztek a VIP Klubba!"
+    },
+    {
+      "id": "E-menetrend",
+      "reteg": "21napalatt",
+      "mufaj": [
+        "landing",
+        "hirlevel",
+        "sales-level",
+        "tudasanyag",
+        "poszt",
+        "lecke",
+        "hirdetes"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\bmenetrend",
+      "szint": "stop",
+      "miert": "'menetrend' -- 'túl szigorú, katonás'. Forras: Eszter TG 3375 (2026-10-14)",
+      "rossz_pelda": "Ez lesz az esti menetrended kiindulópontja.",
+      "jo_pelda": "érdemes kb. 30 perccel korábban elkezdeni az esti, lecsendesítő rutint."
+    },
+    {
+      "id": "E-jon-az-alom",
+      "reteg": "21napalatt",
+      "mufaj": [
+        "landing",
+        "hirlevel",
+        "sales-level",
+        "tudasanyag",
+        "poszt",
+        "lecke",
+        "hirdetes"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\bjö\\w*(\\s+\\w+){0,2}\\s+az\\s+álom",
+      "szint": "stop",
+      "miert": "'jön / jöhet / jöhessen az álom' -- 'emberi kommunikációban ilyet nem használunk'. Forras: Eszter TG 3377 (2026-10-14)",
+      "rossz_pelda": "és könnyebben jöhet az álom.",
+      "jo_pelda": "és könnyebben megy az elalvás is."
+    },
+    {
+      "id": "E-elillan",
+      "reteg": "21napalatt",
+      "mufaj": [
+        "landing",
+        "hirlevel",
+        "sales-level",
+        "tudasanyag",
+        "poszt",
+        "lecke",
+        "hirdetes"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\belillan\\w*",
+      "szint": "stop",
+      "miert": "'elillan' (jóllakottság) -- tobbszor jelezve. Forras: Eszter TG 1917 (2026-10-02)",
+      "rossz_pelda": "a jóllakottság hamar elillan.",
+      "jo_pelda": "nem tart ki sokáig."
+    },
+    {
+      "id": "E-tagado-felmentes",
+      "reteg": "21napalatt",
+      "mufaj": [
+        "landing",
+        "hirlevel",
+        "sales-level",
+        "tudasanyag",
+        "poszt",
+        "lecke",
+        "hirdetes"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\bnem\\s+(az\\s+)?akaraterő(\\s+kérdése|n\\s+múlik)|\\bnem\\s+veled\\s+van\\s+a\\s+baj",
+      "szint": "stop",
+      "miert": "Tagado felmento formula ('nem akaraterő kérdése', 'nem veled van a baj'). Forras: Eszter TG 821 + 831 (2026-09-24)",
+      "rossz_pelda": "Nem vagy egyedül, és nem akaraterő kérdése.",
+      "jo_pelda": "Nem vagy egyedül. (utána megértő ok és bátorítás)"
+    },
+    {
+      "id": "E-egy-het-az-egesz",
+      "reteg": "21napalatt",
+      "mufaj": [
+        "landing",
+        "hirlevel",
+        "sales-level",
+        "tudasanyag",
+        "poszt",
+        "lecke",
+        "hirdetes"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\begy\\s+hét\\s+az\\s+egész",
+      "szint": "stop",
+      "miert": "'Egy hét az egész' -- a cel, hogy jojjon tovabb. Forras: Eszter doksi-komment, alvas landing+hirlevel doksi 1edz1Mlm9ZpjAeDheGMUwkwGTh4fh8c5mS1_QMiYeHI0 AAACIy0GnLk",
+      "rossz_pelda": "Egy hét az egész, és a végén büszke lehetsz magadra.",
+      "jo_pelda": ""
+    },
+    {
+      "id": "E-mind-uj-recept",
+      "reteg": "21napalatt",
+      "mufaj": [
+        "landing",
+        "hirlevel",
+        "sales-level",
+        "tudasanyag",
+        "poszt",
+        "lecke",
+        "hirdetes"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\bmind\\s+a\\s+(\\d+|huszonegy|hét)\\s+recept\\s+új",
+      "szint": "stop",
+      "miert": "'Mind a 21 recept új' -- nem igaz, es irrelevans. Forras: Eszter doksi-komment, alvas landing+hirlevel doksi 1edz1Mlm9ZpjAeDheGMUwkwGTh4fh8c5mS1_QMiYeHI0 AAACIy0GnLs",
+      "rossz_pelda": "Mind a 21 recept új, kifejezetten erre a kihívásra készült.",
+      "jo_pelda": ""
+    },
+    {
+      "id": "E-meregtelenito",
+      "reteg": "21napalatt",
+      "mufaj": [
+        "landing",
+        "hirlevel",
+        "sales-level",
+        "tudasanyag",
+        "poszt",
+        "lecke",
+        "hirdetes"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\bnem\\s+(egy\\s+)?méregtelenítő",
+      "szint": "stop",
+      "miert": "Irrelevans tagado pozicionalas ('Ez nem egy méregtelenítő- vagy fogyókúra'). Forras: Eszter doksi-komment, alvas landing+hirlevel doksi 1edz1Mlm9ZpjAeDheGMUwkwGTh4fh8c5mS1_QMiYeHI0 AAACIy0GnLQ ('irreleváns')",
+      "rossz_pelda": "Ez nem egy méregtelenítő- vagy fogyókúra.",
+      "jo_pelda": ""
+    },
+    {
+      "id": "E-apro-lepes",
+      "reteg": "21napalatt",
+      "mufaj": [
+        "landing",
+        "hirlevel",
+        "sales-level",
+        "poszt",
+        "hirdetes"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\bapró\\s+lépés",
+      "szint": "stop",
+      "miert": "'apró lépés' a kihivas bemutatasaban -- 'az emberek nem akarnak még több feladatot'. Forras: Eszter doksi-komment, alvas landing+hirlevel doksi 1edz1Mlm9ZpjAeDheGMUwkwGTh4fh8c5mS1_QMiYeHI0 AAACIy0GnL0",
+      "rossz_pelda": "minden nap kapsz egy rövid leckét egy apró lépéssel, amit még aznap este kipróbálhatsz",
+      "jo_pelda": "minden reggel kapsz egy rövid leckét egy egyszerű tippel"
+    },
+    {
+      "id": "E-szazalekjel",
+      "reteg": "21napalatt",
+      "mufaj": [
+        "landing",
+        "hirlevel",
+        "sales-level",
+        "tudasanyag",
+        "poszt",
+        "lecke"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\d\\s?%",
+      "szint": "stop",
+      "miert": "Szazalekjel a folyo szovegben. Forras: Eszter TG 1681-1682 (2026-09-30)",
+      "rossz_pelda": "13%-kal",
+      "jo_pelda": "13 százalékkal"
+    },
+    {
+      "id": "E-profilunkban",
+      "reteg": "21napalatt",
+      "mufaj": [
+        "poszt"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\bprofilunkban\\s+találod",
+      "szint": "stop",
+      "miert": "IG CTA: 'A részleteket a profilunkban találod.' Forras: Eszter, InnoSocial IG 438 (2026-09-28, Nova 16331)",
+      "rossz_pelda": "A részleteket a profilunkban találod.",
+      "jo_pelda": "Részletek és regisztráció a bióban."
+    },
+    {
+      "id": "E-nemzetiseg-kutato",
+      "reteg": "21napalatt",
+      "mufaj": [
+        "tudasanyag",
+        "lecke",
+        "poszt",
+        "landing",
+        "hirlevel"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\b(két\\s+|egy\\s+)?(amerikai|angol|brit|német|japán|svéd|ausztrál|kanadai|olasz|francia)\\s+kutató(k|ja|i)?\\b(?![\\w ]{0,40}(egyetem|intézet|központ))",
+      "szint": "stop",
+      "miert": "Nemzetiseg-cimke a kutato helyett ('Két amerikai kutató'). Forras: Eszter TG 2626 (2026-10-08), megerositve TG 2869-2870 (2026-10-10)",
+      "rossz_pelda": "Két amerikai kutató összefoglalója szerint",
+      "jo_pelda": "Seung K. Lee és Adel A. Kader, a Kaliforniai Egyetem (Davis) kutatóinak összefoglalója szerint"
+    },
+    {
+      "id": "E-kutatasok-szerint",
+      "reteg": "21napalatt",
+      "mufaj": [
+        "landing",
+        "hirlevel",
+        "sales-level",
+        "tudasanyag",
+        "poszt",
+        "lecke",
+        "hirdetes"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\b(a\\s+)?kutatások\\s+szerint\\b",
+      "szint": "jelez",
+      "miert": "Nevtelen 'kutatások szerint'. Forras: Eszter TG 1452 (2026-09-28)",
+      "rossz_pelda": "A kutatások szerint",
+      "jo_pelda": "érdemes / ajánlott, vagy megnevezett forrás"
+    },
+    {
+      "id": "E-napi-kihivas-cimke",
+      "reteg": "21napalatt",
+      "mufaj": [
+        "lecke"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)(?m)^\\s*Napi\\s+kihívás\\s*:",
+      "szint": "stop",
+      "miert": "'Napi kihívás:' felirat a leckeben. Forras: Eszter G5 sajat atirasa (2026-09-22)",
+      "rossz_pelda": "Napi kihívás: igyál meg reggel egy pohár vizet.",
+      "jo_pelda": "(a feladat egy mondatban, címke nélkül)"
+    },
+    {
+      "id": "E-hashtag-lecke",
+      "reteg": "21napalatt",
+      "mufaj": [
+        "lecke"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)#21napalatt\\w*",
+      "szint": "stop",
+      "miert": "Hashtag / Instagram-hivas a leckeben. Forras: Eszter (2026-09-22): 'Az instagramos utalást, hashtageket hagyd ki'",
+      "rossz_pelda": "#21napalattkihivas",
+      "jo_pelda": ""
+    },
+    {
+      "id": "E-fejezet-visszautalas",
+      "reteg": "21napalatt",
+      "mufaj": [
+        "tudasanyag"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\bahogy\\s+(az?\\s+)?(\\d+\\.|előző|korábbi)\\s+fejezetben",
+      "szint": "stop",
+      "miert": "'ahogy a X. fejezetben láttuk' -- ismetles. Forras: Eszter TG 2891 (2026-10-10)",
+      "rossz_pelda": "Ahogy az előző fejezetben láttuk, ...",
+      "jo_pelda": ""
+    },
+    {
+      "id": "E-amit-erdemes-megjegyezni",
+      "reteg": "21napalatt",
+      "mufaj": [
+        "tudasanyag"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\bamit\\s+érdemes\\s+megjegyezni",
+      "szint": "stop",
+      "miert": "'Amit érdemes megjegyezni' osszefoglalo blokk -- ismetles. Forras: Eszter TG 2895-2896 (2026-10-10)",
+      "rossz_pelda": "Amit érdemes megjegyezni",
+      "jo_pelda": ""
+    },
+    {
+      "id": "E-javasoljuk",
+      "reteg": "21napalatt",
+      "mufaj": [
+        "poszt"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\bazt\\s+javasoljuk\\b|\\bkíváncsiak\\s+vagyunk\\b",
+      "szint": "jelez",
+      "miert": "Tavolsagtarto, hivatalos poszt-fordulat ('azt javasoljuk', 'Kíváncsiak vagyunk'). Forras: Eszter TG 1124 (2026-09-26)",
+      "rossz_pelda": "Heti apró lépésnek azt javasoljuk, hogy...",
+      "jo_pelda": "Ezen a héten próbáld ki, hogy..."
+    },
+    {
+      "id": "E-buntudat",
+      "reteg": "21napalatt",
+      "mufaj": [
+        "landing",
+        "hirlevel",
+        "sales-level",
+        "tudasanyag",
+        "poszt",
+        "lecke",
+        "hirdetes"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\bh[áa]ny(szor|n[áa]l)\\b|\\bhol\\s+tartasz\\b|\\bhi[áa]nyzik\\s+(valami|n[áa]lad)\\b|\\bkellett\\s+volna\\b|\\bmég\\s+mindig\\s+nem\\b",
+      "szint": "jelez",
+      "miert": "Bűntudat-jelolt: szamoltatas, merce, hiany az olvasoban. Forras: Eszter TG 1157+1159 (2026-09-26), kalibracio TG 1169; buntudat-jelolt.py",
+      "rossz_pelda": "Te hánynál tartasz?",
+      "jo_pelda": "Melyik újat próbálod ki?"
+    },
+    {
+      "id": "E-kave-alvas",
+      "reteg": "21napalatt",
+      "mufaj": [
+        "landing",
+        "hirlevel",
+        "poszt"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\bkávé\\w*",
+      "szint": "jelez",
+      "miert": "'Kávés vonal' az alvas-kampanyban -- 'ne hozzuk be'. Forras: Eszter doksi-komment, alvas landing+hirlevel doksi 1edz1Mlm9ZpjAeDheGMUwkwGTh4fh8c5mS1_QMiYeHI0 AAACIy0GnLc, AAACIIL47gM (alvas, 2026-10-14/15)",
+      "rossz_pelda": "délután még jólesik egy kávé, és este nehezen csendesedsz le,",
+      "jo_pelda": ""
+    },
+    {
+      "id": "E-kave-vonal",
+      "reteg": "21napalatt",
+      "mufaj": [
+        "landing",
+        "hirlevel",
+        "sales-level",
+        "poszt",
+        "hirdetes"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\bjólesik\\s+(még\\s+)?egy\\s+kávé|\\butolsó\\s+kávé\\w*|\\butoljára\\s+kávé\\w*|\\bdélutáni\\s+kávé\\w*",
+      "szint": "stop",
+      "miert": "'Kávés vonal' a kihivas bemutatasaban ('jólesik egy kávé', 'utolsó kávé') -- 'ne hozzuk be'. Forras: Eszter doksi-komment, alvas landing+hirlevel doksi 1edz1Mlm9ZpjAeDheGMUwkwGTh4fh8c5mS1_QMiYeHI0 AAACIy0GnLc (10-15: 'ilyet sem mondunk emberi kommunikációban, ne hozzuk be a kávés vonalat'), AAACIIL47gM + AAACIy0GnL0 (az 'utolsó kávé' a kivett felsorolasokban); szukites Bit kerese (msg 20771)",
+      "rossz_pelda": "délután még jólesik egy kávé, és este nehezen csendesedsz le,",
+      "jo_pelda": ""
+    },
+    {
+      "id": "E-csinalj-meg",
+      "reteg": "21napalatt",
+      "mufaj": [
+        "lecke"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\bcsinálj\\s+meg\\b",
+      "szint": "stop",
+      "miert": "'Ma két dolgot csinálj meg' -- parancs a meghivas helyett. Forras: Eszter TG 3507 (2026-10-15): 'mindenhol javítsd át' (Nessa msg 20757)",
+      "rossz_pelda": "Ma két dolgot csinálj meg:",
+      "jo_pelda": "Ma két dolgot próbálj ki:"
+    },
+    {
+      "id": "E-fotozd-le-lecke",
+      "reteg": "21napalatt",
+      "mufaj": [
+        "lecke"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\bfotózd\\s+le\\b",
+      "szint": "jelez",
+      "miert": "Sajat fotos felszolitas a lecke vegen -- a feltolto maga teszi ki, dupla lenne. Forras: Eszter 2026-09-23 21:26: 'ne legyen duplán' (Nessa msg 20757)",
+      "rossz_pelda": "Fotózd le a mai vacsorádat, és oszd meg a csoportban.",
+      "jo_pelda": ""
+    },
+    {
+      "id": "E-eszkoz",
+      "reteg": "21napalatt",
+      "mufaj": [
+        "lecke",
+        "poszt"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\beszköz\\w*",
+      "szint": "jelez",
+      "miert": "'eszköz' ('A mai eszközöd') -- hivatalos, targyias szo. Forras: Eszter TG 3222 (2026-10-13) (Nessa msg 20757)",
+      "rossz_pelda": "A mai eszközöd a fény.",
+      "jo_pelda": ""
+    }
+  ]
 }

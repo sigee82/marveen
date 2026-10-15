@@ -1,0 +1,15 @@
+{
+ "megjegyzes": "A szovegkapu ugyfel-felismerese (scripts/hooks/szovegkapu.py). Kulon fajl, mert a szabalyfajlt Copy generalja. Egy ugyfel retege akkor fut, ha a szoveg tartalmazza egy jelet, vagy az ugynok (a hivas munkakonyvtara agents/<nev>) a listan van.",
+ "ugyfelek": {
+  "21napalatt": {
+   "jelek": [
+    "21napalatt",
+    "VIP Klub",
+    "vip.21napalatt.hu"
+   ],
+   "ugynokok": [
+    "nessa"
+   ]
+  }
+ }
+}
