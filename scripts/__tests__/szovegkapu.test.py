@@ -76,9 +76,16 @@ check('21napalatt-reteg: Nessa cwd-jen a csupasz "klub" megall (mindig VIP Klub)
 rc, out, err = hook({'tool_name': 'mcp__google-drive__createGoogleDoc', 'tool_input': {'content': 'A 21napalatt ' + klub}, 'cwd': '/Users/macmini/marveen/agents/pixel'})
 check('21napalatt-reteg: a szoveg jele ("21napalatt") barhonnan bekapcsolja', rc == 2, err)
 
-# --- Telegram: SOHA nem allit meg, csak jelez (Nova 20748)
-rc, out, err = hook({'tool_name': 'mcp__plugin_telegram_telegram__reply', 'tool_input': {'chat_id': '1', 'text': 'Eszter kivette: Nincs szigorú szabály, és semmit nem kell tökéletesen csinálnod.'}, 'cwd': NESSA})
-check('Telegram: tiltott fordulat -> atmegy (exit 0), systemMessage-ben jelez', rc == 0 and 'G-nincs-szigoru-szabaly' in out, (rc, out, err))
+# --- belso Telegram (Nova, a tobbi agens): SOHA nem allit meg, csak jelez (Nova 20748)
+NOVA = '/Users/macmini/marveen'
+rc, out, err = hook({'tool_name': 'mcp__plugin_telegram_telegram__reply', 'tool_input': {'chat_id': '1', 'text': 'Eszter kivette: Nincs szigorú szabály, és semmit nem kell tökéletesen csinálnod.'}, 'cwd': NOVA})
+check('belso Telegram: tiltott fordulat -> atmegy (exit 0), systemMessage-ben jelez', rc == 0 and 'G-nincs-szigoru-szabaly' in out, (rc, out, err))
+# --- Nessa Telegramja Eszterhez megy (ugyfel): STOP, mint a tobbi ugyfel-ut (Nova 20786)
+rc, out, err = hook({'tool_name': 'mcp__plugin_telegram_telegram__reply', 'tool_input': {'chat_id': '1', 'text': 'Nincs szigorú szabály, és semmit nem kell tökéletesen csinálnod.'}, 'cwd': NESSA})
+check('Nessa Telegram (Eszterhez): tiltott fordulat -> MEGALL', rc == 2 and 'G-nincs-szigoru-szabaly' in err, (rc, out, err))
+for nev in ('landing', 'hirlevel'):
+    rc, out, err = hook({'tool_name': 'mcp__plugin_telegram_telegram__edit_message', 'tool_input': {'chat_id': '1', 'message_id': '2', 'text': NEG[nev]}, 'cwd': NESSA})
+    check(f'Nessa Telegram: a jovahagyott rev 734 ({nev}) nem akad', rc == 0, err)
 
 # --- nem figyelt eszkoz / parancs: nem nez bele
 rc, out, err = hook({'tool_name': 'Bash', 'tool_input': {'command': 'echo "Ha megszereted" > /tmp/x.txt'}, 'cwd': NESSA})
@@ -101,6 +108,8 @@ rc, out, err = hook(UTAK['Claude Docs (batch)']('Szép napot.'), rossz)
 check('hianyzo szabalyfajl, ugyfel-ut: MEGALL (fail-closed)', rc == 2 and 'fail-closed' in err, err)
 rc, out, err = hook({'tool_name': 'mcp__plugin_telegram_telegram__reply', 'tool_input': {'text': 'Szép napot.'}}, rossz)
 check('hianyzo szabalyfajl, Telegram: atmegy, jelez', rc == 0 and 'nem futott' in out, (rc, out, err))
+rc, out, err = hook({'tool_name': 'mcp__plugin_telegram_telegram__reply', 'tool_input': {'text': 'Szép napot.'}, 'cwd': NESSA}, rossz)
+check('hianyzo szabalyfajl, Nessa Telegram (ugyfel): MEGALL (fail-closed)', rc == 2 and 'fail-closed' in err, (rc, out, err))
 
 # --- szandekos idezes: egyszeri engedely
 mondat = 'Ha megszereted, a 21napalatt VIP Klubban együtt haladunk tovább!'

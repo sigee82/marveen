@@ -101,6 +101,20 @@ def mondat_hash(m):
     return hashlib.sha256(re.sub(r'\s+', ' ', m.strip()).encode('utf-8')).hexdigest()
 
 
+def ugyfel_ugynok(ugynok):
+    """The client an agent talks to on its own channel (config/szovegkapu-ugyfelek.json `ugynokok`), or None.
+    Nessa's Telegram bot writes to Eszter (Nova 20786): that Telegram is a client path, STOP and fail-closed."""
+    if not ugynok:
+        return None
+    try:
+        for nev, u in (json.load(io.open(UGYFEL_UT, encoding='utf-8')).get('ugyfelek') or {}).items():
+            if ugynok in (u.get('ugynokok') or []):
+                return nev
+    except Exception:
+        return None
+    return None
+
+
 def ugyfel_felismer(szoveg, ugyfelek, ugynok=''):
     for nev, u in ugyfelek.items():
         if ugynok and ugynok in (u.get('ugynokok') or []):
@@ -342,7 +356,9 @@ def hook():
     cwd = p.get('cwd') or ''
     ugynok = ugynok_cwd(cwd)
     if TELEGRAM_RX.search(tool):
-        ut, mufaj, szoveg = 'telegram', '*', '\n'.join(str(ti.get(k) or '') for k in ('text', 'caption', 'message'))
+        szoveg, mufaj = '\n'.join(str(ti.get(k) or '') for k in ('text', 'caption', 'message')), '*'
+        # an agent whose own bot writes to a client (Nessa -> Eszter): a client path like the others, not the internal Telegram
+        ut = 'telegram-ugyfel' if ugyfel_ugynok(ugynok) else 'telegram'
     elif DOCS_RX.search(tool):
         ut, mufaj, szoveg = 'docs', '*', '\n'.join(stringek(ti))
     elif EMAIL_RX.search(tool):
@@ -450,10 +466,10 @@ def hook_vedett():
             tool = bemenet.get('tool_name') or ''
             cmd = str((bemenet.get('tool_input') or {}).get('command') or '')
         except Exception:
-            tool, cmd = '', ''
+            tool, cmd, bemenet = '', '', {}
         if tool == 'Bash' and not any(cel in cmd for cel, _ in CURL_CELOK):
             return 0   # a Bash-hivasok tulnyomo resze nem ugyfel fele megy: ott a kapu hibaja ne allitsa meg a flottat
-        if TELEGRAM_RX.search(tool):
+        if TELEGRAM_RX.search(tool) and not ugyfel_ugynok(ugynok_cwd(bemenet.get('cwd') if isinstance(bemenet, dict) else '')):
             print(json.dumps({'systemMessage': f'SZOVEGKAPU hiba (Telegram, atengedve): {type(e).__name__}: {e}'}, ensure_ascii=False))
             return 0
         naplo('HIBA-STOP', [], tool)
