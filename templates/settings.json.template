@@ -235,7 +235,7 @@
         ]
       },
       {
-        "matcher": "Bash|mcp__google-drive__.*|mcp__claude_ai_Google_Drive__.*|mcp__claude_ai_Claude_Docs__.*|mcp__email__.*|.*send_email.*|.*draft.*|.*[Gg]mail.*__.*",
+        "matcher": "Bash|mcp__google-drive__.*|mcp__claude_ai_Google_Drive__.*|mcp__claude_ai_Claude_Docs__.*|mcp__email__.*|.*send_email.*|.*draft.*|.*[Gg]mail.*__.*|mcp__plugin_telegram_telegram__reply|mcp__plugin_telegram_telegram__edit_message",
         "hooks": [
           {
             "type": "command",
