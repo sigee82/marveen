@@ -2,7 +2,7 @@
 /**
  * 2026-11 INGYENES-KIHIVAS LANDING: A SZOVEG BEVITELE.
  * GENERALT FAJL -- ne kezzel szerkeszd: scripts/landing-honap-generator.py.
- * FORRAS: landing-2026-11-doksi-landing.md  md5=a03f6eb8f85fea8a9cb50ba4b048d569  mtime=2026-10-14 16:02:07
+ * FORRAS: landing-doksi-20261015.md  md5=08533fb16a611dea1bf72b564b29d408  mtime=2026-10-15 10:14:23
  * MERT ELO ALLAPOT: 2026-10-14T13:08:30.436Z
  *
  *   --site=dev --oldal=<ID>|jelolt                SZARAZ a deven (semmit nem ir)
@@ -17,6 +17,9 @@
  * kezdodik; a VALTOZATLAN (MARAD) mezok is a mert horgonnyal kezdodnek -- ezek a pozitiv
  * kontroll, hogy jo oldalon, jo allapotban vagyunk. Barmely elteres: SEMMIT nem irunk.
  * A mentes a $HOME-ba megy, NEM a webrootba (a 2026.10-es valtozat a webrootba irta).
+ * HORGONY: a CSERE-mezok horgonya a mar lefutott kor szovege: elozo-parositas-20261014-1602.json
+ * $TOROL: ha a doksi listaja rovidebb, mint az oldale, a felesleges elemek a lista VEGEROL torlodnek --
+ * csak ha a lista a mert elemszamu, a torlendo szovege a horgony, es minden elem ikonja egyforma.
  *
  * PROBAPAD: LANDING_CSERE_PROBAPAD=1 + --wp=<gyoker> -- CSAK a hoszt-ellenorzest kapcsolja ki.
  * A cel-orok (tiltott ID, dev-jelolo, prod draft+ideiglenes slug, --yes-prod) probapadon is
@@ -30,40 +33,38 @@ $UJ_CIM = '7 napos ingyenes kihívás - Pihentető alvás 2026.11';
 $TILTOTT = array(17544, 17153);
 $PROD_IDEIGLENES = 'novemberi-kihivas-eloke';
 $PAROK = array(
-  array('elem_id' => '6b45d9c', 'ut' => 'title', 'horgony' => 'Indul a 7 napos egészséges reggeli kihívás', 'uj' => 'Indul a 7 napos pihentető alvás kihívás', 'cimke' => '1. szekció -- Hero / Heading'),
-  array('elem_id' => 'b3e8629', 'ut' => 'editor', 'horgony' => 'Csatlakozz a kihíváshoz, és készíts velünk hét laktató reggelit egyszerű', 'uj' => '<p>Csatlakozz a kihíváshoz, és rakjuk össze együtt, lépésről lépésre a pihentető estéd rutinját! Minden napra egy apró lépéssel és egy könnyű vacsorával, hogy este könnyebben aludj el.</p><ul><li>7 apró lépés a pihentető estékért</li><li>6 könnyű vacsora és 1 esti ital</li><li>heti bevásárlólista</li><li>iOS és Android applikáció</li></ul>', 'cimke' => '1. szekció -- Hero / Text-editor (bevezető + felsorolás)'),
-  array('elem_id' => 'ed700ab', 'ut' => 'editor', 'horgony' => 'Regisztrálj most, a kihívás teljesen ingyenes. Indulás: 2026. október 1.', 'uj' => '<p><strong>Regisztrálj most, a kihívás teljesen ingyenes.</strong> <br>Indulás: 2026. november 1.</p>', 'cimke' => '1. szekció -- Hero / Text-editor (a hero alatti sor)'),
-  array('elem_id' => '6c78b0f2', 'ut' => 'title', 'horgony' => 'Reggelizz úgy, hogy délig kitartson', 'uj' => 'Készülj úgy az estére, hogy könnyebben elaludj', 'cimke' => '2. szekció -- Ígéret-cím + a jelenet / Heading'),
-  array('elem_id' => '370bdfea', 'ut' => 'editor', 'horgony' => 'Reggel kapkodsz, és a végén marad a kávé meg valami gyors édesség. Ismerős?', 'uj' => '<p>Este fáradtan esel ágyba, de csak csak forgolódsz és nem tudsz aludni? Vagy elalszol ugyan, de hajnalban felébredsz, és órákig nem tudsz visszaaludni és csak számolod a percekig az ébresztő csörgéséig? Reggel gyakran ébredsz úgy, mintha egész éjjel nem is aludtál volna, és az első kávéval próbálod összeszedni magad.</p><p>Pedig a pihentető éjszaka nem csak este dől el. Már reggel elkezdődik, amikor kilépsz a fényre, folytatódik délután, amikor az utolsó kávédat iszod, és este, amikor vacsorázol és lecsendesedsz.</p><p>A pihentető alvás kihívásban minden nap kapsz egy rövid leckét egy apró lépéssel, amit még aznap este kipróbálhatsz, és mellé egy könnyű vacsorareceptet. Így nem neked kell kitalálnod, hol kezdd: reggel elolvasod, este kipróbálod.</p><p>És nem kell felforgatnod az estéidet! Nincs szigorú szabály, és semmit nem kell tökéletesen csinálnod. Egy hét alatt, lépésről lépésre összeáll a saját esti rutinod, a Te ébredésedhez igazítva.</p>', 'cimke' => '2. szekció -- Ígéret-cím + a jelenet / Text-editor'),
-  array('elem_id' => '8c97ba3', 'ut' => 'editor', 'horgony' => 'Brian Tracy gyakorlás törvénye kimondja, hogy ha egy tevékenységet elég sokszor', 'uj' => '<p>Brian Tracy gyakorlás törvénye kimondja, hogy ha egy tevékenységet elég sokszor ismételsz, akkor az szokássá válik. A megfelelő önfegyelemmel egy felnőtt embernek tizennégy és huszonegy nap közötti időre van szüksége ahhoz, hogy egy új szokást kialakítson. Ez idő alatt pedig rendszeresen kell ismételni az adott cselekvést. Az ingyenes kihívásban ehhez kapsz egy óriási lökést, és ha tetszik, folytasd tovább!</p><p>Nem az a cél, hogy egyik napról a másikra mindent megváltoztass, hanem az, hogy megtapasztald, milyen egy este, amikor nem kimerülve zuhansz az ágyba, hanem szépen, lépésről lépésre ráhangolódsz az alvásra.</p><p>A 21napalatt VIP Klubban nem állunk meg 7 napnál, további 14 napig folytatjuk együtt a pihentető esték építését a zárt klubban. Ha kedvet kapsz, Téged is sok szeretettel várunk, csatlakozz hozzánk!</p>', 'cimke' => '3. szekció -- Miért éppen 7 nap? / Text-editor'),
-  array('elem_id' => '17c1f49', 'ut' => 'editor', 'horgony' => 'Minden reggel ott vár egy recept, és hozzá a heti bevásárlólista, hogy ne a', 'uj' => '<p>Minden reggel ott vár az applikációban egy rövid lecke, és mellé egy könnyű vacsorarecept, a hétre szóló bevásárlólistával együtt. Megnézzük, miért reggel kezdődik a jó alvás, mikor érdemes meginni az utolsó kávét, mikor vacsorázz, mikor tompítsd a fényeket, és hogyan tudod este lecsendesíteni a napot. Az egyik estére pedig egy melengető, koffeinmentes esti italt készítünk.</p><p>A recepteket úgy válogattam össze, hogy könnyűek legyenek, és este ne terheljék meg a gyomrodat. A hozzávalókat a piacokon, boltok polcain könnyen megtalálod. Nem kell hozzájuk különleges konyhai tudás, és nem kell semmilyen speciális eszköz sem. Mindegyik gluténmentes, tejmentes, és nincs bennük hozzáadott cukor.</p><p>A kihívás teljesítésével egy csapásra két legyet is üthetsz: a 7. nap végén megveregetheted a válladat, hogy teljesítetted a tervet. De ami fontosabb, elindulhatsz az úton egy új, egészséges szokás kialakításához, amelyet csak folytatnod kell.</p><p>A hét végére összeáll a saját esti rutinod alapja. Ha megszereted, a 21napalatt VIP Klubban együtt haladunk tovább!</p>', 'cimke' => '4. szekció -- Mire számíthatsz? / Text-editor'),
-  array('elem_id' => '9a135ee', 'ut' => 'title', 'horgony' => 'Mi változhat a reggeleidben?', 'uj' => 'Mi változhat az estéidben?', 'cimke' => '5. szekció -- Mi változhat az estéidben? / Heading'),
-  array('elem_id' => 'c927586', 'ut' => 'editor', 'horgony' => 'Ebben a hétben nem kell reggelente kapkodva döntened. Reggelre ott a terv,', 'uj' => '<p>Ezen a héten nem kell egyszerre mindent megváltoztatnod. Minden nap csak egy apró lépés jön, és a hét végére ezek szépen összeállnak.</p><p>A kihívás alatt megtapasztalhatod, hogy</p>', 'cimke' => '5. szekció -- Mi változhat az estéidben? / Text-editor'),
-  array('elem_id' => '360da42', 'ut' => 'icon_list.0.text', 'horgony' => 'kitarthat a jóllakottság délig, és elmaradhat a délelőtti éhségroham', 'uj' => 'este könnyebben elalhatsz', 'cimke' => '5. szekció -- Mi változhat az estéidben? / Ikonos lista (4 elem) #1'),
-  array('elem_id' => '360da42', 'ut' => 'icon_list.1.text', 'horgony' => 'milyen egyszerű egészségesen indítani a napot', 'uj' => 'reggel kipihentebben ébredhetsz', 'cimke' => '5. szekció -- Mi változhat az estéidben? / Ikonos lista (4 elem) #2'),
-  array('elem_id' => '360da42', 'ut' => 'icon_list.2.text', 'horgony' => 'negyedóra alatt is összeáll egy laktató reggeli', 'uj' => 'mennyit számít, mikor iszod az utolsó kávét, és mikor vacsorázol', 'cimke' => '5. szekció -- Mi változhat az estéidben? / Ikonos lista (4 elem) #3'),
-  array('elem_id' => '360da42', 'ut' => 'icon_list.3.text', 'horgony' => 'mennyivel nyugodtabb egy reggel, ha nem akkor kell kitalálni, mit egyél', 'uj' => 'mennyivel nyugodtabb egy este, ha megvan a saját esti rutinod', 'cimke' => '5. szekció -- Mi változhat az estéidben? / Ikonos lista (4 elem) #4'),
-  array('elem_id' => '6a0ce87', 'ut' => 'editor', 'horgony' => 'Ez nem egy méregtelenítő- vagy fogyókúra. A kihívás alatt nem kell semmit sem', 'uj' => '<p>Ez nem egy méregtelenítő- vagy fogyókúra. A kihívás alatt nem kell semmit sem kihagynod a táplálkozásodból, nyugodtan eheted és ihatod ugyanazokat, amiket korábban is, mindössze az estéidet rakjuk össze együtt egy kicsit másképp.</p><p>A kihívás szokásokról és ételekről szól, nem orvosi kezelés. Ha tartósan nehezen alszol, kérd orvos segítségét.</p>', 'cimke' => '5. szekció -- Mi változhat az estéidben? / Text-editor (a kizárás)'),
-  array('elem_id' => 'bb2a697', 'ut' => 'icon_list.0.text', 'horgony' => 'reggelente kapkodsz, és a végén marad a kávé meg valami gyors édesség,', 'uj' => 'este fáradtan bebújsz az ágyba, aztán mégis csak forgolódsz,', 'cimke' => '6. szekció -- Imádni fogod a kihívást, h / Ikonos lista (8 elem) #1'),
-  array('elem_id' => 'bb2a697', 'ut' => 'icon_list.1.text', 'horgony' => 'délelőtt tízkor már a keksz után nyúlsz, pedig reggeliztél,', 'uj' => 'hajnalban felébredsz, és nehezen alszol vissza,', 'cimke' => '6. szekció -- Imádni fogod a kihívást, h / Ikonos lista (8 elem) #2'),
-  array('elem_id' => 'bb2a697', 'ut' => 'icon_list.2.text', 'horgony' => 'unod a megszokott reggeliket, és nem jut eszedbe semmi új,', 'uj' => 'reggel úgy kelsz, mintha nem is aludtál volna,', 'cimke' => '6. szekció -- Imádni fogod a kihívást, h / Ikonos lista (8 elem) #3'),
-  array('elem_id' => 'bb2a697', 'ut' => 'icon_list.3.text', 'horgony' => 'szeretnél egészségesebben reggelizni, de kevés időd van reggelenként,', 'uj' => 'délután még jólesik egy kávé, és este nehezen csendesedsz le,', 'cimke' => '6. szekció -- Imádni fogod a kihívást, h / Ikonos lista (8 elem) #4'),
-  array('elem_id' => 'bb2a697', 'ut' => 'icon_list.4.text', 'horgony' => 'kezdő életmódváltó vagy, és valami egyszerűvel kezdenél,', 'uj' => 'lefekvés előtt még a telefont görgeted, mert nehéz letenni,', 'cimke' => '6. szekció -- Imádni fogod a kihívást, h / Ikonos lista (8 elem) #5'),
-  array('elem_id' => 'bb2a697', 'ut' => 'icon_list.5.text', 'horgony' => 'gluténmentesen vagy tejmentesen étkezel, és elfogytak az ötleteid,', 'uj' => 'munka és család mellett este végre a Tiéd az idő, és nehéz lefeküdni,', 'cimke' => '6. szekció -- Imádni fogod a kihívást, h / Ikonos lista (8 elem) #6'),
-  array('elem_id' => 'bb2a697', 'ut' => 'icon_list.6.text', 'horgony' => 'munka és család mellett jól jönne egy kis segítség a reggelekhez,', 'uj' => 'szeretnél könnyű vacsorákat, de este már nincs kedved kitalálni, mi kerüljön az asztalra,', 'cimke' => '6. szekció -- Imádni fogod a kihívást, h / Ikonos lista (8 elem) #7'),
-  array('elem_id' => 'bb2a697', 'ut' => 'icon_list.7.text', 'horgony' => 'vagy egyszerűen kíváncsi vagy, hogy mitől lesz laktató egy reggeli.', 'uj' => 'vagy egyszerűen kíváncsi vagy, hogy mi segíthet könnyebben elaludni.', 'cimke' => '6. szekció -- Imádni fogod a kihívást, h / Ikonos lista (8 elem) #8'),
-  array('elem_id' => 'be0d9b5', 'ut' => 'editor', 'horgony' => 'Remélem, a hét végére Te is úgy nézel majd a reggeli asztalon álló tányérodra,', 'uj' => '<p>Remélem, a hét végére Te is úgy oltod le este az éjjeli lámpát, hogy közben arra gondolsz: ezt miért nem csináltam eddig?</p>', 'cimke' => '6. szekció -- Imádni fogod a kihívást, h / Text-editor (záró vágykép)'),
-  array('elem_id' => '1cfd5a8', 'ut' => 'editor', 'horgony' => 'Készíts fotót az elkészült reggelidről. Posztold a kihívás Facebook', 'uj' => '<ul><li><strong>Készíts fotót az elkészült vacsorádról vagy esti italodról.</strong></li><li><strong>Posztold a kihívás Facebook csoportjában a @21napalatt_kihivas hashtaggel.</strong></li></ul><p>November 8-án a legalább 1 képet feltöltők között kisorsolunk egy szerencsés résztvevőt, aki 1 hónapos 21napalatt VIP Klub előfizetést nyer.</p><p>A 21napalatt VIP Klubtagság teljes hozzáférést ad a klub minden tartalmához: 21 napos életmódprogramhoz, a hetente frissülő menütervekhez, 600+ tej-, cukor- és gluténmentes recepthez, 21 napos kihívásokhoz, tudásanyagokhoz, a zárt Facebook csoporthoz.</p>', 'cimke' => '11. szekció -- Nyereményjáték (platform: / Text-editor'),
-  array('elem_id' => '3685e05', 'ut' => 'title', 'horgony' => 'Jelentkezem a 7 napos egészséges reggeli kihívásra', 'uj' => 'Jelentkezem a 7 napos pihentető alvás kihívásra', 'cimke' => '12. szekció -- Űrlap-cím / Heading')
+  array('elem_id' => 'b3e8629', 'ut' => 'editor', 'horgony' => 'Csatlakozz a kihíváshoz, és rakjuk össze együtt, lépésről lépésre a pihentető', 'uj' => '<p>Csatlakozz a kihíváshoz, és megmutatjuk, hogyan segíthetsz a szervezetednek felkészülni az esti alvásra, hogy reggel kipihentebben, energiával telve ébredhess! Minden napra kapsz egy egyszerű tippet és egy könnyű vacsorareceptet.</p><ul><li>7 egyszerű tipp a pihentető alvásért</li><li>6 könnyű vacsora és 1 esti ital</li><li>heti bevásárlólista</li><li>iOS és Android applikáció</li></ul>', 'cimke' => '1. szekció -- Hero / Text-editor (bevezető + felsorolás)'),
+  array('elem_id' => '370bdfea', 'ut' => 'editor', 'horgony' => 'Este fáradtan esel ágyba, de csak csak forgolódsz és nem tudsz aludni? Vagy', 'uj' => '<p>Este fáradtan esel ágyba, de csak forgolódsz és nem tudsz aludni? Vagy elalszol ugyan, de hajnalban felébredsz, és órákig nem tudsz visszaaludni és csak számolod a perceket az ébresztő csörgéséig? Reggel gyakran ébredsz úgy, mintha egész éjjel nem is aludtál volna.</p><p>Képzeld el, milyen jó lenne, ha este nem forgolódnál órákig, hanem egyszer csak elnyomna az álom, és reggel kipihenten, jókedvvel kelnél fel!</p><p>A pihentető alvás kihívásban egy héten át minden reggel kapsz egy rövid leckét egy egyszerű tippel, és mellé egy könnyű vacsorareceptet, így nem neked kell kitalálnod, hol kezdd.</p><p>Nem kell felforgatnod az életed, és nem kerül több feladat a listádra. Olyan apróságokat mutatunk, amelyek könnyen beleférnek a napodba, és talán már az első estéken érzed, mennyivel nyugodtabban teszed le a fejed a párnára.</p>', 'cimke' => '2. szekció -- Ígéret-cím + a jelenet / Text-editor'),
+  array('elem_id' => '8c97ba3', 'ut' => 'editor', 'horgony' => 'Brian Tracy gyakorlás törvénye kimondja, hogy ha egy tevékenységet elég sokszor', 'uj' => '<p>Brian Tracy gyakorlás törvénye kimondja, hogy ha egy tevékenységet elég sokszor ismételsz, akkor az szokássá válik. A megfelelő önfegyelemmel egy felnőtt embernek tizennégy és huszonegy nap közötti időre van szüksége ahhoz, hogy egy új szokást kialakítson. Ez idő alatt pedig rendszeresen kell ismételni az adott cselekvést. Az ingyenes kihívásban ehhez kapsz egy óriási lökést, és ha tetszik, folytasd tovább!</p><p>Nem az a cél, hogy egyik napról a másikra mindent megváltoztass, hanem az, hogy megtapasztald, milyen egy este, amikor nem kimerülve zuhansz az ágyba, hanem szépen, lépésről lépésre ráhangolódsz az alvásra.</p><p>A 21napalatt VIP Klubban nem állunk meg 7 napnál, további 14 napig folytatjuk együtt a pihentető esték építését. Ha kedvet kapsz, Téged is sok szeretettel várunk, csatlakozz hozzánk!</p>', 'cimke' => '3. szekció -- Miért éppen 7 nap? / Text-editor'),
+  array('elem_id' => '17c1f49', 'ut' => 'editor', 'horgony' => 'Minden reggel ott vár az applikációban egy rövid lecke, és mellé egy könnyű', 'uj' => '<p>Minden reggel ott vár az applikációban egy rövid lecke, és mellé egy könnyű vacsorarecept, a hétre szóló bevásárlólistával együtt. Az egyik estére pedig egy melengető, koffeinmentes esti italt készítünk.</p><p>A recepteket úgy válogattam össze, hogy könnyűek legyenek, és este ne terheljék meg a gyomrodat. A hozzávalókat a piacokon, boltok polcain könnyen megtalálod. Nem kell hozzájuk különleges konyhai tudás, és nem kell semmilyen speciális eszköz sem. Mindegyik gluténmentes, tejmentes, és nincs bennük hozzáadott cukor.</p><p>A kihívás teljesítésével egy csapásra két legyet is üthetsz: a 7. nap végén megveregetheted a válladat, hogy teljesítetted a tervet. De ami fontosabb, elindulhatsz az úton egy új, egészséges szokás kialakításához, amelyet csak folytatnod kell.</p>', 'cimke' => '4. szekció -- Mire számíthatsz? / Text-editor'),
+  array('elem_id' => '9a135ee', 'ut' => 'title', 'horgony' => 'Mi változhat az estéidben?', 'uj' => 'Pihentetőbb éjszakák, kipihentebb reggelek', 'cimke' => '5. szekció -- Pihentetőbb éjszakák, kipi / Heading'),
+  array('elem_id' => 'c927586', 'ut' => 'editor', 'horgony' => 'Ezen a héten nem kell egyszerre mindent megváltoztatnod. Minden nap csak egy', 'uj' => '<p>A kihívás alatt megtapasztalhatod, hogy</p>', 'cimke' => '5. szekció -- Pihentetőbb éjszakák, kipi / Text-editor'),
+  array('elem_id' => '360da42', 'ut' => 'icon_list.2.text', 'horgony' => 'mennyit számít, mikor iszod az utolsó kávét, és mikor vacsorázol', 'uj' => 'mennyit számít, mikor és mit vacsorázol', 'cimke' => '5. szekció -- Pihentetőbb éjszakák, kipi / Ikonos lista (4 elem) #3'),
+  array('elem_id' => '6a0ce87', 'ut' => 'editor', 'horgony' => 'Ez nem egy méregtelenítő- vagy fogyókúra. A kihívás alatt nem kell semmit sem', 'uj' => '<p>A kihívás alatt nem kell semmit sem kihagynod a táplálkozásodból, nyugodtan eheted és ihatod ugyanazokat, amiket korábban is. És nem csak az estéidről lesz szó, hasznos tippeket kapsz arra is, mit tehetsz napközben a pihentető éjszakáért.</p><p>A kihívás szokásokról és ételekről szól, nem orvosi kezelés. Ha tartósan nehezen alszol, kérd orvos segítségét.</p>', 'cimke' => '5. szekció -- Pihentetőbb éjszakák, kipi / Text-editor (a kizárás)'),
+  array('elem_id' => 'bb2a697', 'ut' => 'icon_list.0.text', 'horgony' => 'este fáradtan bebújsz az ágyba, aztán mégis csak forgolódsz,', 'uj' => 'este fáradtan bebújsz az ágyba, de sokszor nehezen tudsz elaludni,', 'cimke' => '6. szekció -- Imádni fogod a kihívást, h / Ikonos lista (7 elem) #1'),
+  array('elem_id' => 'bb2a697', 'ut' => 'icon_list.3.text', 'horgony' => 'délután még jólesik egy kávé, és este nehezen csendesedsz le,', 'uj' => 'lefekvés előtt még a telefont görgeted, amíg várod, hogy elálmosodj,', 'cimke' => '6. szekció -- Imádni fogod a kihívást, h / Ikonos lista (7 elem) #4'),
+  array('elem_id' => 'bb2a697', 'ut' => 'icon_list.4.text', 'horgony' => 'lefekvés előtt még a telefont görgeted, mert nehéz letenni,', 'uj' => 'munka és család mellett este végre a Tiéd az idő, és nehéz lefeküdni,', 'cimke' => '6. szekció -- Imádni fogod a kihívást, h / Ikonos lista (7 elem) #5'),
+  array('elem_id' => 'bb2a697', 'ut' => 'icon_list.5.text', 'horgony' => 'munka és család mellett este végre a Tiéd az idő, és nehéz lefeküdni,', 'uj' => 'szeretnél könnyű vacsorákat, de este már nincs kedved kitalálni, mi kerüljön az asztalra,', 'cimke' => '6. szekció -- Imádni fogod a kihívást, h / Ikonos lista (7 elem) #6'),
+  array('elem_id' => 'bb2a697', 'ut' => 'icon_list.6.text', 'horgony' => 'szeretnél könnyű vacsorákat, de este már nincs kedved kitalálni, mi kerüljön az', 'uj' => 'vagy egyszerűen kíváncsi vagy, hogy mi segíthet könnyebben elaludni.', 'cimke' => '6. szekció -- Imádni fogod a kihívást, h / Ikonos lista (7 elem) #7'),
+  array('elem_id' => '1cfd5a8', 'ut' => 'editor', 'horgony' => 'Készíts fotót az elkészült vacsorádról vagy esti italodról. Posztold a kihívás', 'uj' => '<ul><li><strong>Készíts fotót az elkészült vacsorádról vagy esti italodról.</strong></li><li><strong>Posztold a kihívás Facebook csoportjában a @21napalatt_kihivas hashtaggel.</strong></li></ul><p>November 8-án a legalább 1 képet feltöltők között kisorsolunk egy szerencsés résztvevőt, aki 1 hónapos 21napalatt VIP Klub előfizetést nyer.</p><p>A 21napalatt VIP Klubtagság teljes hozzáférést ad a VIP Klub minden tartalmához: 21 napos életmódprogramhoz, a hetente frissülő menütervekhez, 600+ tej-, cukor- és gluténmentes recepthez, 21 napos kihívásokhoz, tudásanyagokhoz, a zárt Facebook csoporthoz.</p>', 'cimke' => '11. szekció -- Nyereményjáték (platform: / Text-editor')
 );
 $MARAD = array(
+  array('elem_id' => '6b45d9c', 'ut' => 'title', 'horgony' => 'Indul a 7 napos pihentető alvás kihívás', 'cimke' => 'Heading'),
+  array('elem_id' => 'ed700ab', 'ut' => 'editor', 'horgony' => 'Regisztrálj most, a kihívás teljesen ingyenes. Indulás: 2026. november 1.', 'cimke' => 'Text-editor (a hero alatti sor)'),
   array('elem_id' => '2aec29b', 'ut' => 'text', 'horgony' => 'Én is kipróbálom', 'cimke' => 'Gomb 1'),
+  array('elem_id' => '6c78b0f2', 'ut' => 'title', 'horgony' => 'Készülj úgy az estére, hogy könnyebben elaludj', 'cimke' => 'Heading'),
   array('elem_id' => '4aa9c3b', 'ut' => 'title', 'horgony' => 'Miért éppen 7 nap?', 'cimke' => 'Heading'),
   array('elem_id' => 'c0f829f', 'ut' => 'text', 'horgony' => 'Már megyek is', 'cimke' => 'Gomb 2'),
   array('elem_id' => '64ff707', 'ut' => 'title', 'horgony' => 'Mire számíthatsz?', 'cimke' => 'Heading'),
   array('elem_id' => 'e2e10c5', 'ut' => 'text', 'horgony' => 'Vágjunk bele, csatlakozom', 'cimke' => 'Gomb 3'),
+  array('elem_id' => '360da42', 'ut' => 'icon_list.0.text', 'horgony' => 'este könnyebben elalhatsz', 'cimke' => 'Ikonos lista (4 elem) #1'),
+  array('elem_id' => '360da42', 'ut' => 'icon_list.1.text', 'horgony' => 'reggel kipihentebben ébredhetsz', 'cimke' => 'Ikonos lista (4 elem) #2'),
+  array('elem_id' => '360da42', 'ut' => 'icon_list.3.text', 'horgony' => 'mennyivel nyugodtabb egy este, ha megvan a saját esti rutinod', 'cimke' => 'Ikonos lista (4 elem) #4'),
   array('elem_id' => '2053b90', 'ut' => 'text', 'horgony' => 'Wow, erre rámegyek', 'cimke' => 'Gomb 4'),
   array('elem_id' => '94b920d', 'ut' => 'title', 'horgony' => 'Imádni fogod a kihívást, ha', 'cimke' => 'Heading'),
+  array('elem_id' => 'bb2a697', 'ut' => 'icon_list.1.text', 'horgony' => 'hajnalban felébredsz, és nehezen alszol vissza,', 'cimke' => 'Ikonos lista (7 elem) #2'),
+  array('elem_id' => 'bb2a697', 'ut' => 'icon_list.2.text', 'horgony' => 'reggel úgy kelsz, mintha nem is aludtál volna,', 'cimke' => 'Ikonos lista (7 elem) #3'),
+  array('elem_id' => 'be0d9b5', 'ut' => 'editor', 'horgony' => 'Remélem, a hét végére Te is úgy oltod le este az éjjeli lámpát, hogy közben', 'cimke' => 'Text-editor (záró vágykép)'),
   array('elem_id' => '4ac6aea', 'ut' => 'text', 'horgony' => 'Naná, regisztrálok is', 'cimke' => 'Gomb 5'),
   array('elem_id' => 'e2e740b', 'ut' => 'title', 'horgony' => 'A kihívás menete', 'cimke' => 'Heading'),
   array('elem_id' => 'fb7e110', 'ut' => 'title', 'horgony' => 'Regisztrálj a kihívásra', 'cimke' => '7. Heading'),
@@ -73,7 +74,11 @@ $MARAD = array(
   array('elem_id' => 'cd7ec3e', 'ut' => 'title', 'horgony' => 'Keresd a bevásárlólistát', 'cimke' => '9. Heading'),
   array('elem_id' => '84b9598', 'ut' => 'editor', 'horgony' => 'és szerezd be a hozzávalókat!', 'cimke' => 'Text'),
   array('elem_id' => '76c4bce', 'ut' => 'title', 'horgony' => 'Nyerj 1 hónap 21napalatt VIP Klub előfizetést Facebook nyereményjátékunkon', 'cimke' => 'Heading'),
-  array('elem_id' => '5b4972b', 'ut' => 'text', 'horgony' => 'Itt a helyem, regisztrálok', 'cimke' => 'Gomb 6')
+  array('elem_id' => '5b4972b', 'ut' => 'text', 'horgony' => 'Itt a helyem, regisztrálok', 'cimke' => 'Gomb 6'),
+  array('elem_id' => '3685e05', 'ut' => 'title', 'horgony' => 'Jelentkezem a 7 napos pihentető alvás kihívásra', 'cimke' => 'Heading')
+);
+$TOROL = array(
+  array('elem_id' => 'bb2a697', 'lista' => 'icon_list', 'index' => '7', 'vart_db' => '8', 'horgony' => 'vagy egyszerűen kíváncsi vagy, hogy mi segíthet könnyebben elaludni.', 'cimke' => '6. szekció -- Imádni fogod a kihívást, h / Ikonos lista (7 elem) #8')
 );
 
 $ARGV = $argv ?: array();
@@ -212,6 +217,39 @@ foreach ($PAROK as $par) {
     unset($elem);
 }
 ki('');
+/* TORLES A LISTA VEGEROL (a doksi rovidebb listat ad, mint az oldal). Iras elott, szarazon is: a lista
+   pontosan a mert elemszamu; a torlendo elem szovege a horgonnyal kezdodik; es a lista MINDEN eleme
+   ugyanazt az ikont viseli -- kulonben a vegerol torles egy masik elem ikonjat vinne el. Barmely
+   elteres: semmit nem irunk. */
+ki('TORLES a lista vegerol ('.count($TOROL).' elem):');
+$torolLe = $TOROL;
+usort($torolLe, function ($x, $y) { return (int) $y['index'] - (int) $x['index']; });
+foreach ($TOROL as $t) {
+    $elem =& km_elem($fa, $t['elem_id']);
+    $lista = ($elem !== null && isset($elem['settings'][$t['lista']]) && is_array($elem['settings'][$t['lista']])) ? $elem['settings'][$t['lista']] : null;
+    unset($elem);
+    if ($lista === null) { ki(sprintf('  !! [%s] nincs %s lista', $t['elem_id'], $t['lista'])); $hiba++; continue; }
+    if (count($lista) !== (int) $t['vart_db']) { ki(sprintf('  !! [%s] a lista %d elemu, %d-et vartam', $t['elem_id'], count($lista), (int) $t['vart_db'])); $hiba++; continue; }
+    $sz = isset($lista[(int) $t['index']]['text']) && is_string($lista[(int) $t['index']]['text']) ? $lista[(int) $t['index']]['text'] : null;
+    if ($sz === null || !km_kezdodik($sz, $t['horgony'])) {
+        ki(sprintf('  !! [%s] %s.%d: nem a horgony -- most: %s', $t['elem_id'], $t['lista'], (int) $t['index'], $sz === null ? 'NINCS' : mb_substr(km_tiszta($sz), 0, 70)));
+        $hiba++; continue;
+    }
+    $ikon = function ($it) { return wp_json_encode(array(isset($it['selected_icon']) ? $it['selected_icon'] : null, isset($it['icon']) ? $it['icon'] : null)); };
+    $elter = 0;
+    foreach ($lista as $it) { if ($ikon($it) !== $ikon($lista[0])) { $elter++; } }
+    if ($elter > 0) { ki(sprintf('  !! [%s] %d listaelem ikonja elter az elsotol -- a vegerol torles mas ikont vinne el. KIHAGYVA.', $t['elem_id'], $elter)); $hiba++; continue; }
+    ki(sprintf('  [%s] %s.%d  -- %s', $t['elem_id'], $t['lista'], (int) $t['index'], $t['cimke']));
+    ki('        torlendo: '.mb_substr(km_tiszta($sz), 0, 90).'   (a lista '.count($lista).' elemu, egyforma ikonnal)');
+}
+if ($APPLY && $hiba === 0) {
+    foreach ($torolLe as $t) {
+        $elem =& km_elem($fa, $t['elem_id']);
+        array_splice($elem['settings'][$t['lista']], (int) $t['index'], 1);
+        unset($elem);
+    }
+}
+ki('');
 $cimValtozik = ($p->post_title !== $UJ_CIM);
 ki('OLDAL CIME: "'.$p->post_title.'"'.($cimValtozik ? '  ->  "'.$UJ_CIM.'"' : '  (mar ez)'));
 ki('');
@@ -258,6 +296,15 @@ foreach ($MARAD as $m) {
     unset($e);
 }
 ki(sprintf('  %d/%d uj mezo a vart erteket adja; %d/%d valtozatlan mezo valtozatlan.', $ok, count($PAROK), $mOk, count($MARAD)));
+$vartDb = array();
+foreach ($TOROL as $t) { $k = $t['elem_id'].'|'.$t['lista']; $vartDb[$k] = (isset($vartDb[$k]) ? $vartDb[$k] : (int) $t['vart_db']) - 1; }
+foreach ($vartDb as $k => $db) {
+    list($eid, $lst) = explode('|', $k);
+    $e =& km_elem($faV, $eid);
+    $most = ($e !== null && isset($e['settings'][$lst]) && is_array($e['settings'][$lst])) ? count($e['settings'][$lst]) : -1;
+    unset($e);
+    if ($most === $db) { ki(sprintf('  [%s] %s: %d elem (jo)', $eid, $lst, $most)); } else { $rossz++; ki(sprintf('  !! [%s] %s: %d elem, %d-et vartam', $eid, $lst, $most, $db)); }
+}
 $cimMost = get_post($OLDAL)->post_title;
 if ($cimMost !== $UJ_CIM) { $rossz++; ki('  !! a cim: "'.$cimMost.'"'); } else { ki('  cim: "'.$cimMost.'" (jo)'); }
 foreach (array('_elementor_css', '_elementor_page_assets', '_elementor_element_cache') as $mk) {

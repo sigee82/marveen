@@ -243,6 +243,14 @@ def main():
     ap.add_argument('--forras', default=None,
                     help='a szoveg-forras (alapertelmezes: Copy fajlja). 2026-10-14 ota a JOVAHAGYOTT szoveg Eszter '
                          'doksija: landing-doksi-atalakito.py kimenete adhato meg itt.')
+    ap.add_argument('--horgony-elozo', default=None,
+                    help='egy KORABBI kor parositas-JSON-ja, ami a celoldalon MAR LEFUTOTT: a CSERE-mezok horgonya '
+                         'annak "uj" erteke lesz, nem a mert forras-allapot. Igy egy javitott doksi a mar atirt oldalra '
+                         'mehet, visszaallitas nelkul (Nova 20674: a kepek veglegesek, a visszaallitas azokat is '
+                         'visszavinne). A formazas vaza tovabbra is a mert forras-HTML.')
+    ap.add_argument('--kapu-elfogad-allando', default='',
+                    help='a szoveg-kapu --elfogad-allando kapcsoloja: CSAK a jovahagyo sajat, nevvel megnevezett '
+                         'allando-blokk valtoztatasara (a kimenetben ELFOGADVA sorkent all).')
     a = ap.parse_args()
     global COPY_MD
     if a.forras:
@@ -260,18 +268,59 @@ def main():
            - datetime.datetime.fromisoformat(meres['mikor_utc'].replace('Z', '+00:00'))).total_seconds() / 3600
     if kor > 24 and not a.regi_meres_ok:
         hiba(f'a meres {kor:.0f} oras ({meres["mikor_utc"]}). Merd ujra az elo oldalt, vagy --regi-meres-ok.')
-    widgetek = [m for m in meres['mezok'] if m['tipus'] in SZOVEGES and m['id'] not in KIZART_WIDGETEK]
+    widgetek = [dict(m) for m in meres['mezok'] if m['tipus'] in SZOVEGES and m['id'] not in KIZART_WIDGETEK]
 
-    if len(copy) != len(widgetek):
+    # --horgony-elozo: a mar lefutott kor "uj" erteke a mezo jelenlegi szovege (a horgony forrasa);
+    # a 'html' (a formazas vaza) a mert forras-allapot marad.
+    elozo = None
+    if a.horgony_elozo:
+        ej = json.load(io.open(a.horgony_elozo, encoding='utf-8'))
+        if ej.get('honap') != HONAP:
+            hiba(f'a --horgony-elozo a {ej.get("honap")} honape, nem a {HONAP}-e.')
+        elozo = {(p['elem_id'], p['ut']): p['uj'] for p in ej['parok']}
+        for w in widgetek:
+            u = elozo.get((w['id'], w['ut']))
+            if u is not None:
+                w['szoveg'] = tagtalan(u)
+
+    # PAROSITAS SORRENDBEN. Egy ikonos lista RÖVIDÜLHET (2026-10-15, Eszter: 8 -> 7 elem): a Copy N tetele az
+    # oldal listajanak elso N elemere megy, a maradek a lista VEGEROL torlodik ($TOROL; a PHP csak akkor
+    # torol, ha a torlendo elem szovege a horgony, es a lista minden eleme ugyanazt az ikont viseli).
+    # Hosszabbodas (uj elem) nem tamogatott: azt a sablonban kell eldonteni.
+    paros, torol = [], []
+    ci = wi = 0
+    while ci < len(copy) and wi < len(widgetek):
+        c, w = copy[ci], widgetek[wi]
+        if c['tipus'] == 'icon-list' and w['tipus'] == 'icon-list':
+            n = c['db']
+            m = 0
+            while wi + m < len(widgetek) and widgetek[wi + m]['id'] == w['id'] and widgetek[wi + m]['tipus'] == 'icon-list':
+                m += 1
+            if n > m:
+                hiba(f'{c["szekcio"]} / {c["cimke"]}: a doksiban {n} elem, az oldal listajaban ({w["id"]}) csak {m}. '
+                     'Uj listaelemet a generator nem tesz be.')
+            paros.extend(zip(copy[ci:ci + n], widgetek[wi:wi + n]))
+            for k in range(wi + n, wi + m):
+                idx = int(widgetek[k]['ut'].split('.')[1])
+                torol.append({'elem_id': widgetek[k]['id'], 'lista': 'icon_list', 'index': idx, 'vart_db': m,
+                              'horgony': horgony(norm(widgetek[k]['szoveg'])), 'cimke': f'{c["szekcio"][:40]} / {c["cimke"].rsplit(" #", 1)[0]} #{idx + 1}'})
+            ci += n
+            wi += m
+            continue
+        paros.append((c, w))
+        ci += 1
+        wi += 1
+    if ci != len(copy) or wi != len(widgetek):
         for i in range(max(len(copy), len(widgetek))):
             c = copy[i] if i < len(copy) else None
             w = widgetek[i] if i < len(widgetek) else None
             print(f"  {i:2} {c['tipus'] if c else '-':12} {c['cimke'] if c else '':32} | "
                   f"{w['tipus'] if w else '-':12} {w['id'] if w else ''} {(w['szoveg'][:40] if w else '')}")
-        hiba(f'Copy {len(copy)} mezot ad, az oldalon {len(widgetek)} szoveges mezo van.')
+        hiba(f'Copy {len(copy)} mezot ad, az oldalon {len(widgetek)} szoveges mezo van; a parositas nem ert a vegere.')
+    torolt = {(t['elem_id'], 'icon_list.%d.text' % t['index']) for t in torol}
 
     parok, marad, bajok, megjegyzesek = [], [], [], []
-    for i, (c, w) in enumerate(zip(copy, widgetek)):
+    for i, (c, w) in enumerate(paros):
         hol = f'#{i} {c["szekcio"][:28]} / {c["cimke"]} <-> {w["id"]} {w["ut"]}'
         if c['tipus'] != w['tipus']:
             bajok.append(f'TIPUS-ELTERES {hol}: Copy {c["tipus"]}, oldal {w["tipus"]}')
@@ -305,6 +354,8 @@ def main():
     vegso = []
     uj_by = {(p['elem_id'], p['ut']): p['uj'] for p in parok}
     for w in widgetek:
+        if (w['id'], w['ut']) in torolt:
+            continue
         u = uj_by.get((w['id'], w['ut']))
         if u is None:
             vegso.append(norm(w['szoveg']))
@@ -315,7 +366,11 @@ def main():
     with tempfile.NamedTemporaryFile('w', suffix='.txt', delete=False, encoding='utf-8') as t:
         t.write('\n'.join(vegso) + '\n')
         oldal_txt = t.name
-    r = subprocess.run([sys.executable, SZOVEG_KAPU, '--fajl', oldal_txt], capture_output=True, text=True)
+    imadni = [c['db'] for c in copy if c['tipus'] == 'icon-list' and 'Imádni fogod' in c['szekcio']]
+    kapu_arg = [sys.executable, SZOVEG_KAPU, '--fajl', oldal_txt, '--imadni-db', str(imadni[0] if imadni else 8)]
+    if a.kapu_elfogad_allando:
+        kapu_arg += ['--elfogad-allando', a.kapu_elfogad_allando]
+    r = subprocess.run(kapu_arg, capture_output=True, text=True)
     print('@@ SZOVEG-KAPU az oldal VEGSO szovegen (exit %d):' % r.returncode)
     for s in r.stdout.strip().split('\n'):
         print('@@   ' + s)
@@ -328,24 +383,32 @@ def main():
     json.dump({'honap': HONAP, 'forras': {'ut': COPY_MD, 'md5': md5, 'mtime': mtime},
                'meres': {'ut': ELO, 'mikor_utc': meres['mikor_utc']},
                'keszult': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-               'parok': parok, 'marad': marad, 'megjegyzesek': megjegyzesek},
+               'horgony_elozo': a.horgony_elozo,
+               'parok': parok, 'marad': marad, 'torol': torol, 'megjegyzesek': megjegyzesek},
               io.open(KI_JSON, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
     fej = FEJ.replace('__HONAP__', HONAP).replace('__FORRAS_MD__', os.path.basename(COPY_MD)) \
-             .replace('__MD5__', md5).replace('__MTIME__', mtime).replace('__MERES__', meres['mikor_utc'])
+             .replace('__MD5__', md5).replace('__MTIME__', mtime).replace('__MERES__', meres['mikor_utc']) \
+             .replace('__HORGONY__', ('a CSERE-mezok horgonya a mar lefutott kor szovege: ' + os.path.basename(a.horgony_elozo))
+                      if a.horgony_elozo else 'a mert forras-allapot')
     if not UJ_CIM.strip() or "'" in UJ_CIM or '\\' in UJ_CIM:
         hiba('az UJ_CIM ures, vagy aposztrofot/backslasht tartalmaz.')
     konf = (f"$HONAP = '{HONAP}';\n$FORRAS_ID = {FORRAS_ID};\n$UJ_CIM = '{UJ_CIM}';\n"
             f"$TILTOTT = array({', '.join(str(x) for x in TILTOTT_IDK)});\n"
             f"$PROD_IDEIGLENES = '{PROD_IDEIGLENES}';\n")
     io.open(KI_PHP, 'w', encoding='utf-8').write(
-        fej + konf + '$PAROK = ' + php_tomb(parok) + ';\n$MARAD = ' + php_tomb(marad) + ';\n' + TORZS)
+        fej + konf + '$PAROK = ' + php_tomb(parok) + ';\n$MARAD = ' + php_tomb(marad) + ';\n$TOROL = '
+        + php_tomb(torol) + ';\n' + TORZS)
 
     print(f'@@ FORRAS: {os.path.basename(COPY_MD)}  md5={md5}  mtime={mtime}')
     print(f'@@ meres: {meres["mikor_utc"]} ({kor:.1f} oras)')
     print(f'@@ {len(copy)} Copy-mezo = {len(widgetek)} oldal-mezo; {len(parok)} VALTOZIK, '
           f'{len(marad)} valtozatlan (a MARAD mezok betura egyeznek -- a parositas nem csuszott el)')
+    if a.horgony_elozo:
+        print(f'@@ HORGONY: a lefutott kor szovege ({os.path.basename(a.horgony_elozo)}), nem a mert forras-allapot')
     for p in parok:
         print(f"@@   CSERE {p['elem_id']:9} {p['ut']:18} {p['cimke'][:60]}")
+    for t in torol:
+        print(f"@@   TOROL {t['elem_id']:9} {t['lista']}.{t['index']:<9} {t['cimke'][:60]}  (horgony: {t['horgony'][:40]})")
     for m in megjegyzesek:
         print(f'@@ FIGYELEM: {m}')
     print(f'@@ -> {KI_PHP}')
@@ -378,6 +441,9 @@ FEJ = r'''<?php
  * kezdodik; a VALTOZATLAN (MARAD) mezok is a mert horgonnyal kezdodnek -- ezek a pozitiv
  * kontroll, hogy jo oldalon, jo allapotban vagyunk. Barmely elteres: SEMMIT nem irunk.
  * A mentes a $HOME-ba megy, NEM a webrootba (a 2026.10-es valtozat a webrootba irta).
+ * HORGONY: __HORGONY__
+ * $TOROL: ha a doksi listaja rovidebb, mint az oldale, a felesleges elemek a lista VEGEROL torlodnek --
+ * csak ha a lista a mert elemszamu, a torlendo szovege a horgony, es minden elem ikonja egyforma.
  *
  * PROBAPAD: LANDING_CSERE_PROBAPAD=1 + --wp=<gyoker> -- CSAK a hoszt-ellenorzest kapcsolja ki.
  * A cel-orok (tiltott ID, dev-jelolo, prod draft+ideiglenes slug, --yes-prod) probapadon is
@@ -524,6 +590,39 @@ foreach ($PAROK as $par) {
     unset($elem);
 }
 ki('');
+/* TORLES A LISTA VEGEROL (a doksi rovidebb listat ad, mint az oldal). Iras elott, szarazon is: a lista
+   pontosan a mert elemszamu; a torlendo elem szovege a horgonnyal kezdodik; es a lista MINDEN eleme
+   ugyanazt az ikont viseli -- kulonben a vegerol torles egy masik elem ikonjat vinne el. Barmely
+   elteres: semmit nem irunk. */
+ki('TORLES a lista vegerol ('.count($TOROL).' elem):');
+$torolLe = $TOROL;
+usort($torolLe, function ($x, $y) { return (int) $y['index'] - (int) $x['index']; });
+foreach ($TOROL as $t) {
+    $elem =& km_elem($fa, $t['elem_id']);
+    $lista = ($elem !== null && isset($elem['settings'][$t['lista']]) && is_array($elem['settings'][$t['lista']])) ? $elem['settings'][$t['lista']] : null;
+    unset($elem);
+    if ($lista === null) { ki(sprintf('  !! [%s] nincs %s lista', $t['elem_id'], $t['lista'])); $hiba++; continue; }
+    if (count($lista) !== (int) $t['vart_db']) { ki(sprintf('  !! [%s] a lista %d elemu, %d-et vartam', $t['elem_id'], count($lista), (int) $t['vart_db'])); $hiba++; continue; }
+    $sz = isset($lista[(int) $t['index']]['text']) && is_string($lista[(int) $t['index']]['text']) ? $lista[(int) $t['index']]['text'] : null;
+    if ($sz === null || !km_kezdodik($sz, $t['horgony'])) {
+        ki(sprintf('  !! [%s] %s.%d: nem a horgony -- most: %s', $t['elem_id'], $t['lista'], (int) $t['index'], $sz === null ? 'NINCS' : mb_substr(km_tiszta($sz), 0, 70)));
+        $hiba++; continue;
+    }
+    $ikon = function ($it) { return wp_json_encode(array(isset($it['selected_icon']) ? $it['selected_icon'] : null, isset($it['icon']) ? $it['icon'] : null)); };
+    $elter = 0;
+    foreach ($lista as $it) { if ($ikon($it) !== $ikon($lista[0])) { $elter++; } }
+    if ($elter > 0) { ki(sprintf('  !! [%s] %d listaelem ikonja elter az elsotol -- a vegerol torles mas ikont vinne el. KIHAGYVA.', $t['elem_id'], $elter)); $hiba++; continue; }
+    ki(sprintf('  [%s] %s.%d  -- %s', $t['elem_id'], $t['lista'], (int) $t['index'], $t['cimke']));
+    ki('        torlendo: '.mb_substr(km_tiszta($sz), 0, 90).'   (a lista '.count($lista).' elemu, egyforma ikonnal)');
+}
+if ($APPLY && $hiba === 0) {
+    foreach ($torolLe as $t) {
+        $elem =& km_elem($fa, $t['elem_id']);
+        array_splice($elem['settings'][$t['lista']], (int) $t['index'], 1);
+        unset($elem);
+    }
+}
+ki('');
 $cimValtozik = ($p->post_title !== $UJ_CIM);
 ki('OLDAL CIME: "'.$p->post_title.'"'.($cimValtozik ? '  ->  "'.$UJ_CIM.'"' : '  (mar ez)'));
 ki('');
@@ -570,6 +669,15 @@ foreach ($MARAD as $m) {
     unset($e);
 }
 ki(sprintf('  %d/%d uj mezo a vart erteket adja; %d/%d valtozatlan mezo valtozatlan.', $ok, count($PAROK), $mOk, count($MARAD)));
+$vartDb = array();
+foreach ($TOROL as $t) { $k = $t['elem_id'].'|'.$t['lista']; $vartDb[$k] = (isset($vartDb[$k]) ? $vartDb[$k] : (int) $t['vart_db']) - 1; }
+foreach ($vartDb as $k => $db) {
+    list($eid, $lst) = explode('|', $k);
+    $e =& km_elem($faV, $eid);
+    $most = ($e !== null && isset($e['settings'][$lst]) && is_array($e['settings'][$lst])) ? count($e['settings'][$lst]) : -1;
+    unset($e);
+    if ($most === $db) { ki(sprintf('  [%s] %s: %d elem (jo)', $eid, $lst, $most)); } else { $rossz++; ki(sprintf('  !! [%s] %s: %d elem, %d-et vartam', $eid, $lst, $most, $db)); }
+}
 $cimMost = get_post($OLDAL)->post_title;
 if ($cimMost !== $UJ_CIM) { $rossz++; ki('  !! a cim: "'.$cimMost.'"'); } else { ki('  cim: "'.$cimMost.'" (jo)'); }
 foreach (array('_elementor_css', '_elementor_page_assets', '_elementor_element_cache') as $mk) {

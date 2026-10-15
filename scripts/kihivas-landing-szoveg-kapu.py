@@ -123,7 +123,18 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--url", default=None)
     ap.add_argument("--fajl", default=None)
+    # A lista hossza nem allando (2026-11: Eszter 8 -> 7 pontra roviditette). A generator a doksibol adja at.
+    ap.add_argument("--imadni-db", type=int, default=8)
+    # NEVVEL ELFOGADOTT allando-blokk elteres: csak a tulajdonos/jovahagyo SAJAT szovegvaltoztatasara
+    # (2026-10-15, Eszter jovahagyasi doksija). Nem nemit: a kimenetben ELFOGADVA sorkent all, es csak a
+    # felsorolt nevekre ervenyes; minden mas lelet ugyanugy megallit.
+    ap.add_argument("--elfogad-allando", default="",
+                    help="pontosvesszovel elvalasztott ALLANDO-nevek, pl. 'VIP Klub leiras;nem meregtelenito kizaras'")
     a = ap.parse_args()
+    elfogadott = {x.strip() for x in a.elfogad_allando.split(";") if x.strip()}
+    ismeretlen = elfogadott - set(ALLANDO)
+    if ismeretlen:
+        print(f"VAK MERES: ismeretlen --elfogad-allando nev: {', '.join(sorted(ismeretlen))}"); return 2
 
     if not os.path.exists(KORPUSZ):
         print(f"VAK MERES: nincs korpusz itt: {KORPUSZ}"); return 2
@@ -259,6 +270,9 @@ def main():
     # 4. allando blokkok
     for nev, horgony in ALLANDO.items():
         if horgony not in t:
+            if nev in elfogadott:
+                print(f"ELFOGADVA (nevvel, --elfogad-allando): hianyzo allando blokk: {nev} (horgony: '{horgony}').")
+                continue
             leletek.append(f"HIANYZO ALLANDO BLOKK: {nev} (horgony: '{horgony}').")
 
     # 5. CTA-gombok
@@ -271,11 +285,11 @@ def main():
     sorok = t.split("\n")
     ix = [i for i, x in enumerate(sorok) if "Imádni fogod a kihívást" in x]
     if ix:
-        pontok = [x for x in sorok[ix[0] + 1:ix[0] + 9] if x]
+        pontok = [x for x in sorok[ix[0] + 1:ix[0] + 1 + a.imadni_db] if x]
         vesszos = sum(1 for x in pontok if x.endswith(","))
         if pontok and vesszos < len(pontok) - 1:
             leletek.append(f"LISTA-KOZPONTOZAS: az 'Imadni fogod, ha' {len(pontok)} pontjabol "
-                           f"{vesszos} zarul vesszovel. A korpuszban mind a nyolc vesszos, "
+                           f"{vesszos} zarul vesszovel. A korpuszban mind vesszos, "
                            f"az utolso 'vagy egyszeruen kivancsi vagy...' alakkal.")
 
     # 7. nyeremenyjatek platform: fejlec kontra torzs
