@@ -90,6 +90,11 @@ check('nem figyelt eszkoz (Read): atmegy', rc == 0)
 rc, out, err = hook({'tool_name': 'Bash', 'tool_input': {'command': 'curl -s https://innomailer.hu/api/inno/v1/campaigns --data-binary @nincs-ilyen.json'}, 'cwd': NESSA})
 check('curl InnoMailer, olvashatatlan @fajl: MEGALL (fail-closed)', rc == 2 and 'nem olvashato' in err, err)
 
+# --- curl '{...}'; echo -- a `;` nem tapadhat a JSON-hoz (2026-10-15, elo kontroll: a torzs nyersen ment at)
+rc, out, err = hook({'tool_name': 'Bash', 'tool_input': {'command': "curl -s https://innomailer.hu/x --data-binary '" + json.dumps(
+    {'subject': 'A', 'content': 'Ezen a héten nem kell egyszerre mindent megváltoztatnod.'}, ensure_ascii=False) + "'; echo x"}, 'cwd': NESSA})
+check("curl '{json}'; echo: megall, es a JSON-kulcsok nem a mondatban", rc == 2 and '"subject"' not in err, err)
+
 # --- szabalyfajl hiba: ugyfel-uton megall, Telegramon atmegy
 rossz = dict(ENV, SZOVEGKAPU_SZABALYOK=os.path.join(TMP, 'nincs.json'))
 rc, out, err = hook(UTAK['Claude Docs (batch)']('Szép napot.'), rossz)

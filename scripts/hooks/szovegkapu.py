@@ -273,7 +273,10 @@ def curl_szoveg(cmd, cwd):
         return None, None
     test = re.sub(r"<<-?\s*'?(\w+)'?[^\n]*\n.*?\n\1(\s|$)", ' ', cmd, flags=re.S)
     try:
-        tok = shlex.split(test, posix=True)
+        # punctuation_chars: a `'{...}';` alakban a `;` kulon token lesz, kulonben a JSON-hoz tapad, es a torzs nyersen megy at
+        lex = shlex.shlex(test, posix=True, punctuation_chars=True)
+        lex.whitespace_split = True
+        tok = list(lex)
     except ValueError:
         tok = test.split()
     mufaj = None
