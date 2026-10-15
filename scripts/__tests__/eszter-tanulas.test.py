@@ -104,6 +104,27 @@ check('szabaly-jelolt: "egy rövid" (2 szo, nem fogott) a javaslat-listaban', re
 check('Eszter sajat (bekerult) "nem X, hanem Y" mondatat a kapu JELEZI -> a tulszigoru-gyanu listaban',
       re.search(r'^- „Nem a tökéletes este a cél, hanem.*G-nem-x-hanem-y', ki, re.M) is not None,
       '\n'.join(l for l in ki.splitlines() if 'tökéletes este' in l))
+# --- teljes horgony getComment-fajlbol, es a mar kezelt komment (Copy 20939)
+# W43: egy csonka horgonyu komment (a teljes horgony a getComment-fajlban, abban "Nincs szigorú szabály" -> a kapu fogja),
+# egy csonka horgony getComment-fajl nelkul (figyelmeztetes), es egy komment, aminek az ID-je mar a tiltolistaban all.
+w43 = os.path.join(TMP, 'W43', 'docs')
+os.makedirs(w43)
+io.open(os.path.join(w43, 'def.txt'), 'w', encoding='utf-8').write('x')
+io.open(os.path.join(w43, 'def.megjegyzesek.txt'), 'w', encoding='utf-8').write(
+    'Found 3 comments:\n\n1. Szigeti-Kovács Eszter (10/20/2026)\n   Anchored to: "Ez egy hossz&#250; mondat, amit a lista lev&#225;g..."\n'
+    '   Comment: ai-os\n   Comment ID: TELJES1\n\n'
+    '2. Szigeti-Kovács Eszter (10/20/2026)\n   Anchored to: "Egy m&#225;sik lev&#225;gott mondat, getComment n&#233;lk&#252;l..."\n   Comment: unalmas\n   Comment ID: CSONKA2\n\n'
+    '3. Szigeti-Kovács Eszter (10/20/2026)\n   Anchored to: "juk a saj&#225;t esti rutinodat, a Te &#233;bred&#233;sedhez"\n'
+    '   Comment: az emberek nem akarnak még több feladatot\n   Comment ID: AAACIy0GnL0\n')
+io.open(os.path.join(w43, 'def.komment-TELJES1.txt'), 'w', encoding='utf-8').write(
+    'Szigeti-Kovács Eszter (10/20/2026)\nAnchored to: "Ez egy hossz&#250; mondat, amit a lista lev&#225;g, de a v&#233;g&#233;n:\nNincs szigor&#250; szab&#225;ly, &#233;s ennyi."\nai-os\n')
+r3 = subprocess.run([sys.executable, '-I', SZKRIPT, '--het', os.path.join(TMP, 'W43')], capture_output=True, text=True)
+k3 = r3.stdout
+check('teljes horgony: a getComment-fajlbol jon, es a teljes szovegen a kapu fogja (G-nincs-szigoru-szabaly)',
+      re.search(r'Nincs szigorú szabály.*G-nincs-szigoru-szabaly', k3) is not None, '\n'.join(l for l in k3.splitlines() if 'hosszú' in l))
+check('csonka horgony getComment nelkul: jelolve, es a figyelmeztetes kiirja (1 csonka)', '(csonka)' in k3 and '1 horgony csonka' in k3, k3[-600:])
+check('mar kezelt komment-ID (AAACIy0GnL0, a tiltolistaban): "már kezelve", nem jelolt',
+      'már kezelve' in k3 and 'AAACIy0GnL0' in k3 and not re.search(r'^- \(1x\) „juk a saját esti', k3, re.M), k3[-800:])
 r2 = subprocess.run([sys.executable, '-I', SZKRIPT, '--het', os.path.join(TMP, 'nincs')], capture_output=True, text=True)
 check('nem letezo heti mappa -> exit 2', r2.returncode == 2, str(r2.returncode))
 shutil.rmtree(TMP, ignore_errors=True)

@@ -271,7 +271,9 @@ EMAIL_RX = re.compile(r'(^mcp__email__(send_email|save_to_mailbox)$)|(send_email
 # a mezok, amelyek NEM szoveg (azonositok, utak, cimzettek) -- ezeket nem vizsgaljuk
 NEM_SZOVEG = re.compile(r'(?i)(^|_)(id|ids|url|uri|path|file_path|mime.*|mimetype|to|cc|bcc|from|recipient.*|account|email|'
                         r'folder.*|parent.*|drive.*|range|index|format|font.*|color|style|type|kind|engine|ref|object|'
-                        r'container|version|opid|answering|verbose|role|chat_id|reply_to|message_id|files|emoji)$')
+                        r'container|version|opid|answering|verbose|role|chat_id|reply_to|message_id|files|emoji|'
+                        # a csere KERESETT, torlendo szovege nem kimeno (Copy 20941: a 'klubtag' -> 'VIP Klub' csere a regi alakon allt meg)
+                        r'findtext|find|search|searchtext|old_str|oldstring|oldtext|old_text)$')
 CURL_CELOK = (('innomailer.hu', 'hirlevel'), ('connect.mailerlite.com', 'hirlevel'), ('googleapis.com/upload/drive', '*'))
 CURL_SZOVEG_KULCS = re.compile(r'(?i)^(subject|name|title|content|html|plain|plain_text|text|body|preheader|description|message)$')
 

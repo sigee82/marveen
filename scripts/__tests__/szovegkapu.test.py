@@ -166,5 +166,12 @@ check('MAS tablazat Sheets-irasa: kivul marad (exit 0, nincs uzenet)', rc == 0 a
 rc, out, err = hook(sheet('Ez nem egy méregtelenítő- vagy fogyókúra.'))
 check('posztnaptar: a landing-mufaju E-meregtelenito posztban is fut (minden mufaj listajaban benne van a poszt)', rc == 2 and 'E-meregtelenito' in err, err)
 
+# --- csere-ut (Copy 20941): a findAndReplaceInDoc KERESETT (torlendo) szovege nem kimeno, a replaceText igen
+cs = lambda find, repl: {'tool_name': 'mcp__google-drive__findAndReplaceInDoc', 'tool_input': {'documentId': 'doc1', 'findText': find, 'replaceText': repl, 'matchCase': True}, 'cwd': NESSA}
+rc, out, err = hook(cs('ha soha nem leszel klubtag', 'ha soha nem lépsz be a VIP Klubba'))
+check('csere: a tiltott alakot KIVEVO csere atmegy (findText nem kimeno)', rc == 0, (rc, out, err))
+rc, out, err = hook(cs('ha soha nem lépsz be a VIP Klubba', 'ha soha nem leszel klubtag'))
+check('csere: a tiltott alakot BEHOZO csere megall (replaceText vizsgalt)', rc == 2 and 'E-vip-klub' in err, err)
+
 print(f'\n{ok} sikeres, {bad} bukott')
 sys.exit(1 if bad else 0)

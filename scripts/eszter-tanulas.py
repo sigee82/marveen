@@ -7,6 +7,8 @@ BEMENET (egy heti mappa, Nova utemezett futasa tolti meg MCP-vel; lasd FUTTATAS 
   <het>/posztnaptar.reviziok.txt         (opcionalis) a tabla getRevisions-kimenete, ahogy jott
   <het>/docs/<id>.txt                    az ELMULT HETEN modosult 21napalatt doksik text/plain exportja
   <het>/docs/<id>.megjegyzesek.txt       a doksi listComments-kimenete, ahogy jott
+  <het>/docs/<id>.komment-<cid>.txt      (ajanlott) Eszter kommentjenkent a getComment-kimenet: a TELJES horgony (a lista ~100
+                                         karakternel '...'-ra vag)
   <het>/docs/<id>.reviziok.txt           a doksi getRevisions-kimenete, ahogy jott
   --elozo <mappa>                        az elozo heti mappa: a cella- es doksi-valtozas ehhez merve
 
@@ -17,6 +19,7 @@ MIT TALAL:
   3. Mindkettore lefuttatja a szovegkapu szabalyait:
        a kivett szoveget a kapu NEM fogja      -> szabaly-JELOLT (a kapu nem ismeri ezt a mintat)
        Eszter SAJAT (bekerult) szoveget fogja  -> TUL SZIGORU szabaly gyanu
+     Ha a komment-ID mar szerepel a tiltolista valamelyik szabalyaban (miert/forras), a jelolt 'mar kezelve' (Copy 20939).
 KIMENET: Markdown (stdout vagy --ki). Exit 0, ha lefutott (talalattol fuggetlenul); 2, ha a bemenet hianyos.
 """
 import argparse, datetime, difflib, glob, io, os, re, sys, zipfile
@@ -106,6 +109,26 @@ def megjegyzesek(ut):
     return ki
 
 
+def teljes_horgony(docs_mappa, doc, cid, horgony):
+    """A listComments ~100 karakternel '...'-ra vagja a horgonyt (Copy 20933: 22-bol 11 csonka). Ha a heti futas a
+    kommentet getComment-tel is lementette (docs/<doc>.komment-<cid>.txt), a teljes horgony onnan jon."""
+    ut = os.path.join(docs_mappa, f'{doc}.komment-{cid}.txt')
+    if cid and os.path.exists(ut):
+        m = re.search(r'Anchored to:\s*"(.*?)"\n', io.open(ut, encoding='utf-8').read(), re.S)
+        if m:
+            return K.html.unescape(m.group(1)), True
+    return horgony, False
+
+
+def kezelt_kommentek(szabalyok):
+    """A tiltolista mar hivatkozik ezekre a komment-ID-kra (a 'miert'/'forras' mezoben): azok a jeloltek kezelve vannak."""
+    ki = set()
+    for s in szabalyok:
+        for k in ('miert', 'forras', 'jo_pelda'):
+            ki.update(re.findall(r'\bAAA[A-Za-z0-9_-]{6,}\b', str(s.get(k) or '')))
+    return ki
+
+
 def eszter_dolgozott(ut):
     """A getRevisions-kimenetbol: van-e Eszter-revizio (es mikor)."""
     if not ut or not os.path.exists(ut):
@@ -184,20 +207,33 @@ def main():
     jeloltek, szigoru = [], []
 
     # 1. kommentek
-    kom_sorok = []
+    kom_sorok, kezelt, csonka = [], kezelt_kommentek(szabalyok), 0
+    kezelt_lista = []
     for ut in sorted(glob.glob(os.path.join(a.het, 'docs', '*.megjegyzesek.txt'))):
         doc = os.path.basename(ut).split('.')[0]
         for k in megjegyzesek(ut):
             if not any(n in k['szerzo'] for n in ESZTER):
                 continue
-            fog = kapu_fog(szabalyok, k['horgony'], '*') if k['horgony'] else []
+            horgony, teljes = teljes_horgony(os.path.dirname(ut), doc, k['id'], k['horgony'])
+            if horgony.endswith('...') and not teljes:
+                csonka += 1
+            fog = kapu_fog(szabalyok, horgony, '*') if horgony else []
             csere = next((v for s, v in k['valaszok']), '')
-            kom_sorok.append(f'| `{doc[:10]}…` | „{k["horgony"][:110]}” | {k["komment"][:160]} | {csere[:160]} | {", ".join(fog) or "**NEM**"} |')
-            if k['horgony'] and not fog:
-                jeloltek.append(('komment', k['horgony'], k['komment'], doc))
+            mar = k['id'] in kezelt
+            kom_sorok.append(f'| `{doc[:10]}…` | „{horgony[:110]}”{" (csonka)" if horgony.endswith("...") and not teljes else ""} | {k["komment"][:160]} | {csere[:160]} | '
+                             f'{", ".join(fog) or ("már kezelve" if mar else "**NEM**")} |')
+            if horgony and not fog:
+                if mar:
+                    kezelt_lista.append((k['id'], horgony))
+                else:
+                    jeloltek.append(('komment', horgony, k['komment'], doc))
     sorok += ['## 1. Eszter kommentjei a doksikban', '',
               '| doksi | amit kifogásolt (horgony) | a komment | mire cseréltük (válasz) | kapu fogja? |', '|---|---|---|---|---|']
     sorok += kom_sorok or ['| – | nincs Eszter-komment a héten | | | |']
+    if csonka:
+        sorok += ['', f'FIGYELEM: {csonka} horgony csonka („...”), mert a kommenthez nincs getComment-fájl (docs/<doksi>.komment-<ID>.txt); a csonka szövegen a kapu kevesebbet fog.']
+    if kezelt_lista:
+        sorok += ['', f'Már kezelve (a komment-ID szerepel a tiltólistában, ezért nem jelölt): ' + ', '.join(f'{c}' for c, _h in kezelt_lista)]
 
     # 2. valtozasok az elozo hethez kepest
     valt = []
