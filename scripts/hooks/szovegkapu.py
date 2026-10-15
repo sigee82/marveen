@@ -115,6 +115,21 @@ def ugyfel_ugynok(ugynok):
     return None
 
 
+def fajl_cimke(ti):
+    """A config/szovegkapu-ugyfelek.json `fajlok` resze: egy ISMERT fajl (pl. a 21napalatt posztnaptar) iras-hivasa a fajl
+    sajat ugyfelevel es mufajaval fut. Copy 20922: ismeretlen mufajnal ('*') minden mufaj-szabaly fut, igy egy landingre
+    szolo STOP posztra is elsult. -> {'ugyfel', 'mufaj', 'nev'} vagy None, ha a hivas nem ismert fajlra megy."""
+    try:
+        fajlok = json.load(io.open(UGYFEL_UT, encoding='utf-8')).get('fajlok') or {}
+    except Exception:
+        return None
+    for k in ('spreadsheetId', 'documentId', 'fileId', 'id', 'presentationId'):
+        v = ti.get(k)
+        if isinstance(v, str) and v in fajlok:
+            return fajlok[v]
+    return None
+
+
 def ugyfel_felismer(szoveg, ugyfelek, ugynok=''):
     for nev, u in ugyfelek.items():
         if ugynok and ugynok in (u.get('ugynokok') or []):
@@ -247,6 +262,10 @@ DOCS_RX = re.compile(r'^mcp__google-drive__(createGoogleDoc|updateGoogleDoc|inse
                      r'replaceAllTextInSlides|updateGoogleSlides|addDocumentTab)$|'
                      r'^mcp__claude_ai_Google_Drive__(create_file|update_file)$|'
                      r'^mcp__claude_ai_Claude_Docs__(batch|update|create)$')
+# Sheets-iras: CSAK a `fajlok`-ban felsorolt tablakra fut (a posztnaptar). Minden mas tablazat-iras kivul marad, mert a
+# globalis reteg (pl. a gondolatjel) egy "Budapest - Szeged" cellan is megallna -- az nem ugyfelszoveg.
+SHEETS_RX = re.compile(r'^mcp__google-drive__(updateGoogleSheet|updateGoogleSheetIfUnchanged|batchUpdateGoogleSheetValues|'
+                       r'appendSpreadsheetRows)$')
 EMAIL_RX = re.compile(r'(^mcp__email__(send_email|save_to_mailbox)$)|(send_email|create_draft|draft_email|update_draft)$|'
                       r'gmail__(reply|reply_all|send_message|forward)$', re.I)
 # a mezok, amelyek NEM szoveg (azonositok, utak, cimzettek) -- ezeket nem vizsgaljuk
@@ -359,8 +378,13 @@ def hook():
         szoveg, mufaj = '\n'.join(str(ti.get(k) or '') for k in ('text', 'caption', 'message')), '*'
         # an agent whose own bot writes to a client (Nessa -> Eszter): a client path like the others, not the internal Telegram
         ut = 'telegram-ugyfel' if ugyfel_ugynok(ugynok) else 'telegram'
-    elif DOCS_RX.search(tool):
-        ut, mufaj, szoveg = 'docs', '*', '\n'.join(stringek(ti))
+    elif DOCS_RX.search(tool) or SHEETS_RX.search(tool):
+        f = fajl_cimke(ti)
+        if SHEETS_RX.search(tool) and not f:
+            return 0
+        ut, mufaj, szoveg = ('sheet' if SHEETS_RX.search(tool) else 'docs'), (f or {}).get('mufaj') or '*', '\n'.join(stringek(ti))
+        if f:
+            ut += ':' + (f.get('nev') or 'ismert fajl')
     elif EMAIL_RX.search(tool):
         ut, mufaj, szoveg = 'level', '*', '\n'.join(stringek(ti))
     elif tool == 'Bash':
@@ -378,7 +402,8 @@ def hook():
     if not (szoveg or '').strip():
         return 0
     try:
-        stop, jelez = kapu(szoveg, None, mufaj, ugynok)
+        f = fajl_cimke(ti) if ut.startswith(('docs', 'sheet')) else None
+        stop, jelez = kapu(szoveg, (f or {}).get('ugyfel'), mufaj, ugynok)
     except SzabalyHiba as e:
         if ut == 'telegram':
             print(json.dumps({'systemMessage': f'SZOVEGKAPU nem futott (Telegram, atengedve): {e}'}, ensure_ascii=False))

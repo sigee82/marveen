@@ -148,5 +148,23 @@ io.open(f, 'w', encoding='utf-8').write(neg)
 r = subprocess.run([sys.executable, KAPU, 'ellenoriz', '--fajl', f, '--ugyfel', '21napalatt', '--mufaj', 'landing'], capture_output=True, text=True, env=ENV)
 check('CLI ellenoriz: rev 734 -> exit 0', r.returncode == 0, r.stdout)
 
+# --- ismert fajl (config/szovegkapu-ugyfelek.json `fajlok`): a posztnaptar irasa 'poszt' mufajjal fut (Copy 20922)
+POSZTNAPTAR = '1uJr8SWueMRRB3WaeIRXzjE_YphMvWIO_Nf5fDpVjD-E'
+def sheet(t, sid=POSZTNAPTAR, tool='mcp__google-drive__updateGoogleSheet', cwd='/Users/macmini/marveen'):
+    return {'tool_name': tool, 'tool_input': {'spreadsheetId': sid, 'range': 'Posztnaptár Facebook!G40', 'data': [[t]]}, 'cwd': cwd}
+apro = 'Akár minden napot végigcsináltál, akár csak egy receptet próbáltál ki, minden apró lépés számít.'
+rc, out, err = hook(sheet(apro))
+check("posztnaptar Sheets-iras: 'apró lépés' posztban csak JELEZ (E-apro-lepes-poszt), nem STOP", rc == 0 and 'E-apro-lepes-poszt' in out, (rc, out, err))
+rc, out, err = hook({'tool_name': 'mcp__google-drive__createGoogleDoc', 'tool_input': {'content': 'A 21napalatt kihívásban ' + apro}, 'cwd': NESSA})
+check("ugyanez ismeretlen mufaju Docs-iraskor: a landing-szabaly (E-apro-lepes) STOP-ol -- a cimke a kulonbseg", rc == 2 and 'E-apro-lepes' in err, err)
+rc, out, err = hook(sheet('A receptet megtalálod a Klub recepttárában.'))
+check('posztnaptar Sheets-iras: csupasz "Klub" -> STOP (a fajl ugyfele 21napalatt, jel nelkul is)', rc == 2 and 'E-vip-klub' in err, err)
+rc, out, err = hook(sheet('A receptet megtalálod a Klub recepttárában.', tool='mcp__google-drive__appendSpreadsheetRows'))
+check('posztnaptar appendSpreadsheetRows: ugyanaz a kapu', rc == 2 and 'E-vip-klub' in err, err)
+rc, out, err = hook(sheet('Budapest - Szeged, a Klub tagjai', sid='masik-tablazat-id'))
+check('MAS tablazat Sheets-irasa: kivul marad (exit 0, nincs uzenet)', rc == 0 and not out.strip() and not err.strip(), (rc, out, err))
+rc, out, err = hook(sheet('Ez nem egy méregtelenítő- vagy fogyókúra.'))
+check('posztnaptar: a landing-mufaju E-meregtelenito posztban is fut (minden mufaj listajaban benne van a poszt)', rc == 2 and 'E-meregtelenito' in err, err)
+
 print(f'\n{ok} sikeres, {bad} bukott')
 sys.exit(1 if bad else 0)

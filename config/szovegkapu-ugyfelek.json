@@ -11,5 +11,13 @@
     "nessa"
    ]
   }
- }
+ },
+ "fajlok": {
+  "1uJr8SWueMRRB3WaeIRXzjE_YphMvWIO_Nf5fDpVjD-E": {
+   "nev": "21napalatt posztnaptar",
+   "ugyfel": "21napalatt",
+   "mufaj": "poszt"
+  }
+ },
+ "megjegyzes_fajlok": "Ismert fajlok: az iras-hivasuk (Docs/Sheets MCP) a fajl ugyfelevel es mufajaval fut. A Sheets-iras CSAK ezekre a tablakra kapuzott. Bit, Copy 20922 / Nova."
 }
