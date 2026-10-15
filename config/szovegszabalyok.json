@@ -1,5 +1,5 @@
 {
-  "verzio": "copy-2026-10-15.3",
+  "verzio": "copy-2026-10-15.4",
   "forras": "agents/copy/munka/szovegszabalyok-20261015/build_tiltolista.py (ebbol generalva, kezzel NE szerkeszd)",
   "megjegyzes": "A 'manual' (szemantikus) szabalyok itt nincsenek: azok a Google-doksiban (1m4WUpnxInyQYaXqNQopPoQhHfMCa5mcncuA42ILU_9c) es a szovegszabalyok-tiltolista.json-ban allnak. Mufajok a Bit-listan tul: lecke, hirdetes.",
   "szabalyok": [
@@ -153,7 +153,7 @@
         "*"
       ],
       "tipus": "regex",
-      "minta": "(?i)^(egyszer\\s+\\w+|\\w+\\s+egyszer)\\b",
+      "minta": "(?i)^(\\w+(sz|l|[oeö]d)\\s+egyszer\\s*([,.!]|$)|egyszer\\s+\\w+(sz|l|[oeö]d)\\s*,)",
       "szint": "stop",
       "miert": "Jelmondat-szeru 'ige + egyszer' mondat ('Bevásárolsz egyszer', 'Főzöl egyszer', 'Egyszer főzöl, és...') -- kijelento, semmitmondo. Forras: Zsolt hangban, TG 20791 + 20793 (2026-10-15, Nova msg 20964/20965): 'ilyen kijelentő, semmitmondó, AI-slopos szar mondatok'",
       "rossz_pelda": "Bevásárolsz egyszer",
