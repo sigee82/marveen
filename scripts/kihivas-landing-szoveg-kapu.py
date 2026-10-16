@@ -85,6 +85,39 @@ FELTETELES_KONTROLL = [
 ]
 
 
+def nyeremeny_platform(t):
+    """(fejlec-platform, torzs-platform) a nyeremenyjatek-szekciobol. A torzs a "Nyerj ... nyereményjáték"
+    fejlec UTANI 400 karakter, nem a "Posztold" szo utani resz: 2026-10-16-an az alvas-landing torzse
+    "oszd meg velunk ..." lett, es a regi kereses akkor a LAP ELEJET olvasta torzsnek (a fejlec
+    social-ikonjai "Instagram"-ot irnak) -- hamis szetcsuszast jelentett."""
+    mfej = re.search(r"Nyerj .{0,80}?(Instagram|Facebook) nyereményjáték", t)
+    if not mfej:
+        return None, None
+    utana = t[mfej.end():mfej.end() + 400]
+    elofordul = sorted((utana.find(p), p) for p in ("Instagram", "Facebook") if p in utana)
+    return mfej.group(1), (elofordul[0][1] if elofordul else None)
+
+
+# A platform-detektor kontrollja: a VALODI szetcsuszast (2026.08) meg kell fognia, a social-ikonos
+# fejlec elotti "Instagram"-ot (2026.11) nem szabad torzsnek olvasnia.
+PLATFORM_KONTROLL = [
+    ("Nyerj 1 hónap 21napalatt VIP Klub előfizetést Instagram nyereményjátékunkon\n"
+     "Készíts fotót a turmixodról. Posztold a kihívás Facebook csoportjában", ("Instagram", "Facebook")),
+    ("Facebook-f\nInstagram\nYoutube\nIndul a 7 napos kihívás\n"
+     "Nyerj 1 hónap 21napalatt VIP Klub előfizetést Facebook nyereményjátékunkon\n"
+     "Készíts fotót az elkészült vacsorádról és oszd meg velünk a kihívás Facebook csoportjában.", ("Facebook", "Facebook")),
+    ("Nyerj 1 hónap 21napalatt VIP Klub előfizetést Facebook nyereményjátékunkon\n"
+     "Készíts fotót és küldd el nekünk.", ("Facebook", None)),
+    ("Nyerj 1 hónap 21napalatt VIP Klub előfizetést nyereményjátékunkon\nPosztold a Facebook csoportban", (None, None)),
+]
+
+
+def platform_kontroll_ok():
+    """(rendben?, hibas esetek) -- pozitiv (szetcsuszas megvan) es negativ ag (fejlec-ikon nem torzs)."""
+    rossz = [sz[:60] for sz, vart in PLATFORM_KONTROLL if nyeremeny_platform(sz) != vart]
+    return not rossz, rossz
+
+
 def felteteles_kontroll_ok():
     """(rendben?, hibas esetek). A pozitiv ES a negativ ag is szerepel benne."""
     rossz = [sz for sz, vart in FELTETELES_KONTROLL
@@ -154,6 +187,13 @@ def main():
     # horgonyait, akkor a lenti nullak nem leletek, hanem romlott meres.
     if korp.count("gyakorlás törvénye kimondja") < 3 or korp.count("Én is kipróbálom") < 3:
         print("VAK MERES: a korpusz nem hordozza a sajat horgonyait -- a mero romlott el.")
+        return 2
+
+    pok, prossz = platform_kontroll_ok()
+    if not pok:
+        print('VAK MERES: a nyeremenyjatek-platform detektor kontroll-keszlete elbukott ezeken:')
+        for x in prossz:
+            print(f'  - {x}')
         return 2
 
     ok, rossz = felteteles_kontroll_ok()
@@ -300,11 +340,7 @@ def main():
     # A TORZS a fejlec UTANI szoveg, nem a "Posztold" szo utani: 2026-10-16-an az alvas-landing torzse
     # "oszd meg velunk ... Facebook csoportjaban" lett, a "Posztold" eltunt, es a regi keresés akkor a LAP
     # ELEJET olvasta torzsnek (ott a fejlec-ikonok Instagramot is irnak) -- hamis szetcsuszast jelentett.
-    mfej = re.search(r"Nyerj .{0,80}?(Instagram|Facebook) nyereményjáték", t)
-    fej = mfej.group(1) if mfej else None
-    utana = t[mfej.end():mfej.end() + 400] if mfej else ""
-    elofordul = sorted((utana.find(p), p) for p in ("Instagram", "Facebook") if p in utana)
-    torzs = elofordul[0][1] if elofordul else None
+    fej, torzs = nyeremeny_platform(t)
     if fej and torzs and fej != torzs:
         leletek.append(f"NYEREMENYJATEK-PLATFORM SZETCSUSZAS: a fejlec {fej}-t ir, a torzs "
                        f"{torzs}-ot. Elo oldalon mar elofordult (2026.08). A resztvevo ket "
