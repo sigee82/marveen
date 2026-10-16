@@ -285,7 +285,11 @@ def main():
     sorok = t.split("\n")
     ix = [i for i, x in enumerate(sorok) if "Imádni fogod a kihívást" in x]
     if ix:
-        pontok = [x for x in sorok[ix[0] + 1:ix[0] + 1 + a.imadni_db] if x]
+        # A lista a zaro "vagy ..." pontig tart (a korpusz minden landingjen ez az utolso pont). 2026-10-16:
+        # a 7 elemu alvas-listanal a fix 8 sor a lista UTANI mondatot is pontnak vette -- hamis lelet.
+        jelolt = sorok[ix[0] + 1:ix[0] + 1 + a.imadni_db]
+        zaro = next((n for n, x in enumerate(jelolt) if x.startswith("vagy ")), None)
+        pontok = [x for x in (jelolt[:zaro + 1] if zaro is not None else jelolt) if x]
         vesszos = sum(1 for x in pontok if x.endswith(","))
         if pontok and vesszos < len(pontok) - 1:
             leletek.append(f"LISTA-KOZPONTOZAS: az 'Imadni fogod, ha' {len(pontok)} pontjabol "
@@ -293,16 +297,23 @@ def main():
                            f"az utolso 'vagy egyszeruen kivancsi vagy...' alakkal.")
 
     # 7. nyeremenyjatek platform: fejlec kontra torzs
-    fej = "Instagram" if re.search(r"Nyerj .{0,80}Instagram nyereményjáték", t) else (
-        "Facebook" if re.search(r"Nyerj .{0,80}Facebook nyereményjáték", t) else None)
-    torzs = "Instagram" if "Instagram" in t.split("Posztold")[-1][:200] else (
-        "Facebook" if "Facebook" in t.split("Posztold")[-1][:200] else None)
+    # A TORZS a fejlec UTANI szoveg, nem a "Posztold" szo utani: 2026-10-16-an az alvas-landing torzse
+    # "oszd meg velunk ... Facebook csoportjaban" lett, a "Posztold" eltunt, es a regi keresés akkor a LAP
+    # ELEJET olvasta torzsnek (ott a fejlec-ikonok Instagramot is irnak) -- hamis szetcsuszast jelentett.
+    mfej = re.search(r"Nyerj .{0,80}?(Instagram|Facebook) nyereményjáték", t)
+    fej = mfej.group(1) if mfej else None
+    utana = t[mfej.end():mfej.end() + 400] if mfej else ""
+    elofordul = sorted((utana.find(p), p) for p in ("Instagram", "Facebook") if p in utana)
+    torzs = elofordul[0][1] if elofordul else None
     if fej and torzs and fej != torzs:
         leletek.append(f"NYEREMENYJATEK-PLATFORM SZETCSUSZAS: a fejlec {fej}-t ir, a torzs "
                        f"{torzs}-ot. Elo oldalon mar elofordult (2026.08). A resztvevo ket "
                        f"kulon helyre kap utasitast, es a sorsolas alapja vitathato lesz.")
     elif not fej:
         leletek.append("NYEREMENYJATEK-PLATFORM: a fejlecbol nem olvashato ki a platform.")
+    elif not torzs:
+        leletek.append(f"NYEREMENYJATEK-PLATFORM: a fejlec {fej}-t ir, de a fejlec utani 400 karakterben "
+                       f"nincs platform -- a torzs nem mondja meg, hova kell posztolni.")
 
     if not leletek:
         print("NINCS MERT ELTERES a korpuszhoz kepest.")
