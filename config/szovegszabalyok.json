@@ -1,5 +1,5 @@
 {
-  "verzio": "copy-2026-10-15.4",
+  "verzio": "copy-2026-10-19.5",
   "forras": "agents/copy/munka/szovegszabalyok-20261015/build_tiltolista.py (ebbol generalva, kezzel NE szerkeszd)",
   "megjegyzes": "A 'manual' (szemantikus) szabalyok itt nincsenek: azok a Google-doksiban (1m4WUpnxInyQYaXqNQopPoQhHfMCa5mcncuA42ILU_9c) es a szovegszabalyok-tiltolista.json-ban allnak. Mufajok a Bit-listan tul: lecke, hirdetes.",
   "szabalyok": [
@@ -451,9 +451,9 @@
         "poszt"
       ],
       "tipus": "regex",
-      "minta": "(?i)\\bapró\\s+lépés",
+      "minta": "(?i)\\b(?:mai|napi|holnapi|heti)\\s+apró\\s+lépés|\\bapró\\s+lépés\\w*\\s*:",
       "szint": "jelez",
-      "miert": "'apró lépés' posztban: batoritaskent jovahagyott, feladat-listakent nem ('az emberek nem akarnak még több feladatot'). Forras: Eszter doksi-komment, alvas landing+hirlevel doksi 1edz1Mlm9ZpjAeDheGMUwkwGTh4fh8c5mS1_QMiYeHI0 AAACIy0GnL0; Eszter idozitett posztjai FB 32/35, IG 11/19 (Bit merese, agents/bit/atadas/szovegkapu-retro/meres-2026-10-15.md)",
+      "miert": "'apró lépés' posztban CSAK feladat-bevezetokent ('a mai apró lépésed: ...') jelez; batoritaskent jovahagyott ('az emberek nem akarnak még több feladatot'). Forras: Eszter doksi-komment, alvas landing+hirlevel doksi 1edz1Mlm9ZpjAeDheGMUwkwGTh4fh8c5mS1_QMiYeHI0 AAACIy0GnL0; Eszter idozitett posztjai FB 32/35, IG 11/19 (Bit merese, agents/bit/atadas/szovegkapu-retro/meres-2026-10-15.md)",
       "rossz_pelda": "A mai apró lépésed: igyál meg reggel két pohár vizet.",
       "jo_pelda": "Minden apró lépés számít."
     },

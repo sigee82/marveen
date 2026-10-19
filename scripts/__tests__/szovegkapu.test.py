@@ -153,8 +153,12 @@ POSZTNAPTAR = '1uJr8SWueMRRB3WaeIRXzjE_YphMvWIO_Nf5fDpVjD-E'
 def sheet(t, sid=POSZTNAPTAR, tool='mcp__google-drive__updateGoogleSheet', cwd='/Users/macmini/marveen'):
     return {'tool_name': tool, 'tool_input': {'spreadsheetId': sid, 'range': 'Posztnaptár Facebook!G40', 'data': [[t]]}, 'cwd': cwd}
 apro = 'Akár minden napot végigcsináltál, akár csak egy receptet próbáltál ki, minden apró lépés számít.'
+# v15.5 (Copy 22073): in a post only the task-intro form flags; the encouraging form is Eszter's own voice
+feladat = 'A mai apró lépésed: este egy órával lefekvés előtt tedd le a telefont.'
+rc, out, err = hook(sheet(feladat))
+check("posztnaptar Sheets-iras: 'mai apró lépésed:' posztban csak JELEZ (E-apro-lepes-poszt), nem STOP", rc == 0 and 'E-apro-lepes-poszt' in out, (rc, out, err))
 rc, out, err = hook(sheet(apro))
-check("posztnaptar Sheets-iras: 'apró lépés' posztban csak JELEZ (E-apro-lepes-poszt), nem STOP", rc == 0 and 'E-apro-lepes-poszt' in out, (rc, out, err))
+check("posztnaptar Sheets-iras: batorito 'minden apró lépés számít' posztban atmegy, jelzes nelkul", rc == 0 and 'E-apro-lepes-poszt' not in out, (rc, out, err))
 rc, out, err = hook({'tool_name': 'mcp__google-drive__createGoogleDoc', 'tool_input': {'content': 'A 21napalatt kihívásban ' + apro}, 'cwd': NESSA})
 check("ugyanez ismeretlen mufaju Docs-iraskor: a landing-szabaly (E-apro-lepes) STOP-ol -- a cimke a kulonbseg", rc == 2 and 'E-apro-lepes' in err, err)
 rc, out, err = hook(sheet('A receptet megtalálod a Klub recepttárában.'))
