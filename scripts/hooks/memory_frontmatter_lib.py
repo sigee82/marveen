@@ -13,7 +13,7 @@ def is_memory_file(path):
     if not isinstance(path, str) or not path.endswith('.md'):
         return False
     p = path.replace('\\', '/')
-    if os.path.basename(p) == 'MEMORY.md':
+    if os.path.basename(p) in ('MEMORY.md', 'MEMORY-korabbi.md'):
         return False
     return '/projects/' in p and '/memory/' in p
 

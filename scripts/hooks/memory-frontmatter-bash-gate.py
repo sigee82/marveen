@@ -125,7 +125,7 @@ def snapshot(dirs):
     snap = {}
     for d in dirs:
         for name in os.listdir(d):
-            if not name.endswith('.md') or name == 'MEMORY.md':
+            if not name.endswith('.md') or name in ('MEMORY.md', 'MEMORY-korabbi.md'):
                 continue
             p = os.path.join(d, name)
             try:
