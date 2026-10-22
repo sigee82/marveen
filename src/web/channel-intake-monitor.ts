@@ -109,6 +109,12 @@ interface TelegramWebhookInfoBody {
   }
 }
 
+// The union of the two fixes that met in the v1.44.0 merge: upstream took 401/404 as a refusal
+// (INTAKE5XX1008, #1792), this install 401/403 (2026-09-23). Each side's own test caught the
+// other's hole -- a malformed token (404) did not page here, a 403 did not page upstream -- so
+// every refusal status is a refusal, and nothing else is.
+const TOKEN_REJECTED_STATUSES = new Set([401, 403, 404])
+
 /**
  * Turn one getWebhookInfo response into a probe reading.
  *
@@ -121,12 +127,20 @@ export function parseIntakeProbe(status: number, body: unknown): IntakeProbe {
     return { reachable: false, tokenOk: true, upstreamError: false, pendingUpdates: null, webhookUrl: null, lastErrorMessage: null }
   }
   const parsed = (body ?? {}) as TelegramWebhookInfoBody
+  // Only 401/403/404 mean Telegram refused THIS token (revoked / malformed). A 5xx
+  // ("Bad Gateway") or 429 is Telegram's own hiccup and says nothing about the
+  // token: reading it as token-invalid paged the owner nightly around 03:11
+  // about bots whose getMe answered 200 a minute later (INTAKE5XX1008).
+  // upstreamError marks it as Telegram's side talking (this install's verdict 'upstream-error'
+  // reads it); reachable:false keeps upstream's reading of the same answer. Neither alerts.
+  if (status !== 200 && !TOKEN_REJECTED_STATUSES.has(status)) {
+    return { reachable: false, tokenOk: true, upstreamError: true, pendingUpdates: null, webhookUrl: null, lastErrorMessage: parsed.description ?? null }
+  }
   if (status !== 200 || parsed.ok !== true || !parsed.result) {
-    // Only an AUTH refusal is evidence about the token. Telegram answers 401
-    // (and 403 for a revoked/blocked bot) when it actually rejects it; a 429 or
-    // a 5xx is its own infrastructure talking, and the same token works on the
-    // next tick.
-    const refused = status === 401 || status === 403
+    // Only an AUTH refusal is evidence about the token: past the line above, a non-200 status IS
+    // one (401/403/404). A 200 whose body is not a result says nothing about the token either --
+    // it is Telegram's side, not a refusal, and must not page.
+    const refused = status !== 200
     return {
       reachable: true,
       tokenOk: !refused,
