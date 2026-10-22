@@ -12,6 +12,8 @@ Nova's credential is not handed over (fleet rule: no shared credentials); instea
 Same transport as scripts/szamlak/eszter_havi.py: one SSH session, JWT minted on the host, read back with md5.
 
   innoplan-eszter.py uj --cim "<cim>" --leiras-fajl <agents/nessa/...html> --hatarido YYYY-MM-DD --projekt <id> [--felelos <user id>] [--szekcio <id>]
+  innoplan-eszter.py uj --szulo <task id> --cim "<subtask cim>" --hatarido YYYY-MM-DD [--leiras-fajl ..] [--felelos <user id>]
+      (real subtask: tasks.parent_task_id; the project comes from the parent, the description is optional)
   innoplan-eszter.py modosit --id <task id> [--cim ..] [--leiras-fajl ..] [--hatarido ..] [--allapot todo|in_progress|done] [--szekcio <id>]
   innoplan-eszter.py olvas --id <task id>
 """
@@ -64,19 +66,28 @@ function api($method, $url, $body) { global $jwt;
   if ($body !== null) curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
   $r = curl_exec($ch); return [curl_getinfo($ch, CURLINFO_HTTP_CODE), $r]; }
 function row($id) { global $db;
-  $r = $db->prepare('SELECT t.id, t.title, t.status, t.due_date, t.assignee_id, md5(t.description) m, tp.project_id p, tp.section_id s FROM tasks t LEFT JOIN task_projects tp ON tp.task_id = t.id WHERE t.id = ?');
+  $r = $db->prepare('SELECT t.id, t.title, t.status, t.due_date, t.assignee_id, t.parent_task_id, md5(t.description) m, tp.project_id p, tp.section_id s FROM tasks t LEFT JOIN task_projects tp ON tp.task_id = t.id WHERE t.id = ?');
   $r->execute([$id]); return $r->fetch(PDO::FETCH_ASSOC); }
 function guard($x) { global $ALLOWED, $ASSIGNEE, $OWN;
   if (!$x) { echo "HIBA nincs ilyen task\n"; exit(1); }
   /* Zsolt 2026-10-10 TG 19148: Nessa may modify ANY task (she does it when Eszter asks); no owner check */ }
 if ($in['op'] === 'olvas') { $x = row($in['id']); guard($x); echo 'TASK ', json_encode($x, JSON_UNESCAPED_UNICODE), "\n"; exit(0); }
+if ($in['op'] === 'kommentek') { guard(row($in['id']));
+  /* read-only: the task's comments verbatim, author email + created_at (server time) */
+  $c = $db->prepare('SELECT c.id, c.created_at, u.email author, c.content FROM comments c LEFT JOIN users u ON u.id = c.user_id WHERE c.task_id = ? ORDER BY c.id');
+  $c->execute([$in['id']]); $rows = $c->fetchAll(PDO::FETCH_ASSOC);
+  echo 'KOMMENTEK ', count($rows), "\n"; foreach ($rows as $r) echo json_encode($r, JSON_UNESCAPED_UNICODE), "\n"; exit(0); }
 if ($in['op'] === 'uj') {
-  $st = $db->prepare('SELECT id FROM tasks WHERE title = ? AND due_date = ? AND assignee_id = ?');
-  $st->execute([$in['title'], $in['due_date'], $in['assignee_id']]);
+  $parent = $in['parent_task_id'] ?? null;
+  if ($parent) { $px = row($parent); guard($px); if (empty($in['project_id'])) $in['project_id'] = (int)$px['p']; }
+  $st = $db->prepare('SELECT id FROM tasks WHERE title = ? AND due_date = ? AND assignee_id = ? AND parent_task_id <=> ?');
+  $st->execute([$in['title'], $in['due_date'], $in['assignee_id'], $parent]);
   if ($id = $st->fetchColumn()) { echo "MAR_LETEZIK $id\n"; exit(0); }
-  [$code, $res] = api('POST', '', ['title' => $in['title'], 'description' => $in['description'], 'assignee_id' => $in['assignee_id'],
-                                   'project_id' => $in['project_id'], 'due_date' => $in['due_date']]);
-  $st->execute([$in['title'], $in['due_date'], $in['assignee_id']]); $id = $st->fetchColumn();
+  $post = ['title' => $in['title'], 'description' => $in['description'] ?? '', 'assignee_id' => $in['assignee_id'],
+           'project_id' => $in['project_id'], 'due_date' => $in['due_date']];
+  if ($parent) $post['parent_task_id'] = $parent;
+  [$code, $res] = api('POST', '', $post);
+  $st->execute([$in['title'], $in['due_date'], $in['assignee_id'], $parent]); $id = $st->fetchColumn();
   if (!$id) { echo "HIBA nincs task a POST utan, http $code: " . substr($res, 0, 300) . "\n"; exit(1); }
 } else {
   $id = $in['id']; guard(row($id));
@@ -129,7 +140,7 @@ def run_remote(php):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('op', choices=['uj', 'modosit', 'olvas'])
+    ap.add_argument('op', choices=['uj', 'modosit', 'olvas', 'kommentek'])
     ap.add_argument('--id', type=int)
     ap.add_argument('--cim')
     ap.add_argument('--leiras-fajl')
@@ -138,12 +149,18 @@ def main():
     ap.add_argument('--felelos', type=int, default=ASSIGNEE, help='InnoPlan user id (alapertelmezes: Eszter, 11)')
     ap.add_argument('--szekcio', type=int)
     ap.add_argument('--allapot', choices=STATUSES)
+    ap.add_argument('--szulo', type=int, help='uj: create a real SUBTASK under this task id (parent_task_id)')
     a = ap.parse_args()
     inp = {'op': a.op}
     if a.op == 'uj':
-        if not (a.cim and a.leiras_fajl and a.hatarido and a.projekt):
+        if a.szulo:
+            if not (a.cim and a.hatarido):
+                sys.exit('uj --szulo: --cim es --hatarido kotelezo (a projekt a szulobol jon)')
+            inp.update(parent_task_id=a.szulo, project_id=a.projekt or 0, assignee_id=a.felelos)
+        elif not (a.cim and a.leiras_fajl and a.hatarido and a.projekt):
             sys.exit('uj: --cim, --leiras-fajl, --hatarido es --projekt kotelezo')
-        inp.update(project_id=a.projekt, assignee_id=a.felelos)
+        else:
+            inp.update(project_id=a.projekt, assignee_id=a.felelos)
     else:
         if not a.id:
             sys.exit('--id kotelezo')
@@ -174,7 +191,7 @@ def main():
     os.makedirs(os.path.dirname(LOG), exist_ok=True)
     with open(LOG, 'a') as f:
         f.write(json.dumps({'at': datetime.datetime.now().isoformat(timespec='seconds'), 'op': a.op, 'id': a.id,
-                            'cim': a.cim, 'projekt': a.projekt, 'rc': rc, 'out': out[-300:],
+                            'cim': a.cim, 'projekt': a.projekt, 'szulo': a.szulo, 'rc': rc, 'out': out[-300:],
                             'leiras_md5': hashlib.md5(inp.get('description', '').encode()).hexdigest() if 'description' in inp else None},
                            ensure_ascii=False) + '\n')
     return 0 if rc == 0 and not out.startswith(('HIBA', 'TILTVA')) else 1
