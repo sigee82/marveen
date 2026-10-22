@@ -281,7 +281,7 @@ function hosszMessage(field, m) {
     'JAVITAS: vagd ki, amit nem kerdezett -- miert dontottel ugy, mit es hogyan ellenoriztel, ' +
     'mit csinalt jol egy sub-agens, elvetett alternativak. Azok a transzkriptbe es a memoriaba valok. ' +
     'HA A HOSSZ TENYLEG INDOKOLT (mert szamok atadasa, dontesi lista), akkor a szoveg elejere ' +
-    'ird oda: HOSSZU: -- ettol atmegy, es a prefixet a kuldes elott vedd ki. Egy tudatos dontes ara.'
+    'ird oda EKEZETTEL: HOSSZÚ: -- ettol atmegy (az ekezet nelkuli alakot a copy-kapu helyesirasi hibanak veszi es tiltja; 2026-10-10, Nessa jelzese). A prefix a kikuldott szovegben marad. Egy tudatos dontes ara.'
   )
 }
 
