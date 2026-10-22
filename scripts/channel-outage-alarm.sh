@@ -51,6 +51,7 @@ STATE_FILE="$STORE/.channel-outage-alarm-state"
 TOKEN_STASH="$STORE/.telegram-alarm-token"
 BOOT_MARKER="$STORE/.channel-boot-notified"
 LOG_FILE="$STORE/channel-outage-alarm.log"
+RUN_STAMP="$STORE/.channel-outage-alarm-ran"
 
 BOOT_REPORT_AFTER=$(( 3 * 60 ))  # let the fleet finish coming up before reporting
 
@@ -60,6 +61,19 @@ ALARM_AFTER=$(( 15 * 60 ))       # tell the owner, restart or no restart
 REALARM_EVERY=$(( 30 * 60 ))     # reminder cadence while still down
 
 log() { printf '%s [channel-outage-alarm] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >> "$LOG_FILE"; }
+
+# --- liveness stamp -------------------------------------------------------
+# WHY. This script logs only EVENTS, so a healthy week and a script that never
+# runs produce the identical artifact: an untouched log. Measured 2026-09-13:
+# the only way to tell them apart was `launchctl print ... | grep runs`, which
+# is macOS-only and invisible to anyone reading store/. A watchdog whose own
+# aliveness cannot be measured is the failure it exists to prevent.
+# The stamp is written ONLY on a clean exit, so a mid-pass crash leaves it
+# stale -- that is the signal, not a false all-clear.
+# Consumer: `stat` the file; older than ~2x the launchd interval (180s) => the
+# alarm itself is down.
+_stamp_on_clean_exit() { [ "$1" = "0" ] && : > "$RUN_STAMP"; return 0; }
+trap '_stamp_on_clean_exit "$?"' EXIT
 
 # Portable mtime. channel-watchdog.sh hard-codes `stat -c %Y`, which is GNU
 # only: on macOS it exits non-zero and the caller's `|| echo 0` turns a FRESH
