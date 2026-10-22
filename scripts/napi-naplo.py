@@ -56,7 +56,7 @@ TOKEN = (ROOT / 'store' / '.dashboard-token').read_text().strip()
 
 
 def most() -> str:
-    """A fali ora a rendszertol, nem az agens fejebol. Europe/Budapest az install zonaja."""
+    """A fali ora a rendszertol, nem az agens fejebol (a rendszerora az install zonajaban jar)."""
     return subprocess.run(['date', '+%H:%M'], capture_output=True, text=True, check=True).stdout.strip()
 
 
