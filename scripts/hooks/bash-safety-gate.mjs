@@ -214,6 +214,10 @@ const DANGEROUS_SEG = [
   at('shutdown|reboot|halt|poweroff'),  // host state
   at('diskutil|hdiutil'),               // macOS disk tooling
   at('osascript'),                      // AppleScript: can drive the whole Mac
+  // SANCTIONED EXCEPTION (owner approval 2026-10-10, TG msg 19040): Chrome restart
+  // lives in scripts/chrome-restart.sh, a fixed no-argument script that quits and
+  // reopens ONLY Google Chrome. Running that script is not matched here on purpose;
+  // the osascript ban for ad-hoc commands stays exactly as it was.
   // find's own deletion, which needs no wrapper to extract: `-delete` IS the verb.
   // Its `-exec`/`-ok` sibling goes through CODE_WRAPPERS instead, because there the
   // dangerous part is a command find runs, not a flag find understands.
