@@ -90,16 +90,21 @@ def posztok(xlsx):
     return ki
 
 
+# The Drive tool prints comment dates in the locale of the account: "10/15/2026" until 2026-10, then
+# "2026. 10. 15." -- with only the old form matched, a whole week of comments parsed as zero, silently.
+DATUM = r'(?:\d{1,2}/\d{1,2}/\d{4}|\d{4}\. ?\d{1,2}\. ?\d{1,2}\.)'
+
+
 def megjegyzesek(ut):
     """A listComments szoveges kimenete -> [{szerzo, datum, horgony, komment, valaszok:[(szerzo, szoveg)], id}]."""
     t = io.open(ut, encoding='utf-8').read()
     ki = []
-    for blokk in re.split(r'(?m)^\s*\d+\.\s+(?=\S.*\(\d{1,2}/\d{1,2}/\d{4}\)\s*$)', t)[1:]:
+    for blokk in re.split(r'(?m)^\s*\d+\.\s+(?=\S.*\(' + DATUM + r'\)(?:\s*\[\w+\])?\s*$)', t)[1:]:
         fej = blokk.split('\n', 1)[0]
-        m = re.match(r'(.*?)\s*\((\d{1,2}/\d{1,2}/\d{4})\)', fej)
+        m = re.match(r'(.*?)\s*\((' + DATUM + r')\)', fej)
         horgony = re.search(r'Anchored to:\s*"(.*?)"\s*$', blokk, re.M)
         komment = re.search(r'Comment:\s*(.*?)(?=\n\s*(?:└─|Comment ID:)|\Z)', blokk, re.S)
-        valaszok = re.findall(r'└─\s*(.*?)\s*\(\d{1,2}/\d{1,2}/\d{4}\):\s*(.*?)(?=\n\s*(?:└─|Comment ID:)|\Z)', blokk, re.S)
+        valaszok = re.findall(r'└─\s*(.*?)\s*\(' + DATUM + r'\):\s*(.*?)(?=\n\s*(?:└─|Comment ID:)|\Z)', blokk, re.S)
         cid = re.search(r'Comment ID:\s*(\S+)', blokk)
         ki.append({'szerzo': m.group(1).strip() if m else '?', 'datum': m.group(2) if m else '',
                    'horgony': K.html.unescape(horgony.group(1)) if horgony else '',
