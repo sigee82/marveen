@@ -16,6 +16,8 @@ Same transport as scripts/szamlak/eszter_havi.py: one SSH session, JWT minted on
       (real subtask: tasks.parent_task_id; the project comes from the parent, the description is optional)
   innoplan-eszter.py modosit --id <task id> [--cim ..] [--leiras-fajl ..] [--hatarido ..] [--allapot todo|in_progress|done] [--szekcio <id>]
   innoplan-eszter.py olvas --id <task id>
+  innoplan-eszter.py lista [--felelos 11] [--allapot todo,in_progress] [--projekt <id>]
+      (read-only: Eszter's open tasks in ALLOWED_PROJECTS, one TSV row each: id, due date, status, last comment, title)
 """
 import argparse
 import base64
@@ -77,6 +79,20 @@ if ($in['op'] === 'kommentek') { guard(row($in['id']));
   $c = $db->prepare('SELECT c.id, c.created_at, u.email author, c.content FROM comments c LEFT JOIN users u ON u.id = c.user_id WHERE c.task_id = ? ORDER BY c.id');
   $c->execute([$in['id']]); $rows = $c->fetchAll(PDO::FETCH_ASSOC);
   echo 'KOMMENTEK ', count($rows), "\n"; foreach ($rows as $r) echo json_encode($r, JSON_UNESCAPED_UNICODE), "\n"; exit(0); }
+if ($in['op'] === 'lista') {
+  /* read-only: the assignee's tasks in the allowed projects (own row, or a subtask whose parent is in one) */
+  $q = function($a) { return implode(',', array_fill(0, count($a), '?')); };
+  $P = $in['projects']; $S = $in['statuses'];
+  $c = $db->prepare('SELECT t.id, t.due_date, t.status, (SELECT MAX(c.created_at) FROM comments c WHERE c.task_id = t.id) last_comment, t.title
+    FROM tasks t WHERE t.assignee_id = ? AND COALESCE(t.is_section, 0) = 0 AND t.status IN (' . $q($S) . ')
+      AND (t.project_id IN (' . $q($P) . ')
+        OR EXISTS (SELECT 1 FROM task_projects tp WHERE tp.task_id = t.id AND tp.project_id IN (' . $q($P) . '))
+        OR EXISTS (SELECT 1 FROM task_projects tp WHERE tp.task_id = t.parent_task_id AND tp.project_id IN (' . $q($P) . ')))
+    ORDER BY t.due_date IS NULL, t.due_date, t.id');
+  $c->execute(array_merge([$in['assignee_id']], $S, $P, $P, $P)); $rows = $c->fetchAll(PDO::FETCH_NUM);
+  echo 'LISTA ', count($rows), "\n", "id\thatarido\tallapot\tutolso_komment\tcim\n";
+  foreach ($rows as $r) echo implode("\t", array_map(function($v) { return str_replace(["\t", "\n"], ' ', (string)$v); }, $r)), "\n";
+  exit(0); }
 if ($in['op'] === 'uj') {
   $parent = $in['parent_task_id'] ?? null;
   if ($parent) { $px = row($parent); guard($px); if (empty($in['project_id'])) $in['project_id'] = (int)$px['p']; }
@@ -134,13 +150,13 @@ def run_remote(php):
                                     HOST, f'cd {API_DIR} && php'], stdin=f, capture_output=True, text=True, timeout=120)
         finally:
             open(key, 'w').close()
-    out = '\n'.join(l for l in (p.stdout + p.stderr).splitlines() if not re.match(r'^(perl|\s*L[A-Z_]* =)|are supported|locale', l))
+    out = '\n'.join(l for l in (p.stdout + p.stderr).splitlines() if not re.match(r'^(perl|\s*L[A-Z_]* =)|\s*are supported|locale', l))
     return p.returncode, out
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('op', choices=['uj', 'modosit', 'olvas', 'kommentek'])
+    ap.add_argument('op', choices=['uj', 'modosit', 'olvas', 'kommentek', 'lista'])
     ap.add_argument('--id', type=int)
     ap.add_argument('--cim')
     ap.add_argument('--leiras-fajl')
@@ -148,11 +164,21 @@ def main():
     ap.add_argument('--projekt', type=int)
     ap.add_argument('--felelos', type=int, default=ASSIGNEE, help='InnoPlan user id (alapertelmezes: Eszter, 11)')
     ap.add_argument('--szekcio', type=int)
-    ap.add_argument('--allapot', choices=STATUSES)
+    ap.add_argument('--allapot', help='modosit: one of todo|in_progress|done; lista: comma list (default todo,in_progress)')
     ap.add_argument('--szulo', type=int, help='uj: create a real SUBTASK under this task id (parent_task_id)')
     a = ap.parse_args()
     inp = {'op': a.op}
-    if a.op == 'uj':
+    allapotok = [x.strip() for x in (a.allapot or '').split(',') if x.strip()]
+    if any(x not in STATUSES for x in allapotok) or (a.op != 'lista' and len(allapotok) > 1):
+        sys.exit(f'--allapot: {"|".join(STATUSES)}' + (' (vesszovel tobb is)' if a.op == 'lista' else ''))
+    if a.op == 'lista':
+        if a.felelos != ASSIGNEE:
+            sys.exit(f'TILTVA: a lista csak Eszter ({ASSIGNEE}) taskjait adja')
+        if a.projekt and a.projekt not in ALLOWED_PROJECTS:
+            sys.exit(f'TILTVA: a projekt csak ezek egyike lehet: {sorted(ALLOWED_PROJECTS)}')
+        inp.update(assignee_id=ASSIGNEE, statuses=allapotok or ['todo', 'in_progress'],
+                   projects=[a.projekt] if a.projekt else sorted(ALLOWED_PROJECTS))
+    elif a.op == 'uj':
         if a.szulo:
             if not (a.cim and a.hatarido):
                 sys.exit('uj --szulo: --cim es --hatarido kotelezo (a projekt a szulobol jon)')
@@ -169,8 +195,8 @@ def main():
         inp['title'] = a.cim.strip()
     if a.hatarido:
         inp['due_date'] = a.hatarido
-    if a.allapot:
-        inp['status'] = a.allapot
+    if allapotok and a.op != 'lista':
+        inp['status'] = allapotok[0]
     if a.szekcio:
         inp['section_id'] = a.szekcio
     if a.leiras_fajl:
