@@ -23,6 +23,19 @@ kulon hagyja jova). Kepnel a feed-kep 9:16-ra kiterjesztve (vagas nelkul, elmoso
 (max 60 mp). A csomag szintjen "ig_story": true = minden IG posztja. Kulon story is lehet (pl. mar fent levo poszthoz):
 post_type "story", egy "images" kep vagy egy "video", ugyanarra az idopontra is.
 
+YOUTUBE SHORTS (Eszter TG 5519 Nessan at, Nova 24176: minden FB/IG video menjen YouTube-ra is). Egy videos poszt (reel,
+Facebook feed-video, vagy platform "none" = CSAK YouTube, ahogy a 904/906/909 keszult) kaphat
+  "youtube": {"title": "<legfeljebb 100 karakter, < es > nelkul>",
+              "description": "<opcionalis, alapbol a poszt szovege>",
+              "contains_synthetic_media": true|false   KOTELEZO (generalt tartalom nyilatkozat),
+              "privacy_status": "public"|"unlisted"|"private"   opcionalis -- ha nincs, ESZTER valasztja,
+              "made_for_kids": true|false              opcionalis -- ha nincs, ESZTER jeloli}
+A YouTube-lab UGYANARRA a posztra kerul, egy jovahagyo linkkel (Eszter egyszerre hagyja jova a Reelt/FB-videot es a
+YouTube-ot). "Video + YouTube" egy hivasbol: a Reel / FB-video posztba ird bele a "youtube" kulcsot. Csak YouTube:
+platform "none", post_type "video", a video es a "youtube" kulcs. A Short allo vagy negyzetes, legfeljebb 180 mp:
+itt merem ffprobe-bal (a szerveren nincs). "tiktok": ugyanezen a mintan, de KI van kapcsolva, amig a production review
+at nem megy es a ws 8-hoz nincs TikTok-fiok -- ha a csomag keri, megallok.
+
   innosocial-nessa.py <csomag-mappa> --proba    dry-run only (nothing written), shows what would happen
   innosocial-nessa.py <csomag-mappa>            dry-run, then the real run (pending_review), then status + links
 """
@@ -36,6 +49,10 @@ import shutil
 import subprocess
 import sys
 import tempfile
+
+TIKTOK_ENABLED = False   # Nova 24176: a production review es egy ws-8 TikTok-fiok utan
+YT_KEYS = {'title', 'description', 'contains_synthetic_media', 'privacy_status', 'made_for_kids'}
+SHORTS_MAX_SEC = 180
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 UPLOADER = os.path.join(HERE, 'innosocial', 'innosocial-posztok.php')
@@ -83,6 +100,53 @@ def szovegkapu(darabok, mufaj, ut):
         fail(stop)
 
 
+def ffprobe_video(path):
+    """(duration s, width, height) of the first video stream, or None when ffprobe is not here."""
+    if not shutil.which('ffprobe'):
+        return None
+    r = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height:stream_side_data=rotation:format=duration',
+                        '-of', 'json', path], capture_output=True, text=True)
+    j = json.loads(r.stdout or '{}')
+    st = (j.get('streams') or [{}])[0]
+    w, h = int(st.get('width') or 0), int(st.get('height') or 0)
+    rot = next((abs(int(sd.get('rotation', 0))) for sd in st.get('side_data_list') or [] if 'rotation' in sd), 0)
+    if rot in (90, 270):
+        w, h = h, w
+    return float((j.get('format') or {}).get('duration') or 0), w, h
+
+
+def youtube_leg(i, p, d):
+    """The YouTube leg's own checks, before anything is sent (the uploader checks them again on the server)."""
+    yt = p['youtube']
+    if not isinstance(yt, dict):
+        fail(f'{i}. poszt: a "youtube" egy objektum')
+    if set(yt) - YT_KEYS:
+        fail(f'{i}. poszt youtube: ismeretlen kulcs: {sorted(set(yt) - YT_KEYS)}')
+    title = (yt.get('title') or '').strip()
+    if not title or len(title) > 100:
+        fail(f'{i}. poszt youtube: a cim kotelezo, legfeljebb 100 karakter (most {len(title)})')
+    if not isinstance(yt.get('contains_synthetic_media'), bool):
+        fail(f'{i}. poszt youtube: a "contains_synthetic_media" (generalt tartalom nyilatkozat) kotelezo, true vagy false')
+    if 'privacy_status' in yt and yt['privacy_status'] not in ('public', 'unlisted', 'private'):
+        fail(f'{i}. poszt youtube: privacy_status public/unlisted/private, vagy hagyd ki (Eszter valasztja)')
+    if 'made_for_kids' in yt and not isinstance(yt['made_for_kids'], bool):
+        fail(f'{i}. poszt youtube: made_for_kids true vagy false, vagy hagyd ki (Eszter jeloli)')
+    legs = {p.get('post_type_facebook'), p.get('post_type_instagram'), p.get('post_type')}
+    if p.get('platform') != 'none' and not ({'video', 'reel'} & legs):
+        fail(f'{i}. poszt: YouTube-lab csak videos poszthoz (reel, Facebook video, vagy platform none)')
+    if not p.get('video'):
+        fail(f'{i}. poszt: a YouTube-labhoz video kell')
+    m = ffprobe_video(os.path.join(d, p['video']))
+    if m is None:
+        fail(f'{i}. poszt: nincs ffprobe ezen a gepen, a Short hossza/aranya nem merheto -- igy nem kuldom')
+    sec, w, h = m
+    if sec > SHORTS_MAX_SEC:
+        fail(f'{i}. poszt: a video {sec:.1f} mp, a YouTube Short legfeljebb {SHORTS_MAX_SEC} mp')
+    if w > h:
+        fail(f'{i}. poszt: a video fekvo ({w}x{h}); a YouTube Short allo vagy negyzetes')
+    return [(f'{i}. poszt youtube cim', title), (f'{i}. poszt youtube leiras', yt.get('description') or '')]
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith('--')]
     proba = '--proba' in sys.argv
@@ -98,8 +162,12 @@ def main():
     files = []
     now = datetime.datetime.now()
     for i, p in enumerate(pkg.get('posts') or [], 1):
-        if p.get('platform') not in ('instagram', 'facebook', 'both'):
-            fail(f'{i}. poszt: platform instagram, facebook vagy both')
+        if p.get('platform') not in ('instagram', 'facebook', 'both', 'none'):
+            fail(f'{i}. poszt: platform instagram, facebook, both vagy none (none = csak YouTube)')
+        if 'tiktok' in p and not TIKTOK_ENABLED:
+            fail(f'{i}. poszt: a TikTok meg ki van kapcsolva (production review + ws-8 TikTok-fiok kell hozza)')
+        if p.get('platform') == 'none' and (p.get('post_type') != 'video' or 'youtube' not in p):
+            fail(f'{i}. poszt: platform none = csak YouTube: post_type "video" es "youtube" kulcs kell')
         when = datetime.datetime.strptime(p.get('scheduled_at_local', ''), '%Y-%m-%d %H:%M:%S')
         if when < now + datetime.timedelta(minutes=30):
             fail(f'{i}. poszt: az idopont ({when}) kevesebb mint 30 perc mulva van -- Eszternek jovahagyni sem marad ido')
@@ -125,7 +193,8 @@ def main():
                                                              if story else 'a Reel legfeljebb 90 mp'))
     if not pkg.get('posts'):
         fail('nincs poszt a csomagban')
-    szovegkapu([(f'{i}. poszt {k}', p.get(k) or '') for i, p in enumerate(pkg['posts'], 1) for k in ('text', 'first_comment')],
+    yt_texts = [t for i, p in enumerate(pkg['posts'], 1) if 'youtube' in p for t in youtube_leg(i, p, d)]
+    szovegkapu([(f'{i}. poszt {k}', p.get(k) or '') for i, p in enumerate(pkg['posts'], 1) for k in ('text', 'first_comment')] + yt_texts,
                'poszt', 'innosocial')
     files = list(dict.fromkeys(files)) + ['posztok.json']
     with tempfile.TemporaryDirectory() as t:

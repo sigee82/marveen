@@ -104,6 +104,23 @@
  * autopilot keeps the two surfaces apart the same way); story vs story and
  * feed vs feed still do. --story-preview=<dir> copies the made 9:16 pictures
  * there (also in --dry-run) so they can be looked at before anything is written.
+ *
+ * YOUTUBE SHORTS (Eszter TG 5519 via Nessa / Nova 24176: every FB/IG video goes to YouTube too). A video post
+ * (a reel, a Facebook feed video, or platform "none": YouTube only, as posts 904 / 906 / 909 were made) may carry
+ *   "youtube": {"title": "...",                       required, <= 100, no < or >
+ *               "description": "...",                 optional, the post's text when left out, <= 5000
+ *               "contains_synthetic_media": true|false   REQUIRED, the "generated content" disclosure, no default
+ *               "privacy_status": "public"|"unlisted"|"private",   optional: left out, ESZTER chooses it
+ *               "made_for_kids": true|false}          optional: left out, Eszter answers it
+ * The leg is saved on the SAME post with the composer's own endpoint (innosocial_video_platforms.php save_legs),
+ * so ONE review link approves every network; VideoTargets checks it again at approval (privacy and made-for-kids
+ * must be answered there, YouTube's own rule) and before sending. The channel is the workspace's one active YouTube
+ * account (innosocial_platform_accounts), never a guess: none or two stop the run. A Short is vertical or square and
+ * <= 180 s; the server has no ffprobe, the wrapper measures it. The saved leg is read back before the review link.
+ * Platform "none" (YouTube only): post_type video, the video, a "youtube" leg, no picture; the app never counts it
+ * against a Meta page (no check_conflicts), two "none" posts at one minute still stop each other here.
+ * "tiktok": the same pattern, OFF until the TikTok production review is through and the workspace has a TikTok
+ * account (TIKTOK_ENABLED); a package that asks for it stops.
  */
 
 if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
@@ -135,13 +152,16 @@ $imgDir = rtrim((string) ($opt['img-dir'] ?? dirname((string) $opt['json'])), '/
 $expectPage = (string) $opt['expect-page'];
 $expectIg = (string) ($opt['expect-ig'] ?? '');
 
-const PLATFORMS = ['facebook', 'instagram', 'both'];
+const PLATFORMS = ['facebook', 'instagram', 'both', 'none'];   // none = no Meta leg: the post's video channels only
+const YOUTUBE_KEYS = ['title', 'description', 'contains_synthetic_media', 'privacy_status', 'made_for_kids'];
+const YOUTUBE_PRIVACY = ['public', 'unlisted', 'private'];   // = VideoTargets::YOUTUBE_PRIVACY
+const TIKTOK_ENABLED = false;                                  // Nova 24176: off until the production review and a ws account
 const TYPES = ['single_image', 'carousel', 'text_only', 'reel', 'story', 'video'];   // = ALLOWED_POST_TYPES (innosocial_calendar.php)
 const LEG_TYPES = ['facebook' => ['single_image', 'carousel', 'text_only', 'video', 'story'],   // = innosocialLabKikotes
                    'instagram' => ['single_image', 'carousel', 'reel', 'story']];
 const VIDEO_MIMES = ['video/mp4', 'video/quicktime'];   // = VIDEO_ALLOWED_MIMES (innosocial_video.php)
 const POST_KEYS = ['platform', 'post_type', 'post_type_facebook', 'post_type_instagram', 'scheduled_at_local', 'text', 'image', 'images',
-                   'video', 'cover', 'link_url', 'first_comment', 'hashtag_set_id', 'ig_story'];
+                   'video', 'cover', 'link_url', 'first_comment', 'hashtag_set_id', 'ig_story', 'youtube', 'tiktok'];
 const VIDEO_MAX_BYTES = 300 * 1024 * 1024;           // = api/innosocial_video.php
 const REEL_MAX_SECONDS = 90;                         // the composer refuses a longer Reel (the server does not measure)
 const STORY_MAX_SECONDS = 60;                        // ... and a longer Story (innosocial_video.php header)
@@ -150,7 +170,8 @@ const CAROUSEL_MAX = 10;                      // MetaAdapter: "maximum 10 kép"
 
 function out(string $s = ''): void { echo $s, "\n"; }
 function stop(string $s): void { fwrite(STDERR, "STOP: $s\n"); exit(1); }
-function overlaps(string $a, string $b): bool { return $a === 'both' || $b === 'both' || $a === $b; } // = _platformsOverlap
+// = _platformsOverlap; a 'none' post crowds no Meta page (the app's rule), but two at one minute are a duplicate here
+function overlaps(string $a, string $b): bool { return ($a === 'none' || $b === 'none') ? $a === $b : ($a === 'both' || $b === 'both' || $a === $b); }
 function surface(string $type): string { return $type === 'story' ? 'story' : 'feed'; }
 
 /**
@@ -310,7 +331,7 @@ foreach ($pkg['posts'] as $i => $p) {
     $n = (string) ($i + 1);
     $platform = (string) ($p['platform'] ?? $pkg['platform'] ?? '');
     $postType = (string) ($p['post_type'] ?? $pkg['post_type'] ?? '');
-    if (!in_array($platform, PLATFORMS, true)) stop("post $n: platform '$platform' is not facebook/instagram/both");
+    if (!in_array($platform, PLATFORMS, true)) stop("post $n: platform '$platform' is not facebook/instagram/both/none");
     if (!in_array($postType, TYPES, true)) stop("post $n: post_type '$postType' -- the app takes " . implode(', ', TYPES));
     if (isset($p['story'])) stop("post $n: the key is \"ig_story\" (true/false), not \"story\"");
     // a typo must not be dropped silently; bookkeeping keys ("sor", "source", "note", "_...") are the packer's own
@@ -320,7 +341,13 @@ foreach ($pkg['posts'] as $i => $p) {
     // pair rule (innosocialPlatformKikotes). Split ("post_type_facebook" + "post_type_instagram", platform both): each
     // leg its own type, with the app's leg rule (innosocialLabKikotes) -- the composer's "külön típus hálózatonként".
     $split = array_key_exists('post_type_facebook', $p) || array_key_exists('post_type_instagram', $p);
-    if ($split) {
+    if ($platform === 'none') {
+        // YouTube only (posts 904 / 906 / 909): a video, no Meta leg
+        if ($split) stop("post $n: platform none has no Meta legs");
+        if ($postType !== 'video') stop("post $n: platform none (YouTube only) is post_type video");
+        if (!isset($p['youtube']) && !isset($p['tiktok'])) stop("post $n: platform none goes to its video channels only, and this one names none (\"youtube\")");
+        $fbLeg = $igLeg = '';
+    } elseif ($split) {
         if ($platform !== 'both') stop("post $n: leg types (post_type_facebook / post_type_instagram) need platform both");
         $fbLeg = (string) ($p['post_type_facebook'] ?? ''); $igLeg = (string) ($p['post_type_instagram'] ?? '');
         if (!in_array($fbLeg, LEG_TYPES['facebook'], true)) stop("post $n: post_type_facebook '$fbLeg' -- the Facebook leg takes " . implode(', ', LEG_TYPES['facebook']));
@@ -336,6 +363,33 @@ foreach ($pkg['posts'] as $i => $p) {
         $igLeg = $platform !== 'facebook' ? $postType : '';
     }
     $legs = array_values(array_filter([$fbLeg, $igLeg]));
+    if ($platform === 'none') $legs = ['video'];   // what the media rules below need: one video, no picture
+
+    // the video channels' legs, saved on this same post (save_legs) and approved on its one review link
+    if (isset($p['tiktok']) && !TIKTOK_ENABLED) stop("post $n: TikTok is off (Nova 24176: until the production review is through and the workspace has a TikTok account)");
+    $videoLegs = [];
+    if (isset($p['youtube'])) {
+        $yt = $p['youtube'];
+        if (!is_array($yt)) stop("post $n: \"youtube\" is an object");
+        foreach (array_keys($yt) as $k) if (!in_array($k, YOUTUBE_KEYS, true)) stop("post $n youtube: unknown key \"$k\" (known: " . implode(', ', YOUTUBE_KEYS) . ')');
+        if (!in_array($fbLeg, ['video'], true) && !in_array($igLeg, ['reel'], true) && $platform !== 'none') stop("post $n: a YouTube leg needs a video post (a reel, a Facebook feed video, or platform none)");
+        $title = trim((string) ($yt['title'] ?? ''));
+        $desc = array_key_exists('description', $yt) ? (string) $yt['description'] : (string) ($p['text'] ?? '');
+        if ($title === '' || mb_strlen($title) > 100) stop("post $n youtube: the title is required, at most 100 characters (" . mb_strlen($title) . ')');
+        if (mb_strlen($desc) > 5000) stop("post $n youtube: the description is at most 5000 characters");
+        if (preg_match('/[<>]/', $title . $desc)) stop("post $n youtube: no < or > in the title or the description (YouTube's rule)");
+        if (!is_bool($yt['contains_synthetic_media'] ?? null)) stop("post $n youtube: contains_synthetic_media (the generated-content disclosure) must be given, true or false");
+        if (isset($yt['privacy_status']) && !in_array($yt['privacy_status'], YOUTUBE_PRIVACY, true)) stop("post $n youtube: privacy_status is " . implode('/', YOUTUBE_PRIVACY) . ' (or leave it out: Eszter chooses)');
+        if (array_key_exists('made_for_kids', $yt) && !is_bool($yt['made_for_kids'])) stop("post $n youtube: made_for_kids is true or false (or leave it out: Eszter answers)");
+        $ya = $db->prepare("SELECT id, display_name FROM innosocial_platform_accounts WHERE meta_account_id = ? AND provider = 'youtube' AND active = 1");
+        $ya->execute([$accountId]);
+        $yaRows = $ya->fetchAll(PDO::FETCH_ASSOC);
+        if (count($yaRows) !== 1) stop("post $n youtube: workspace $accountId has " . count($yaRows) . ' active YouTube account(s); exactly one is needed (which one is not this script\'s guess)');
+        $settings = ['title' => $title, 'description' => $desc, 'contains_synthetic_media' => $yt['contains_synthetic_media']]
+            + (isset($yt['privacy_status']) ? ['privacy_status' => $yt['privacy_status']] : [])
+            + (array_key_exists('made_for_kids', $yt) ? ['made_for_kids' => $yt['made_for_kids']] : []);
+        $videoLegs['youtube'] = ['platform_account_id' => (int) $yaRows[0]['id'], 'settings' => $settings, 'account' => (string) $yaRows[0]['display_name']];
+    }
     $wantsStory = $storyOn && in_array($igLeg, ['single_image', 'carousel', 'reel'], true) && ($p['ig_story'] ?? $pkg['ig_story'] ?? false) === true;
     if (($p['ig_story'] ?? null) === true && !in_array($igLeg, ['single_image', 'carousel', 'reel'], true)) stop("post $n: \"ig_story\" is for an Instagram picture, carousel or reel post, this one's Instagram leg is '" . ($igLeg ?: 'none') . "'");
     if ($igLeg !== '') {
@@ -426,7 +480,8 @@ foreach ($pkg['posts'] as $i => $p) {
     $expiry = max(1, min(90, $expiry));
 
     $e = ['n' => $n, 'platform' => $platform, 'type' => $postType, 'legs' => $split ? ['facebook' => $fbLeg, 'instagram' => $igLeg] : null,
-          'when' => $when, 'text' => $text, 'extra' => $extra, 'imgs' => $imgs, 'video' => $video, 'expiry' => $expiry, 'story_of' => null];
+          'when' => $when, 'text' => $text, 'extra' => $extra, 'imgs' => $imgs, 'video' => $video, 'expiry' => $expiry, 'story_of' => null,
+          'video_legs' => $videoLegs];
     if ($onlyStory && trim($text) === '') $e['text'] = "Story ($when). A sztorinak nincs képaláírása, ez belső megjegyzés.";
     $register($e);
     $posts[] = $e;
@@ -436,7 +491,7 @@ foreach ($pkg['posts'] as $i => $p) {
         $s = ['n' => "$n-story", 'platform' => 'instagram', 'type' => 'story', 'legs' => null, 'when' => $when, 'extra' => [],
               'text' => "Story a(z) $when Instagram " . ($igLeg === 'reel' ? 'Reel' : 'poszt') . ' mellé (feed poszt: #FEED). A sztorinak nincs képaláírása, ez belső megjegyzés.',
               'imgs' => $igLeg === 'reel' ? [] : [$madeStory($imgs[0]['path'])], 'video' => $igLeg === 'reel' ? $video : null,
-              'expiry' => $expiry, 'story_of' => $n];
+              'expiry' => $expiry, 'story_of' => $n, 'video_legs' => []];
         $register($s);
         $posts[] = $s;
     }
@@ -506,6 +561,12 @@ $describe = function (array $p): void {
             . (isset($im['fit']) ? " -- made from {$im['from']}: the picture at x={$im['fit'][0]} y={$im['fit'][1]} {$im['fit'][2]}x{$im['fit'][3]}, not cropped, md5 {$im['md5']}" : ''));
     }
     if ($p['story_of'] !== null) out("  companion story of post {$p['story_of']}: own pending_review, own review link");
+    foreach ($p['video_legs'] as $prov => $l) {
+        $st = $l['settings'];
+        out("  $prov leg -> {$l['account']} (account {$l['platform_account_id']}): title '{$st['title']}' (" . mb_strlen($st['title']) . '/100), description ' . mb_strlen($st['description'])
+            . ' chars, generated content: ' . ($st['contains_synthetic_media'] ? 'yes' : 'no') . ', privacy: ' . ($st['privacy_status'] ?? 'ESZTER CHOOSES') . ', made for kids: '
+            . (array_key_exists('made_for_kids', $st) ? ($st['made_for_kids'] ? 'yes' : 'no') : 'ESZTER ANSWERS'));
+    }
     out('  text: ' . mb_strlen($p['text']) . ' chars | ' . str_replace("\n", ' / ', mb_substr($p['text'], 0, 90)) . '...');
 };
 
@@ -516,13 +577,16 @@ if ($dryRun) {
         out();
         $describe($p);
         out('  same account + minute + overlapping platform + surface: none');
-        if ($hasAccess) {
+        if ($p['platform'] === 'none') {
+            out('  check_conflicts: not asked (a post with no Meta leg crowds no Meta page, the app\'s rule)');
+        } elseif ($hasAccess) {
             $cf = $conflicts($p['when'], $p['platform'], $p['type']);
             out('  check_conflicts (app endpoint): ' . ($cf ? 'CONFLICT ' . json_encode($cf, JSON_UNESCAPED_UNICODE) : 'none'));
         } else {
             out('  check_conflicts: not called (user has no account access yet; the real run needs --temp-grant)');
         }
-        out('  would: save_post(draft) -> ' . ($p['video'] ? 'upload the video (innosocial_video.php) -> ' : '') . 'upload ' . count($p['imgs']) . ' image(s) in order -> read back (count, order, md5' . ($p['video'] ? ', the video the publisher resolves' : '') . ') -> set_status(pending_review) -> create_review_link');
+        out('  would: save_post(draft) -> ' . ($p['video'] ? 'upload the video (innosocial_video.php) -> ' : '') . 'upload ' . count($p['imgs']) . ' image(s) in order -> read back (count, order, md5' . ($p['video'] ? ', the video the publisher resolves' : '') . ') -> '
+            . ($p['video_legs'] ? 'save_legs (' . implode(', ', array_keys($p['video_legs'])) . ') -> read back the leg -> ' : '') . 'set_status(pending_review) -> create_review_link');
     }
     out();
     out($hasAccess ? 'DRY-RUN OK: nothing written.' : "DRY-RUN OK: nothing written. The real run needs --temp-grant (user $userId has no row for account $accountId).");
@@ -538,6 +602,7 @@ if (!$hasAccess) {
 $mint();
 
 foreach ($posts as $p) {   // every conflict check BEFORE the first write
+    if ($p['platform'] === 'none') continue;   // no Meta leg: the app's check takes no 'none' and counts it against no page
     $cf = $conflicts($p['when'], $p['platform'], $p['type']);
     if ($cf) stop("post {$p['n']} $p[when] {$p['platform']}: check_conflicts found " . json_encode($cf, JSON_UNESCAPED_UNICODE) . ' -- nothing written');
 }
@@ -616,6 +681,23 @@ foreach ($posts as $p) {
         $refs[] = $ref;
     }
     out('  read back: ' . count($refs) . ' image(s), order and bytes match the package');
+
+    // the video channels' legs, with the composer's own endpoint, on this post; read back before it goes to review
+    if ($p['video_legs']) {
+        $legsBody = array_map(fn($l) => ['platform_account_id' => $l['platform_account_id'], 'settings' => $l['settings']], $p['video_legs']);
+        [$c, $r] = $http('POST', 'innosocial_video_platforms.php', ['action' => 'save_legs'], ['meta_account_id' => $accountId, 'post_id' => $postId, 'legs' => $legsBody]);
+        if ($c !== 200 || ($r['status'] ?? '') !== 'success') stop("post $n save_legs -> HTTP $c " . json_encode($r, JSON_UNESCAPED_UNICODE) . " | post $postId stays DRAFT");
+        $lt = $db->prepare('SELECT provider, platform_account_id, settings FROM innosocial_post_targets WHERE post_id = ? ORDER BY provider');
+        $lt->execute([$postId]);
+        $saved = [];
+        foreach ($lt->fetchAll(PDO::FETCH_ASSOC) as $row) $saved[$row['provider']] = ['platform_account_id' => (int) $row['platform_account_id'], 'settings' => json_decode((string) $row['settings'], true) ?: []];
+        if (array_keys($saved) != array_keys($legsBody)) stop("post $n: the saved legs are " . json_encode(array_keys($saved)) . ', expected ' . json_encode(array_keys($legsBody)) . " | post $postId stays DRAFT");
+        foreach ($legsBody as $prov => $l) {
+            if ($saved[$prov]['platform_account_id'] !== $l['platform_account_id']) stop("post $n: the $prov leg went to account {$saved[$prov]['platform_account_id']}, not {$l['platform_account_id']} | post $postId stays DRAFT");
+            foreach ($l['settings'] as $k => $v) if (($saved[$prov]['settings'][$k] ?? null) !== $v) stop("post $n: the $prov leg's $k reads back " . json_encode($saved[$prov]['settings'][$k] ?? null, JSON_UNESCAPED_UNICODE) . ', expected ' . json_encode($v, JSON_UNESCAPED_UNICODE) . " | post $postId stays DRAFT");
+        }
+        out('  save_legs: ' . implode(', ', array_keys($legsBody)) . ' -- read back: account and every setting as sent');
+    }
 
     [$c, $r] = $http('POST', 'innosocial_calendar.php', ['action' => 'set_status'], ['id' => $postId, 'client_id' => $clientId, 'status' => 'pending_review']);
     if ($c !== 200 || (int) ($r['data']['updated'] ?? 0) !== 1) stop("post $n set_status -> HTTP $c " . json_encode($r, JSON_UNESCAPED_UNICODE) . " | post $postId stays DRAFT");
