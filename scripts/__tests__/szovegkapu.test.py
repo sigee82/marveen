@@ -63,9 +63,35 @@ for nev, mk in UTAK.items():
 rc, out, err = hook(UTAK['Drive (google-drive MCP createGoogleDoc)']('Ez nagyon jó. Ha megszereted, maradj velünk a VIP Klubban!'))
 check('a megallas szovege: a mondat, a szabaly-id es a kijelolt idezes-ut', rc == 2 and 'G-ha-megszereted' in err and 'Ha megszereted, maradj' in err and 'idezet-engedely' in err, err)
 
-# --- jelzo szint: a 'nem X, hanem Y' nem allit meg, de jelez
-rc, out, err = hook(UTAK['Drive (google-drive MCP createGoogleDoc)']('Nem az a cél, hogy rohanj, hanem az, hogy pihenj.'))
-check("'nem X, hanem Y' = JELZO: atmegy, systemMessage-ben jelez", rc == 0 and 'G-nem-x-hanem-y' in out, (rc, out, err))
+# --- jelzo szint + kuszob: a 'nem X, hanem Y' nem allit meg, es csak EGY szovegben harom elofordulastol jelez (v15.6)
+DRIVE = UTAK['Drive (google-drive MCP createGoogleDoc)']
+NXHY = ['Nem az a cél, hogy rohanj, hanem az, hogy pihenj.', 'Nem a tökéletes nap számít, hanem a következő.',
+        'Nem egy diéta, hanem egy szokás.']
+rc, out, err = hook(DRIVE(' '.join(NXHY)))
+check("'nem X, hanem Y' 3x = JELZO: atmegy, systemMessage-ben jelez", rc == 0 and 'G-nem-x-hanem-y' in out, (rc, out, err))
+rc, out, err = hook(DRIVE(' '.join(NXHY[:2])))
+check("'nem X, hanem Y' 2x: a kuszob (3) alatt nincs jelzes", rc == 0 and 'G-nem-x-hanem-y' not in out, (rc, out, err))
+rc, out, err = hook(DRIVE(NXHY[0]))
+check("'nem X, hanem Y' 1x: nincs jelzes (elesben ez szolt minden elofordulasra)", rc == 0 and 'G-nem-x-hanem-y' not in out, (rc, out, err))
+# (a minta moho, 60 karakteren belul ket par EGY talalat -- ezert all a ket par messzebb egymastol)
+rc, out, err = hook(DRIVE('Nem rohanni kell, hanem lassan, nyugodtan és figyelmesen pihenni a nap végén, és nem enni kell, hanem élni. ' + NXHY[2]))
+check("a kuszob ELOFORDULAST szamol, nem mondatot: 2 egy mondatban + 1 masikban = jelez", rc == 0 and 'G-nem-x-hanem-y' in out, (rc, out, err))
+
+# --- a kuszob a szallitott szabalyfajlban: ha Copy generatora ujra kiejti, ez bukik (es a jelzes visszaall minden elofordulasra)
+SZ = json.load(io.open(os.path.join(REPO, 'config', 'szovegszabalyok.json'), encoding='utf-8'))
+nx = [r for r in SZ['szabalyok'] if r['id'] == 'G-nem-x-hanem-y']
+check('config: a G-nem-x-hanem-y kuszobe 3 (v15.6)', len(nx) == 1 and nx[0].get('kuszob') == 3, nx)
+
+# --- rossz kuszob: fail-closed (a CLI 2-vel all meg), nem csendes visszaeles
+szoveg_ut = os.path.join(TMP, 'kuszob-szoveg.txt')
+io.open(szoveg_ut, 'w', encoding='utf-8').write(NXHY[0])
+for rossz in (1, 0, '3', True, 2.5):
+    sz = dict(SZ, szabalyok=[dict(nx[0], kuszob=rossz)])
+    ut = os.path.join(TMP, 'kuszob-rossz.json')
+    io.open(ut, 'w', encoding='utf-8').write(json.dumps(sz, ensure_ascii=False))
+    r = subprocess.run([sys.executable, KAPU, 'ellenoriz', '--fajl', szoveg_ut], capture_output=True, text=True,
+                       env=dict(ENV, SZOVEGKAPU_SZABALYOK=ut))
+    check(f'rossz kuszob ({rossz!r}): a CLI vakon all meg (exit 2, hibas kuszob)', r.returncode == 2 and 'hibas kuszob' in (r.stdout + r.stderr), (r.returncode, r.stdout, r.stderr))
 
 # --- ugyfel-reteg: a 21napalatt szabaly csak 21napalatt szovegen (vagy Nessa cwd-jen) fut
 klub = 'A klubban minden héten új recept vár.'

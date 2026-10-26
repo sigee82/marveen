@@ -183,7 +183,8 @@
       "szint": "jelez",
       "miert": "'nem X, hanem Y' szembeallitas -- ha egy szovegben harom vagy tobb all, ritkitsd. Forras: Zsolt, TG 20497/20499/20505/20507, 2026-10-15 (Nova msg 20734/20735); copy-qa 3. tipus (Zsolt korrekcioja, 2026-08-09: 18-bol 1 maradt)",
       "rossz_pelda": "",
-      "jo_pelda": "Jó lenne végre egy este, amikor elalvás előtt nem forgolódsz órákig, hanem gyorsan elnyom az álom? Vagy egy reggel, amikor végre nem nyúzottan, hanem kipihenten, jókedvvel kelsz fel? (Eszter sajat kerdes-para, W44; harom alatt nem jelez)"
+      "jo_pelda": "Jó lenne végre egy este, amikor elalvás előtt nem forgolódsz órákig, hanem gyorsan elnyom az álom? Vagy egy reggel, amikor végre nem nyúzottan, hanem kipihenten, jókedvvel kelsz fel? (Eszter sajat kerdes-para, W44; harom alatt nem jelez)",
+      "kuszob": 3
     },
     {
       "id": "G-mikor-harmas",

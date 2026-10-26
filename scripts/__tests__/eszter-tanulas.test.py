@@ -6,7 +6,8 @@
 Az elozo het posztnaptaraban egy FB-cella es egy doksi-mondat Eszter-stilusu javitas ELOTTI alakban all:
   - FB 2. sor: "Nem kell, hogy tökéletes legyen a fotó" -> a heten mar nincs benne (a kapu NEM fogja ezt az alakot: jelolt)
   - FB 3. sor: "egy rövid séta a ház körül" -> "pár perc séta a ház körül" (a kapu NEM fogja: szabaly-jelolt)
-  - doksi: "Ha megszereted, ..." mondat kivéve (a kapu fogja), es egy uj, Eszter-sajat mondat "nem X, hanem Y" alakkal (JELEZ)
+  - doksi: "Ha megszereted, ..." mondat kivéve (a kapu fogja), es ket uj, Eszter-sajat mondat: "A jó hír, ..." (JELEZ) es
+    egy magaban allo "nem X, hanem Y" (a kuszob, 3, alatt: NEM jelez -- v15.6)
 Elvart: a valtozasok megjelennek, a fogott/nem fogott jeloles helyes, a sorszam-elcsuszas (sorbeszuras) nem zavarja a parositast.
 """
 import io
@@ -72,7 +73,7 @@ for het, sorok in (('W41', [FEJ_FB, {'A': '2026-09-28', 'G': P1_REGI, 'I': 'jóv
     os.makedirs(os.path.join(d, 'docs'))
     xlsx(os.path.join(d, 'posztnaptar.xlsx'), sorok, [FEJ_IG])
 DOC_REGI = 'Indul a kihívás.\nHa megszereted, a 21napalatt VIP Klubban együtt haladunk tovább!\nVárunk szeretettel.'
-DOC_UJ = 'Indul a kihívás.\nNem a tökéletes este a cél, hanem a pihentető alvás.\nVárunk szeretettel.'
+DOC_UJ = 'Indul a kihívás.\nA jó hír, hogy ma este pihenhetsz.\nNem a tökéletes este a cél, hanem a pihentető alvás.\nVárunk szeretettel.'
 io.open(os.path.join(TMP, 'W41', 'docs', 'abc.txt'), 'w', encoding='utf-8').write(DOC_REGI)
 io.open(os.path.join(TMP, 'W42', 'docs', 'abc.txt'), 'w', encoding='utf-8').write(DOC_UJ)
 io.open(os.path.join(TMP, 'W42', 'docs', 'abc.megjegyzesek.txt'), 'w', encoding='utf-8').write(
@@ -101,9 +102,12 @@ check('a sorszam a HETI tablabol jon (FB 3. sor = 09-28)', 'Facebook 3. sor, 202
 check('doksi: a "Ha megszereted" mondat kivetele latszik, a kapu fogja', re.search(r'doksi: abc.*Ha megszereted.*G-ha-megszereted', ki) is not None,
       '\n'.join(l for l in ki.splitlines() if 'doksi' in l))
 check('szabaly-jelolt: "egy rövid" (2 szo, nem fogott) a javaslat-listaban', re.search(r'^- \(1x\) „egy rövid”', ki, re.M) is not None)
-check('Eszter sajat (bekerult) "nem X, hanem Y" mondatat a kapu JELEZI -> a tulszigoru-gyanu listaban',
-      re.search(r'^- „Nem a tökéletes este a cél, hanem.*G-nem-x-hanem-y', ki, re.M) is not None,
-      '\n'.join(l for l in ki.splitlines() if 'tökéletes este' in l))
+# a ket uj mondat EGY valtozas-darabba kerul, tehat egy tulszigoru-sor all rola; a sor VEGEN a jelzo szabalyok listaja
+szig = [l for l in ki.splitlines() if l.startswith('- „A jó hír, hogy ma este')]
+szab = szig[0].rsplit(' -- ', 1)[-1] if len(szig) == 1 else ''
+check('Eszter sajat (bekerult) "A jó hír" mondatat a kapu JELEZI -> a tulszigoru-gyanu listaban', 'G-jo-hir' in szab, szig)
+check('a magaban allo "nem X, hanem Y" NEM jelez ugyanabban a darabban (kuszob 3, egyszer all)',
+      len(szig) == 1 and 'tökéletes este' in szig[0] and 'G-nem-x-hanem-y' not in szab, szig)
 # --- teljes horgony getComment-fajlbol, es a mar kezelt komment (Copy 20939)
 # W43: egy csonka horgonyu komment (a teljes horgony a getComment-fajlban, abban "Nincs szigorú szabály" -> a kapu fogja),
 # egy csonka horgony getComment-fajl nelkul (figyelmeztetes), es egy komment, aminek az ID-je mar a tiltolistaban all.

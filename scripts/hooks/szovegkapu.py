@@ -67,6 +67,11 @@ def betolt(ut=None):
             rx = re.compile(s['minta']) if s['tipus'] == 'regex' else re.compile(re.escape(s['minta']), re.I)
         except re.error as e:
             raise SzabalyHiba(f'hibas regex ({s["id"]}): {e}')
+        # kuszob: a szabaly csak akkor szol, ha EGY szovegben legalabb ennyiszer illeszkedik (Copy `count_threshold`-ja).
+        # Rossz ertek fail-closed: egy csendben eldobott kuszob a szabalyt minden elofordulasra visszaelesitene.
+        k = s.get('kuszob')
+        if k is not None and (isinstance(k, bool) or not isinstance(k, int) or k < 2):
+            raise SzabalyHiba(f'hibas kuszob ({s["id"]}): {k!r} -- egesz szam, legalabb 2')
         ki.append(dict(s, _rx=rx))
     if not ki:
         raise SzabalyHiba(f'a szabalyfajlban nincs szabaly ({ut})')
@@ -191,11 +196,18 @@ def ellenoriz(szoveg, szabalyok, ugyfel='global', mufaj='*'):
             continue
         if mufaj != '*' and '*' not in sz['mufaj'] and mufaj not in sz['mufaj']:
             continue
+        sajat = []
+        db = 0
         for m in ms:
-            t = sz['_rx'].search(m)
-            if t:
-                ki.append({'szabaly': sz['id'], 'szint': sz['szint'], 'miert': sz['miert'], 'jo_pelda': sz.get('jo_pelda', ''),
-                           'mondat': m, 'talalat': t.group(0)})
+            tk = list(sz['_rx'].finditer(m))
+            if tk:
+                db += len(tk)
+                sajat.append({'szabaly': sz['id'], 'szint': sz['szint'], 'miert': sz['miert'], 'jo_pelda': sz.get('jo_pelda', ''),
+                              'mondat': m, 'talalat': tk[0].group(0)})
+        # a kuszob a TELJES szovegre szamol (egy mondatban ketto is lehet), es ha eleri, minden elofordulast megmutat
+        if sz.get('kuszob') and db < sz['kuszob']:
+            continue
+        ki.extend(sajat)
     return ki
 
 
