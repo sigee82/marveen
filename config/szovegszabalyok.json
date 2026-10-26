@@ -1,5 +1,5 @@
 {
-  "verzio": "copy-2026-10-19.5",
+  "verzio": "copy-2026-10-26.6",
   "forras": "agents/copy/munka/szovegszabalyok-20261015/build_tiltolista.py (ebbol generalva, kezzel NE szerkeszd)",
   "megjegyzes": "A 'manual' (szemantikus) szabalyok itt nincsenek: azok a Google-doksiban (1m4WUpnxInyQYaXqNQopPoQhHfMCa5mcncuA42ILU_9c) es a szovegszabalyok-tiltolista.json-ban allnak. Mufajok a Bit-listan tul: lecke, hirdetes.",
   "szabalyok": [
@@ -181,9 +181,9 @@
       "tipus": "regex",
       "minta": "(?i)\\bnem\\s+[^.!?\\n]{1,60},\\s*hanem\\b",
       "szint": "jelez",
-      "miert": "'nem X, hanem Y' szembeallitas -- egy szovegben legfeljebb egy. Forras: Zsolt, TG 20497/20499/20505/20507, 2026-10-15 (Nova msg 20734/20735); copy-qa 3. tipus (Zsolt korrekcioja, 2026-08-09: 18-bol 1 maradt)",
+      "miert": "'nem X, hanem Y' szembeallitas -- ha egy szovegben harom vagy tobb all, ritkitsd. Forras: Zsolt, TG 20497/20499/20505/20507, 2026-10-15 (Nova msg 20734/20735); copy-qa 3. tipus (Zsolt korrekcioja, 2026-08-09: 18-bol 1 maradt)",
       "rossz_pelda": "",
-      "jo_pelda": "Képzeld el, milyen jó lenne, ha este nem forgolódnál órákig, hanem egyszer csak elnyomna az álom (Eszter jóváhagyta, ezért csak jelez)"
+      "jo_pelda": "Jó lenne végre egy este, amikor elalvás előtt nem forgolódsz órákig, hanem gyorsan elnyom az álom? Vagy egy reggel, amikor végre nem nyúzottan, hanem kipihenten, jókedvvel kelsz fel? (Eszter sajat kerdes-para, W44; harom alatt nem jelez)"
     },
     {
       "id": "G-mikor-harmas",
@@ -456,6 +456,51 @@
       "miert": "'apró lépés' posztban CSAK feladat-bevezetokent ('a mai apró lépésed: ...') jelez; batoritaskent jovahagyott ('az emberek nem akarnak még több feladatot'). Forras: Eszter doksi-komment, alvas landing+hirlevel doksi 1edz1Mlm9ZpjAeDheGMUwkwGTh4fh8c5mS1_QMiYeHI0 AAACIy0GnL0; Eszter idozitett posztjai FB 32/35, IG 11/19 (Bit merese, agents/bit/atadas/szovegkapu-retro/meres-2026-10-15.md)",
       "rossz_pelda": "A mai apró lépésed: igyál meg reggel két pohár vizet.",
       "jo_pelda": "Minden apró lépés számít."
+    },
+    {
+      "id": "E-sajat-konyham",
+      "reteg": "21napalatt",
+      "mufaj": [
+        "poszt",
+        "hirdetes",
+        "hirlevel",
+        "landing"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\bsaját\\s+konyhámban\\b|\\b(?:vettem|vettük)\\s+fel\\b[^.!?\\n]{0,40}\\bhogy\\s+lásd\\b",
+      "szint": "stop",
+      "miert": "Kitalalt elso szemelyu allitas Eszter neveben ('a saját konyhámban vettem fel, hogy lásd'). Nem tudjuk, ki es hol vette fel; Eszter mindket helyen kivette. Forras: Posztnaptar FB 44 + IG 24 (idozitett 2026-10-24), Eszter-revizio a W44-ben (workspace/eszter-tanulas/2026-W44/javaslatok.md)",
+      "rossz_pelda": "Ezt a lazacot a saját konyhámban vettem fel, hogy lásd, hogyan lesz igazán ropogós a bőre 🍋",
+      "jo_pelda": "Ha szereted, hogy a lazac bőre ropogósra sül, akkor a bőrös oldalával tedd a jól felforrósított serpenyőbe."
+    },
+    {
+      "id": "E-kihivasunk",
+      "reteg": "21napalatt",
+      "mufaj": [
+        "poszt"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)\\bkihívásunk\\w*",
+      "szint": "jelez",
+      "miert": "'kihívásunk' -- Eszter posztban 'kihívás'-ra javitja ('indul az ingyenes 7 napos pihentető alvás kihívás'). Forras: Posztnaptar FB 39, 41, 54 (idozitett 2026-10-22, 10-29), Eszter-revizio a W44-ben, harom helyen ugyanigy; FB 52-ben az 'indítjuk el' is 'indul' lett",
+      "rossz_pelda": "November 1-jén indul az ingyenes 7 napos pihentető alvás kihívásunk, ahol megtudhatod...",
+      "jo_pelda": "November 1-jén indul az ingyenes 7 napos pihentető alvás kihívás, ahol megtudhatod..."
+    },
+    {
+      "id": "E-0-nap-promo",
+      "reteg": "21napalatt",
+      "mufaj": [
+        "poszt",
+        "hirlevel",
+        "landing",
+        "hirdetes"
+      ],
+      "tipus": "regex",
+      "minta": "(?i)(?<!\\d)0\\.\\s*nap",
+      "szint": "jelez",
+      "miert": "'0. nap' a beharangozo szovegben -- Eszter kivette: a kifele szolo uzenet az inditas napja, nem az app belso menetrendje. Forras: Posztnaptar FB 52 (idozitett 2026-10-28, 'megtalálod a 0. nap anyagát' -> 'megnézheted, hogyan épül fel a kihívás'); Eszter doksi-komment, alvas landing+hirlevel doksi 1edz1Mlm9ZpjAeDheGMUwkwGTh4fh8c5mS1_QMiYeHI0 ('a 0. nap pedig október 25-én nyílik meg' -- Eszter: 'ezt nem kell kommunikálni')",
+      "rossz_pelda": "Az applikációban már most megtalálod a 0. nap anyagát.",
+      "jo_pelda": "Az applikációban már most megnézheted, hogyan épül fel a kihívás."
     },
     {
       "id": "E-szazalekjel",
