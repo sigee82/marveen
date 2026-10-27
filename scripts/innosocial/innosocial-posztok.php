@@ -121,6 +121,33 @@
  * against a Meta page (no check_conflicts), two "none" posts at one minute still stop each other here.
  * "tiktok": the same pattern, OFF until the TikTok production review is through and the workspace has a TikTok
  * account (TIKTOK_ENABLED); a package that asks for it stops.
+ *
+ * PINTEREST (Zsolt TG 24093/24097 via Nova 24319: every 21napalatt video goes to Pinterest too, plus picture pins).
+ * The app pins pictures AND videos (VideoTargets::save: "Pinterest takes both"; VideoLegPublisher::sendPinterest: no
+ * video -> an image Pin of the post's first picture, a video -> a video Pin, the post's first picture its cover). A post
+ * with a picture or a video (single_image, carousel: its FIRST picture only, reel, Facebook video; or platform "none":
+ * Pinterest only, post_type single_image or video, a video may carry one "cover") may carry
+ *   "pinterest": {"board_id": "<numeric id>",             required, one of the account's boards
+ *                 "title": "...",                         required, <= 100
+ *                 "description": "...",                   optional, the post's text when left out, <= 800
+ *                 "link": "https://...",                  required (Eszter: every pin goes somewhere), <= 2048
+ *                 "alt_text": "...",                      optional, <= 500
+ *                 "ai_modified": true|false}              optional, false when left out (Pinterest's AI label)
+ * = VideoTargets::normalise('pinterest') and validatePinterest(). The board is checked LIVE, with the app's own rules:
+ * after save_legs the composer's post_legs endpoint lists the account's boards now and runs validatePinterest (board,
+ * lengths, the video measured by the server's ffmpeg: 4 s..15 min, 1:2..1.91:1); any problem stops, the post stays
+ * DRAFT. Boards are never stored (Pinterest's developer guidelines).
+ * A PIN FOR A POST THAT IS ALREADY THERE: a package item {"add_pinterest_to": <post id>, "pinterest": {...}} with no
+ * media of its own; the picture or video is the post's.
+ *   - pending_review: the leg goes on THAT post (save_legs, its other legs sent back unchanged and read back), so its
+ *     own review link approves it; the link is printed (a new one only if it has no live one).
+ *   - approved: the post is NOT reopened (that would undo Eszter's approval). A companion post: platform none, the
+ *     SAME scheduled_at, the same video / picture bytes (md5), the Pinterest leg, its own pending_review and link.
+ *   - published (failed, partial, publishing): the same companion, at "scheduled_at_local", which is then required.
+ *   - draft or rejected: stops (not finished / refused by Eszter).
+ * ONE PIN PER MINUTE: two posts at one minute that share a video or pin channel (YouTube, Pinterest) are a duplicate
+ * and stop the run, whatever their Meta platform -- a reel, its Facebook video and its YouTube copy at 20:00 are one
+ * video, and it gets one pin. Pick one of them.
  */
 
 if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
@@ -161,7 +188,11 @@ const LEG_TYPES = ['facebook' => ['single_image', 'carousel', 'text_only', 'vide
                    'instagram' => ['single_image', 'carousel', 'reel', 'story']];
 const VIDEO_MIMES = ['video/mp4', 'video/quicktime'];   // = VIDEO_ALLOWED_MIMES (innosocial_video.php)
 const POST_KEYS = ['platform', 'post_type', 'post_type_facebook', 'post_type_instagram', 'scheduled_at_local', 'text', 'image', 'images',
-                   'video', 'cover', 'link_url', 'first_comment', 'hashtag_set_id', 'ig_story', 'youtube', 'tiktok'];
+                   'video', 'cover', 'link_url', 'first_comment', 'hashtag_set_id', 'ig_story', 'youtube', 'tiktok', 'pinterest'];
+const ADD_KEYS = ['add_pinterest_to', 'pinterest', 'scheduled_at_local'];
+const PINTEREST_KEYS = ['board_id', 'title', 'description', 'link', 'alt_text', 'ai_modified'];
+const PINTEREST_MAX = ['title' => 100, 'description' => 800, 'link' => 2048, 'alt_text' => 500];   // = VideoTargets::PINTEREST_*_MAX
+const PIN_TYPES = ['single_image', 'carousel', 'reel', 'video'];   // a leg with a picture or a video
 const VIDEO_MAX_BYTES = 300 * 1024 * 1024;           // = api/innosocial_video.php
 const REEL_MAX_SECONDS = 90;                         // the composer refuses a longer Reel (the server does not measure)
 const STORY_MAX_SECONDS = 60;                        // ... and a longer Story (innosocial_video.php header)
@@ -170,9 +201,40 @@ const CAROUSEL_MAX = 10;                      // MetaAdapter: "maximum 10 kép"
 
 function out(string $s = ''): void { echo $s, "\n"; }
 function stop(string $s): void { fwrite(STDERR, "STOP: $s\n"); exit(1); }
-// = _platformsOverlap; a 'none' post crowds no Meta page (the app's rule), but two at one minute are a duplicate here
-function overlaps(string $a, string $b): bool { return ($a === 'none' || $b === 'none') ? $a === $b : ($a === 'both' || $b === 'both' || $a === $b); }
+// = _platformsOverlap, for two posts that both have a Meta leg
+function overlaps(string $a, string $b): bool { return $a === 'both' || $b === 'both' || $a === $b; }
 function surface(string $type): string { return $type === 'story' ? 'story' : 'feed'; }
+// Two posts at one minute duplicate each other when they share a video or pin channel (a second YouTube upload, a second
+// Pin), or, both with a Meta leg, on one surface with overlapping platforms. A 'none' post crowds no Meta page (the app's
+// rule). Each side: ['platform' => ..., 'surface' => ..., 'providers' => [...]].
+function duplicates(array $a, array $b): bool
+{
+    if (array_intersect($a['providers'], $b['providers'])) return true;
+    return $a['platform'] !== 'none' && $b['platform'] !== 'none' && $a['surface'] === $b['surface'] && overlaps($a['platform'], $b['platform']);
+}
+function sameSettings(array $a, array $b): bool { ksort($a); ksort($b); return $a === $b; }
+
+/** The Pinterest leg as VideoTargets::normalise('pinterest') stores it, with the app's limits; the board is checked live later. */
+function pinterestLeg($pin, string $n, string $text, PDO $db, int $accountId): array
+{
+    if (!is_array($pin)) stop("post $n: \"pinterest\" is an object");
+    foreach (array_keys($pin) as $k) if (!in_array($k, PINTEREST_KEYS, true)) stop("post $n pinterest: unknown key \"$k\" (known: " . implode(', ', PINTEREST_KEYS) . ')');
+    $s = ['board_id' => trim((string) ($pin['board_id'] ?? '')), 'title' => trim((string) ($pin['title'] ?? '')),
+          'description' => array_key_exists('description', $pin) ? (string) $pin['description'] : $text,
+          'link' => trim((string) ($pin['link'] ?? '')), 'alt_text' => trim((string) ($pin['alt_text'] ?? '')), 'ai_modified' => $pin['ai_modified'] ?? false];
+    if (!preg_match('/^\d{6,30}$/', $s['board_id'])) stop("post $n pinterest: board_id is the board's numeric id, as a string");
+    if ($s['title'] === '') stop("post $n pinterest: the title is required");
+    foreach (PINTEREST_MAX as $k => $max) {
+        if (mb_strlen($s[$k]) > $max) stop("post $n pinterest: $k is at most $max characters (" . mb_strlen($s[$k]) . ')' . ($k === 'description' && !array_key_exists('description', $pin) ? ' -- it is the post\'s text; give "description"' : ''));
+    }
+    if (!preg_match('#^https://\S+$#i', $s['link'])) stop("post $n pinterest: link is required, an https address (every pin goes somewhere, Eszter's rule)");
+    if (!is_bool($s['ai_modified'])) stop("post $n pinterest: ai_modified is true or false (or leave it out: false)");
+    $pa = $db->prepare("SELECT id, display_name FROM innosocial_platform_accounts WHERE meta_account_id = ? AND provider = 'pinterest' AND active = 1");
+    $pa->execute([$accountId]);
+    $rows = $pa->fetchAll(PDO::FETCH_ASSOC);
+    if (count($rows) !== 1) stop("post $n pinterest: workspace $accountId has " . count($rows) . ' active Pinterest account(s); exactly one is needed (which one is not this script\'s guess)');
+    return ['platform_account_id' => (int) $rows[0]['id'], 'settings' => $s, 'account' => (string) $rows[0]['display_name']];
+}
 
 /**
  * The 9:16 story picture from a feed picture: the whole picture at the full 1080 width (or the full 1920 height when
@@ -232,7 +294,16 @@ if ($clientId <= 0 || $accountId <= 0) stop('client_id / meta_account_id missing
 if (($pkg['status'] ?? '') !== 'pending_review') stop('this script only leaves posts in pending_review; json says status=' . var_export($pkg['status'] ?? null, true));
 
 $readback = function () use ($db, $accountId, $pkg): array {
-    $times = array_values(array_unique(array_map(fn($p) => (string) $p['scheduled_at_local'], $pkg['posts'])));
+    // the package's minutes, and the minutes of the posts it adds a pin to (a companion sits at its post's minute)
+    $times = array_map(fn($p) => (string) ($p['scheduled_at_local'] ?? ''), $pkg['posts']);
+    $ids = array_values(array_filter(array_map(fn($p) => is_int($p['add_pinterest_to'] ?? null) ? $p['add_pinterest_to'] : 0, $pkg['posts'])));
+    if ($ids) {
+        $q = $db->prepare('SELECT scheduled_at FROM innosocial_posts WHERE id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')');
+        $q->execute($ids);
+        $times = array_merge($times, $q->fetchAll(PDO::FETCH_COLUMN));
+    }
+    $times = array_values(array_unique(array_filter($times)));
+    if (!$times) return [];
     $in = implode(',', array_fill(0, count($times), '?'));
     $st = $db->prepare("
         SELECT p.id, p.status, p.scheduled_at, p.platform, p.post_type, p.client_id, p.meta_account_id,
@@ -241,6 +312,7 @@ $readback = function () use ($db, $accountId, $pkg): array {
                (SELECT GROUP_CONCAT(CONCAT(g.display_order, ':', g.file_ref) ORDER BY g.display_order, g.id SEPARATOR ' ')
                   FROM innosocial_generated_images g WHERE g.post_id = p.id AND g.picked = 1) AS picked_images,
                (SELECT COUNT(*) FROM innosocial_post_media m WHERE m.post_id = p.id) AS media_rows,
+               (SELECT GROUP_CONCAT(CONCAT(t.provider, ':', t.leg_status) SEPARATOR ' ') FROM innosocial_post_targets t WHERE t.post_id = p.id) AS legs,
                (SELECT GROUP_CONCAT(CONCAT(r.token, ' exp=', r.expires_at, ' UTC',
                                            IF(r.approved_at IS NULL, '', CONCAT(' approved=', r.approved_at)),
                                            IF(r.rejected_at IS NULL, '', CONCAT(' rejected=', r.rejected_at)))
@@ -313,22 +385,112 @@ $checkVideo = function (array $p, string $n, ?int $maxSeconds, string $why) use 
 };
 $posts = [];
 $seenKeys = [];
-// the package must not hold two overlapping posts at one minute on one surface (story / feed), and the account must not
-// have one already: (account, scheduled_at, platform, surface) with the app's overlap rule, any status
+// the package must not hold two duplicate posts at one minute (duplicates()), and the account must not have one
+// already, any status. A pin added to a post that is there counts only its new channel, and that post is not its own
+// duplicate.
 $register = function (array $e) use (&$seenKeys, $db, $accountId): void {
-    [$n, $when, $platform, $sf] = [$e['n'], $e['when'], $e['platform'], surface($e['type'])];
-    foreach ($seenKeys as [$w2, $pl2, $sf2, $n2]) {
-        if ($w2 === $when && $sf2 === $sf && overlaps($pl2, $platform)) stop("post $n and post $n2 are both $sf posts at $when on overlapping platforms ($platform / $pl2)");
+    [$n, $when] = [$e['n'], $e['when']];
+    $me = ['platform' => $e['kind'] === 'add' ? 'none' : $e['platform'], 'surface' => surface($e['type']), 'providers' => array_keys($e['video_legs'])];
+    foreach ($seenKeys as [$w2, $other, $n2]) {
+        if ($w2 === $when && duplicates($me, $other)) stop("post $n and post $n2 at $when are duplicates (" . (array_intersect($me['providers'], $other['providers'])
+            ? 'both go to ' . implode(', ', array_intersect($me['providers'], $other['providers'])) . ': one video gets one pin / one upload, pick one'
+            : "{$me['surface']} posts on overlapping platforms ({$me['platform']} / {$other['platform']})") . ')');
     }
-    $seenKeys[] = [$when, $platform, $sf, $n];
-    $dup = $db->prepare('SELECT id, status, platform, post_type FROM innosocial_posts WHERE meta_account_id = ? AND scheduled_at = ?');
-    $dup->execute([$accountId, $when]);
-    $dupRows = array_values(array_filter($dup->fetchAll(PDO::FETCH_ASSOC),
-        fn($r) => overlaps((string) $r['platform'], $platform) && surface((string) $r['post_type']) === $sf));
-    if ($dupRows) stop("post $n: account $accountId already has a $platform-overlapping $sf post at $when: " . json_encode($dupRows) . ' -- nothing written');
+    $seenKeys[] = [$when, $me, $n];
+    $dup = $db->prepare('SELECT id, status, platform, post_type FROM innosocial_posts WHERE meta_account_id = ? AND scheduled_at = ? AND id <> ?');
+    $dup->execute([$accountId, $when, (int) ($e['id'] ?? 0)]);
+    $prov = $db->prepare('SELECT provider FROM innosocial_post_targets WHERE post_id = ?');
+    $dupRows = array_values(array_filter($dup->fetchAll(PDO::FETCH_ASSOC), function ($r) use ($me, $prov) {
+        $prov->execute([(int) $r['id']]);
+        return duplicates($me, ['platform' => (string) $r['platform'], 'surface' => surface((string) $r['post_type']), 'providers' => $prov->fetchAll(PDO::FETCH_COLUMN)]);
+    }));
+    if ($dupRows) stop("post $n: account $accountId already has a post at $when that this one duplicates (an overlapping {$me['surface']} post, or the same channel: "
+        . implode(', ', $me['providers'] ?: ['-']) . '): ' . json_encode($dupRows) . ' -- nothing written');
+};
+$webRoot = dirname($api); // file_ref is "/api/uploads/..." under the site root
+$futureCheck = function (string $when, string $n): void {
+    $ts = strtotime($when);
+    if ($ts === false || date('Y-m-d H:i:s', $ts) !== $when) stop("post $n: scheduled_at_local must be 'Y-m-d H:i:s' local time, got '$when'");
+    if ($ts < time() + 15 * 60) stop("post $n: $when is not at least 15 minutes in the future");
+};
+// {"add_pinterest_to": <post id>, "pinterest": {...}}: a pin for a post that is already there (see the header)
+$addPinterest = function (array $p, string $n) use ($db, $accountId, $clientId, $webRoot, $futureCheck): array {
+    foreach (array_keys($p) as $k) if (!in_array($k, ADD_KEYS, true) && !in_array($k, ['sor', 'source', 'note'], true) && !str_starts_with((string) $k, '_')) stop("post $n: unknown key \"$k\" next to add_pinterest_to (known: " . implode(', ', ADD_KEYS) . ')');
+    $srcId = $p['add_pinterest_to'];
+    if (!is_int($srcId) || $srcId <= 0) stop("post $n: add_pinterest_to is a post id (a number)");
+    if (!isset($p['pinterest'])) stop("post $n: add_pinterest_to needs a \"pinterest\" leg");
+    $q = $db->prepare('SELECT id, client_id, meta_account_id, status, platform, post_type, post_type_facebook, post_type_instagram, scheduled_at, text_content FROM innosocial_posts WHERE id = ?');
+    $q->execute([$srcId]);
+    $src = $q->fetch(PDO::FETCH_ASSOC);
+    if (!$src || (int) $src['meta_account_id'] !== $accountId || (int) $src['client_id'] !== $clientId) stop("post $n: post $srcId is not one of workspace $accountId / client $clientId's posts");
+    $lt = $db->prepare('SELECT provider, platform_account_id, settings, leg_status FROM innosocial_post_targets WHERE post_id = ? ORDER BY provider');
+    $lt->execute([$srcId]);
+    $srcLegs = [];
+    foreach ($lt->fetchAll(PDO::FETCH_ASSOC) as $r) $srcLegs[$r['provider']] = $r;
+    if (isset($srcLegs['pinterest'])) stop("post $n: post $srcId already has a Pinterest leg ({$srcLegs['pinterest']['leg_status']}) -- nothing written");
+    $types = array_values(array_filter([$src['post_type'], $src['post_type_facebook'], $src['post_type_instagram']]));
+    if (!array_intersect($types, PIN_TYPES) && $src['platform'] !== 'none') stop("post $n: post $srcId is a " . implode('/', $types) . ' post; a pin is made from a picture or video post');
+    // the media the publisher resolves: the first video (Publisher::resolveFirstVideoUrl), the pictures (PostImages)
+    $v = $db->prepare("SELECT file_ref FROM innosocial_post_media WHERE post_id = ? AND media_type = 'video' ORDER BY media_order ASC, id ASC LIMIT 1");
+    $v->execute([$srcId]);
+    $videoRef = (string) $v->fetchColumn();
+    $imgRefs = array_map(fn($g) => (string) $g['file_ref'], PostImages::forPost($db, $srcId));
+    if ($videoRef === '' && !$imgRefs) stop("post $n: post $srcId has no picture or video");
+    $text = (string) $src['text_content'];
+    $leg = pinterestLeg($p['pinterest'], $n, $text, $db, $accountId);
+    $status = (string) $src['status'];
+    $e = ['n' => $n, 'video_legs' => ['pinterest' => $leg], 'extra' => [], 'legs' => null, 'story_of' => null, 'source_id' => $srcId,
+          'source' => "#$srcId $status {$src['platform']} {$src['post_type']} {$src['scheduled_at']}"];
+    if ($status === 'pending_review') {
+        // the leg goes on the post itself; its other legs are sent back as they are (save_legs replaces the set)
+        if (isset($p['scheduled_at_local']) && $p['scheduled_at_local'] !== $src['scheduled_at']) stop("post $n: post $srcId is in review; the pin goes on it, at its own time {$src['scheduled_at']} -- leave scheduled_at_local out");
+        foreach ($srcLegs as $prov => $r) if ($r['leg_status'] !== 'pending') stop("post $n: post $srcId's $prov leg is {$r['leg_status']}, not pending; not touching it");
+        $futureCheck((string) $src['scheduled_at'], $n);
+        $keep = [];
+        foreach ($srcLegs as $prov => $r) $keep[$prov] = ['platform_account_id' => (int) $r['platform_account_id'], 'settings' => json_decode((string) $r['settings'], true) ?: []];
+        return $e + ['kind' => 'add', 'id' => $srcId, 'platform' => (string) $src['platform'], 'type' => (string) $src['post_type'], 'when' => (string) $src['scheduled_at'],
+                     'text' => $text, 'expiry' => max(14, (int) ceil((strtotime((string) $src['scheduled_at']) - time()) / 86400) + 1), 'imgs' => [], 'video' => null, 'keep_legs' => $keep, 'media_note' => ($videoRef !== '' ? 'its video' : 'its first picture') . ' (' . ($videoRef ?: $imgRefs[0]) . ')'];
+    }
+    if (in_array($status, ['draft', 'rejected'], true)) stop("post $n: post $srcId is $status (" . ($status === 'draft' ? 'not finished' : 'Eszter refused it') . '); no pin from it');
+    if ($status === 'approved') {
+        $when = (string) ($p['scheduled_at_local'] ?? $src['scheduled_at']);
+    } else {
+        if (!isset($p['scheduled_at_local'])) stop("post $n: post $srcId is $status (its time has passed); the pin needs its own \"scheduled_at_local\"");
+        $when = (string) $p['scheduled_at_local'];
+    }
+    $futureCheck($when, $n);
+    if (trim($text) === '') stop("post $n: post $srcId has no text for the companion post");
+    // a companion: platform none, Pinterest only, the source's bytes; the approved post itself is not touched
+    $file = function (string $ref) use ($webRoot, $n, $srcId): string {
+        $path = $webRoot . $ref;
+        if (!str_starts_with($ref, '/api/') || !is_file($path)) stop("post $n: post $srcId's file $ref is not a local file under $webRoot");
+        return $path;
+    };
+    $video = null;
+    if ($videoRef !== '') {
+        $vp = $file($videoRef);
+        $video = ['path' => $vp, 'mime' => mime_content_type($vp) ?: 'video/mp4', 'bytes' => filesize($vp), 'md5' => md5_file($vp), 'seconds' => null];
+    }
+    $imgs = [];
+    if ($imgRefs) {   // the first picture: the pin itself, or the video pin's cover (the reel's)
+        $ip = $file($imgRefs[0]);
+        $info = @getimagesize($ip);
+        if (!is_array($info)) stop("post $n: post $srcId's picture $imgRefs[0] is not readable");
+        $imgs[] = ['path' => $ip, 'w' => $info[0], 'h' => $info[1], 'bytes' => filesize($ip), 'md5' => md5_file($ip)];
+    }
+    return $e + ['kind' => 'new', 'platform' => 'none', 'type' => $video ? 'video' : 'single_image', 'when' => $when, 'text' => $text,
+                 'imgs' => $imgs, 'video' => $video, 'expiry' => max(14, (int) ceil((strtotime($when) - time()) / 86400) + 1),
+                 'media_note' => 'a companion of #' . $srcId . ($video ? ': its video' . ($imgs ? ' + its cover' : '') : ': its first picture') . (count($imgRefs) > 1 ? ' (it has ' . count($imgRefs) . ' pictures; a pin takes the first)' : '')];
 };
 foreach ($pkg['posts'] as $i => $p) {
     $n = (string) ($i + 1);
+    if (array_key_exists('add_pinterest_to', $p)) {
+        $e = $addPinterest($p, $n);
+        if (isset($opt['expiry-days'])) $e['expiry'] = max(1, min(90, (int) $opt['expiry-days']));
+        $register($e);
+        $posts[] = $e;
+        continue;
+    }
     $platform = (string) ($p['platform'] ?? $pkg['platform'] ?? '');
     $postType = (string) ($p['post_type'] ?? $pkg['post_type'] ?? '');
     if (!in_array($platform, PLATFORMS, true)) stop("post $n: platform '$platform' is not facebook/instagram/both/none");
@@ -342,10 +504,10 @@ foreach ($pkg['posts'] as $i => $p) {
     // leg its own type, with the app's leg rule (innosocialLabKikotes) -- the composer's "külön típus hálózatonként".
     $split = array_key_exists('post_type_facebook', $p) || array_key_exists('post_type_instagram', $p);
     if ($platform === 'none') {
-        // YouTube only (posts 904 / 906 / 909): a video, no Meta leg
+        // YouTube / Pinterest only (posts 904 / 906 / 909): no Meta leg; a video, or a picture for a pin
         if ($split) stop("post $n: platform none has no Meta legs");
-        if ($postType !== 'video') stop("post $n: platform none (YouTube only) is post_type video");
-        if (!isset($p['youtube']) && !isset($p['tiktok'])) stop("post $n: platform none goes to its video channels only, and this one names none (\"youtube\")");
+        if (!isset($p['youtube']) && !isset($p['tiktok']) && !isset($p['pinterest'])) stop("post $n: platform none goes to its video and pin channels only, and this one names none (\"youtube\", \"pinterest\")");
+        if ($postType !== 'video' && !($postType === 'single_image' && isset($p['pinterest']))) stop("post $n: platform none is post_type video (YouTube, Pinterest), or single_image for a picture pin");
         $fbLeg = $igLeg = '';
     } elseif ($split) {
         if ($platform !== 'both') stop("post $n: leg types (post_type_facebook / post_type_instagram) need platform both");
@@ -363,7 +525,7 @@ foreach ($pkg['posts'] as $i => $p) {
         $igLeg = $platform !== 'facebook' ? $postType : '';
     }
     $legs = array_values(array_filter([$fbLeg, $igLeg]));
-    if ($platform === 'none') $legs = ['video'];   // what the media rules below need: one video, no picture
+    if ($platform === 'none') $legs = [$postType];   // what the media rules below need: one video (a pin may add a cover), or one picture
 
     // the video channels' legs, saved on this same post (save_legs) and approved on its one review link
     if (isset($p['tiktok']) && !TIKTOK_ENABLED) stop("post $n: TikTok is off (Nova 24176: until the production review is through and the workspace has a TikTok account)");
@@ -372,7 +534,7 @@ foreach ($pkg['posts'] as $i => $p) {
         $yt = $p['youtube'];
         if (!is_array($yt)) stop("post $n: \"youtube\" is an object");
         foreach (array_keys($yt) as $k) if (!in_array($k, YOUTUBE_KEYS, true)) stop("post $n youtube: unknown key \"$k\" (known: " . implode(', ', YOUTUBE_KEYS) . ')');
-        if (!in_array($fbLeg, ['video'], true) && !in_array($igLeg, ['reel'], true) && $platform !== 'none') stop("post $n: a YouTube leg needs a video post (a reel, a Facebook feed video, or platform none)");
+        if ($platform === 'none' ? $postType !== 'video' : (!in_array($fbLeg, ['video'], true) && !in_array($igLeg, ['reel'], true))) stop("post $n: a YouTube leg needs a video post (a reel, a Facebook feed video, or platform none with post_type video)");
         $title = trim((string) ($yt['title'] ?? ''));
         $desc = array_key_exists('description', $yt) ? (string) $yt['description'] : (string) ($p['text'] ?? '');
         if ($title === '' || mb_strlen($title) > 100) stop("post $n youtube: the title is required, at most 100 characters (" . mb_strlen($title) . ')');
@@ -400,12 +562,16 @@ foreach ($pkg['posts'] as $i => $p) {
     }
 
     $when = (string) ($p['scheduled_at_local'] ?? '');
+    $futureCheck($when, $n);
     $ts = strtotime($when);
-    if ($ts === false || date('Y-m-d H:i:s', $ts) !== $when) stop("post $n: scheduled_at_local must be 'Y-m-d H:i:s' local time, got '$when'");
-    if ($ts < time() + 15 * 60) stop("post $n: $when is not at least 15 minutes in the future");
     $text = (string) ($p['text'] ?? '');
     $onlyStory = $legs === array_fill(0, count($legs), 'story');
     if (trim($text) === '' && !$onlyStory) stop("post $n: empty text");
+    if (isset($p['pinterest'])) {   // a picture or a video to pin; the app pins a carousel's first picture
+        if (!array_intersect($legs, PIN_TYPES)) stop("post $n: a Pinterest pin needs a picture or a video post, not '" . implode('/', $legs) . "'");
+        $videoLegs['pinterest'] = pinterestLeg($p['pinterest'], $n, $text, $db, $accountId);
+    }
+    $pinCover = $platform === 'none' && $postType === 'video' && isset($p['pinterest']);   // a Pinterest-only video may carry its cover
 
     // extras the composer sends, with its own rules: a link is Facebook's, a first comment Instagram's
     $extra = [];
@@ -441,11 +607,11 @@ foreach ($pkg['posts'] as $i => $p) {
     $names = isset($p['images']) ? (array) $p['images'] : (isset($p['image']) ? [$p['image']] : []);
     if (isset($p['cover'])) {
         // a reel's cover; packages written for the earlier wrapper also list it under "images" (it shipped only those)
-        if (!in_array('reel', $legs, true)) stop("post $n: \"cover\" is a reel's cover");
+        if (!in_array('reel', $legs, true) && !$pinCover) stop("post $n: \"cover\" is a reel's cover (or a Pinterest-only video's)");
         if ($names && array_map('basename', $names) !== [basename((string) $p['cover'])]) stop("post $n: \"cover\" and \"images\" name different pictures; a reel post carries one picture");
         $names = [$p['cover']];
     }
-    if ($legs === ['video'] && $names) stop("post $n: a Facebook feed video publishes no picture; leave the picture out");
+    if ($legs === ['video'] && $names && !($pinCover && isset($p['cover']))) stop("post $n: a feed video publishes no picture; leave the picture out" . ($pinCover ? ' (a pin\'s cover goes in "cover")' : ''));
     $picLegs = array_intersect($legs, ['single_image', 'carousel']);
     if (in_array('carousel', $picLegs, true)) {
         if (count($names) < 2 || count($names) > CAROUSEL_MAX) stop("post $n: a carousel needs 2.." . CAROUSEL_MAX . ' images, got ' . count($names));
@@ -479,7 +645,7 @@ foreach ($pkg['posts'] as $i => $p) {
     $expiry = isset($opt['expiry-days']) ? (int) $opt['expiry-days'] : max(14, $days);
     $expiry = max(1, min(90, $expiry));
 
-    $e = ['n' => $n, 'platform' => $platform, 'type' => $postType, 'legs' => $split ? ['facebook' => $fbLeg, 'instagram' => $igLeg] : null,
+    $e = ['n' => $n, 'kind' => 'new', 'platform' => $platform, 'type' => $postType, 'legs' => $split ? ['facebook' => $fbLeg, 'instagram' => $igLeg] : null,
           'when' => $when, 'text' => $text, 'extra' => $extra, 'imgs' => $imgs, 'video' => $video, 'expiry' => $expiry, 'story_of' => null,
           'video_legs' => $videoLegs];
     if ($onlyStory && trim($text) === '') $e['text'] = "Story ($when). A sztorinak nincs képaláírása, ez belső megjegyzés.";
@@ -488,7 +654,7 @@ foreach ($pkg['posts'] as $i => $p) {
 
     if ($wantsStory) {
         // the companion story: same minute, Instagram, the reel's video or the feed picture made 9:16
-        $s = ['n' => "$n-story", 'platform' => 'instagram', 'type' => 'story', 'legs' => null, 'when' => $when, 'extra' => [],
+        $s = ['n' => "$n-story", 'kind' => 'new', 'platform' => 'instagram', 'type' => 'story', 'legs' => null, 'when' => $when, 'extra' => [],
               'text' => "Story a(z) $when Instagram " . ($igLeg === 'reel' ? 'Reel' : 'poszt') . ' mellé (feed poszt: #FEED). A sztorinak nincs képaláírása, ez belső megjegyzés.',
               'imgs' => $igLeg === 'reel' ? [] : [$madeStory($imgs[0]['path'])], 'video' => $igLeg === 'reel' ? $video : null,
               'expiry' => $expiry, 'story_of' => $n, 'video_legs' => []];
@@ -553,7 +719,13 @@ $revoke = function () use (&$granted, $db, $userId, $accountId): void {
 register_shutdown_function($revoke); // also on stop()/exit/fatal
 
 $describe = function (array $p): void {
-    out("post {$p['n']}: {$p['platform']} {$p['type']}" . ($p['legs'] ? " (legs: facebook {$p['legs']['facebook']}, instagram {$p['legs']['instagram']})" : '') . " at $p[when] (Europe/Budapest), review link $p[expiry] days");
+    if ($p['kind'] === 'add') {
+        out("post {$p['n']}: a Pinterest leg ADDED to post {$p['source']} (pending_review): the pin is {$p['media_note']}; its other legs ("
+            . (implode(', ', array_keys($p['keep_legs'])) ?: 'none') . ') are sent back unchanged; its own review link approves the pin');
+    } else {
+        out("post {$p['n']}: {$p['platform']} {$p['type']}" . ($p['legs'] ? " (legs: facebook {$p['legs']['facebook']}, instagram {$p['legs']['instagram']})" : '') . " at $p[when] (Europe/Budapest), review link $p[expiry] days"
+            . (isset($p['source_id']) ? " -- {$p['media_note']} ({$p['source']}, which is not touched)" : ''));
+    }
     foreach ($p['extra'] as $k => $v) out("  $k: $v");
     if ($p['video']) out('  video: ' . basename($p['video']['path']) . ' ' . round($p['video']['bytes'] / 1048576, 1) . ' MB md5 ' . $p['video']['md5'] . ' duration ' . ($p['video']['seconds'] === null ? '(not measured: no ffprobe on this host)' : $p['video']['seconds'] . ' s'));
     foreach ($p['imgs'] as $k => $im) {
@@ -563,6 +735,12 @@ $describe = function (array $p): void {
     if ($p['story_of'] !== null) out("  companion story of post {$p['story_of']}: own pending_review, own review link");
     foreach ($p['video_legs'] as $prov => $l) {
         $st = $l['settings'];
+        if ($prov === 'pinterest') {
+            out("  pinterest leg -> {$l['account']} (account {$l['platform_account_id']}): board {$st['board_id']} (checked live after save_legs), title '{$st['title']}' (" . mb_strlen($st['title'])
+                . '/100), description ' . mb_strlen($st['description']) . '/800 chars, link ' . $st['link'] . ', alt ' . mb_strlen($st['alt_text']) . '/500, AI label: ' . ($st['ai_modified'] ? 'yes' : 'no')
+                . ($p['type'] === 'carousel' ? ' -- a carousel: the pin is its FIRST picture' : ''));
+            continue;
+        }
         out("  $prov leg -> {$l['account']} (account {$l['platform_account_id']}): title '{$st['title']}' (" . mb_strlen($st['title']) . '/100), description ' . mb_strlen($st['description'])
             . ' chars, generated content: ' . ($st['contains_synthetic_media'] ? 'yes' : 'no') . ', privacy: ' . ($st['privacy_status'] ?? 'ESZTER CHOOSES') . ', made for kids: '
             . (array_key_exists('made_for_kids', $st) ? ($st['made_for_kids'] ? 'yes' : 'no') : 'ESZTER ANSWERS'));
@@ -576,7 +754,11 @@ if ($dryRun) {
     foreach ($posts as $p) {
         out();
         $describe($p);
-        out('  same account + minute + overlapping platform + surface: none');
+        out('  same account + minute: no duplicate (overlapping Meta post on this surface, or the same video / pin channel)');
+        if ($p['kind'] === 'add') {
+            out('  would: save_legs (' . implode(', ', array_keys($p['keep_legs'] + $p['video_legs'])) . ') -> read back every leg -> post_legs (the app\'s live board and media check) -> the post\'s review link');
+            continue;
+        }
         if ($p['platform'] === 'none') {
             out('  check_conflicts: not asked (a post with no Meta leg crowds no Meta page, the app\'s rule)');
         } elseif ($hasAccess) {
@@ -586,7 +768,8 @@ if ($dryRun) {
             out('  check_conflicts: not called (user has no account access yet; the real run needs --temp-grant)');
         }
         out('  would: save_post(draft) -> ' . ($p['video'] ? 'upload the video (innosocial_video.php) -> ' : '') . 'upload ' . count($p['imgs']) . ' image(s) in order -> read back (count, order, md5' . ($p['video'] ? ', the video the publisher resolves' : '') . ') -> '
-            . ($p['video_legs'] ? 'save_legs (' . implode(', ', array_keys($p['video_legs'])) . ') -> read back the leg -> ' : '') . 'set_status(pending_review) -> create_review_link');
+            . ($p['video_legs'] ? 'save_legs (' . implode(', ', array_keys($p['video_legs'])) . ') -> read back the leg -> ' : '')
+            . (isset($p['video_legs']['pinterest']) ? 'post_legs (the app\'s live board and media check) -> ' : '') . 'set_status(pending_review) -> create_review_link');
     }
     out();
     out($hasAccess ? 'DRY-RUN OK: nothing written.' : "DRY-RUN OK: nothing written. The real run needs --temp-grant (user $userId has no row for account $accountId).");
@@ -602,17 +785,86 @@ if (!$hasAccess) {
 $mint();
 
 foreach ($posts as $p) {   // every conflict check BEFORE the first write
-    if ($p['platform'] === 'none') continue;   // no Meta leg: the app's check takes no 'none' and counts it against no page
+    if ($p['platform'] === 'none' || $p['kind'] === 'add') continue;   // no new Meta leg: the app's check takes no 'none' and counts it against no page
     $cf = $conflicts($p['when'], $p['platform'], $p['type']);
     if ($cf) stop("post {$p['n']} $p[when] {$p['platform']}: check_conflicts found " . json_encode($cf, JSON_UNESCAPED_UNICODE) . ' -- nothing written');
 }
 
-$webRoot = dirname($api); // file_ref is "/api/uploads/..." under the site root
+// the app's own check of a saved Pinterest leg: the composer's post_legs lists the account's boards NOW and runs
+// VideoTargets::validate (board, lengths, the video as the server's ffmpeg measures it). [error or '', board name]
+$pinCheck = function (int $postId) use ($http, $accountId): array {
+    [$c, $r] = $http('GET', 'innosocial_video_platforms.php', ['action' => 'post_legs', 'meta_account_id' => $accountId, 'post_id' => $postId]);
+    if ($c !== 200 || ($r['status'] ?? '') !== 'success') return ["post_legs -> HTTP $c " . json_encode($r, JSON_UNESCAPED_UNICODE), ''];
+    foreach ((array) ($r['data']['legs'] ?? []) as $l) {
+        if (($l['provider'] ?? '') !== 'pinterest') continue;
+        if (!empty($l['problems'])) return ['the app refuses the Pinterest leg: ' . implode(' ', (array) $l['problems']) . (!empty($l['creator_error']) ? " ({$l['creator_error']})" : ''), ''];
+        $board = array_values(array_filter((array) ($l['creator_info']['boards'] ?? []), fn($b) => (string) ($b['id'] ?? '') === (string) ($l['settings']['board_id'] ?? '')));
+        if (!$board) return ['the board is not among the account\'s boards, listed now', ''];
+        return ['', (string) ($board[0]['name'] ?? '')];
+    }
+    return ['post_legs shows no Pinterest leg', ''];
+};
+$liveLink = function (int $postId) use ($db, $baseUrl): string {
+    $q = $db->prepare('SELECT token FROM innosocial_review_links WHERE post_id = ? AND approved_at IS NULL AND rejected_at IS NULL AND expires_at > ? ORDER BY id DESC LIMIT 1');
+    $q->execute([$postId, gmdate('Y-m-d H:i:s')]);
+    $t = (string) $q->fetchColumn();
+    return $t === '' ? '' : "$baseUrl/r/$t";
+};
+$readLegs = function (int $postId) use ($db): array {
+    $lt = $db->prepare('SELECT provider, platform_account_id, settings FROM innosocial_post_targets WHERE post_id = ? ORDER BY provider');
+    $lt->execute([$postId]);
+    $saved = [];
+    foreach ($lt->fetchAll(PDO::FETCH_ASSOC) as $row) $saved[$row['provider']] = ['platform_account_id' => (int) $row['platform_account_id'], 'settings' => json_decode((string) $row['settings'], true) ?: []];
+    return $saved;
+};
+
 $done = [];
 $idOf = [];   // package post number -> post id, for the companion story's note
 foreach ($posts as $p) {
     $n = $p['n'];
     out();
+    if ($p['kind'] === 'add') {
+        // a pin on a post in review: its legs + Pinterest, with the composer's endpoint; the app refuses it once approved (409)
+        $postId = $p['id'];
+        out("post $n (Pinterest added to #$postId {$p['platform']} {$p['type']} $p[when]):");
+        $before = $readLegs($postId);
+        foreach ($p['keep_legs'] as $prov => $l) {
+            if (!isset($before[$prov]) || $before[$prov]['platform_account_id'] !== $l['platform_account_id'] || !sameSettings($before[$prov]['settings'], $l['settings'])) stop("post $n: post $postId's $prov leg changed since the check -- nothing written for it");
+        }
+        if (array_diff_key($before, $p['keep_legs'])) stop("post $n: post $postId got a new leg since the check (" . implode(', ', array_keys(array_diff_key($before, $p['keep_legs']))) . ') -- nothing written for it');
+        $legsBody = $p['keep_legs'] + array_map(fn($l) => ['platform_account_id' => $l['platform_account_id'], 'settings' => $l['settings']], $p['video_legs']);
+        ksort($legsBody);
+        $restore = function (string $why) use ($http, $accountId, $postId, $p, $readLegs, $n): void {
+            [$c, $r] = $http('POST', 'innosocial_video_platforms.php', ['action' => 'save_legs'], ['meta_account_id' => $accountId, 'post_id' => $postId, 'legs' => (object) $p['keep_legs']]);
+            $back = $readLegs($postId);
+            $ok = $c === 200 && array_keys($back) == array_keys($p['keep_legs']);
+            stop("post $n: $why | the Pinterest leg was " . ($ok ? 'taken off again; post ' . $postId . ' has its legs as before' : 'NOT taken off (HTTP ' . $c . '): post ' . $postId . ' needs a look'));
+        };
+        [$c, $r] = $http('POST', 'innosocial_video_platforms.php', ['action' => 'save_legs'], ['meta_account_id' => $accountId, 'post_id' => $postId, 'legs' => $legsBody]);
+        if ($c !== 200 || ($r['status'] ?? '') !== 'success') stop("post $n save_legs on #$postId -> HTTP $c " . json_encode($r, JSON_UNESCAPED_UNICODE) . ' (409: Eszter approved it meanwhile; a companion is the way then) | nothing changed');
+        $saved = $readLegs($postId);
+        if (array_keys($saved) != array_keys($legsBody)) $restore('the saved legs are ' . json_encode(array_keys($saved)) . ', expected ' . json_encode(array_keys($legsBody)));
+        foreach ($legsBody as $prov => $l) {
+            if ($saved[$prov]['platform_account_id'] !== $l['platform_account_id'] || !sameSettings($saved[$prov]['settings'], $l['settings'])) $restore("the $prov leg reads back " . json_encode($saved[$prov], JSON_UNESCAPED_UNICODE) . ', not as sent');
+        }
+        out('  save_legs: ' . implode(', ', array_keys($legsBody)) . ' -- read back: every leg as sent, the old ones unchanged');
+        [$err, $boardName] = $pinCheck($postId);
+        if ($err !== '') $restore($err);
+        out("  post_legs: the app accepts the pin (board \"$boardName\", listed now)");
+        $url = $liveLink($postId);
+        if ($url === '') {
+            [$c, $r] = $http('POST', 'innosocial_calendar.php', ['action' => 'create_review_link'], ['post_id' => $postId, 'client_id' => $clientId, 'expiry_days' => $p['expiry']]);
+            $path = (string) ($r['data']['public_path'] ?? '');
+            if ($c !== 200 || $path === '') stop("post $n create_review_link -> HTTP $c " . json_encode($r, JSON_UNESCAPED_UNICODE) . " | post $postId has the pin, in review, WITHOUT a live link");
+            $url = $baseUrl . $path;
+            out("  review link (it had no live one): $url");
+        } else {
+            out("  review link (its own, unchanged): $url");
+        }
+        $done[] = ['n' => $n, 'id' => $postId, 'platform' => $p['platform'], 'post_type' => '+pinterest', 'legs' => null, 'status' => 'pending_review',
+                   'scheduled_at' => $p['when'], 'story_of' => null, 'video_ref' => null, 'file_refs' => [], 'review_url' => $url];
+        continue;
+    }
     out("post $n ({$p['platform']} {$p['type']} $p[when]):");
     if ($p['story_of'] !== null) $p['text'] = str_replace('#FEED', '#' . $idOf[$p['story_of']], $p['text']);
 
@@ -685,6 +937,7 @@ foreach ($posts as $p) {
     // the video channels' legs, with the composer's own endpoint, on this post; read back before it goes to review
     if ($p['video_legs']) {
         $legsBody = array_map(fn($l) => ['platform_account_id' => $l['platform_account_id'], 'settings' => $l['settings']], $p['video_legs']);
+        ksort($legsBody);   // the read-back below is ORDER BY provider
         [$c, $r] = $http('POST', 'innosocial_video_platforms.php', ['action' => 'save_legs'], ['meta_account_id' => $accountId, 'post_id' => $postId, 'legs' => $legsBody]);
         if ($c !== 200 || ($r['status'] ?? '') !== 'success') stop("post $n save_legs -> HTTP $c " . json_encode($r, JSON_UNESCAPED_UNICODE) . " | post $postId stays DRAFT");
         $lt = $db->prepare('SELECT provider, platform_account_id, settings FROM innosocial_post_targets WHERE post_id = ? ORDER BY provider');
@@ -697,6 +950,11 @@ foreach ($posts as $p) {
             foreach ($l['settings'] as $k => $v) if (($saved[$prov]['settings'][$k] ?? null) !== $v) stop("post $n: the $prov leg's $k reads back " . json_encode($saved[$prov]['settings'][$k] ?? null, JSON_UNESCAPED_UNICODE) . ', expected ' . json_encode($v, JSON_UNESCAPED_UNICODE) . " | post $postId stays DRAFT");
         }
         out('  save_legs: ' . implode(', ', array_keys($legsBody)) . ' -- read back: account and every setting as sent');
+        if (isset($legsBody['pinterest'])) {
+            [$err, $boardName] = $pinCheck($postId);
+            if ($err !== '') stop("post $n: $err | post $postId stays DRAFT");
+            out("  post_legs: the app accepts the pin (board \"$boardName\", listed now)");
+        }
     }
 
     [$c, $r] = $http('POST', 'innosocial_calendar.php', ['action' => 'set_status'], ['id' => $postId, 'client_id' => $clientId, 'status' => 'pending_review']);
