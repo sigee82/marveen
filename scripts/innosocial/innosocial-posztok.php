@@ -213,6 +213,8 @@ function duplicates(array $a, array $b): bool
     return $a['platform'] !== 'none' && $b['platform'] !== 'none' && $a['surface'] === $b['surface'] && overlaps($a['platform'], $b['platform']);
 }
 function sameSettings(array $a, array $b): bool { ksort($a); ksort($b); return $a === $b; }
+// a post's leg providers as a set: prod's provider is ENUM('youtube','tiktok','pinterest'), and MySQL orders it by that index
+function legKeys(array $legs): array { $k = array_keys($legs); sort($k); return $k; }
 
 /** The Pinterest leg as VideoTargets::normalise('pinterest') stores it, with the app's limits; the board is checked live later. */
 function pinterestLeg($pin, string $n, string $text, PDO $db, int $accountId): array
@@ -837,13 +839,13 @@ foreach ($posts as $p) {
         $restore = function (string $why) use ($http, $accountId, $postId, $p, $readLegs, $n): void {
             [$c, $r] = $http('POST', 'innosocial_video_platforms.php', ['action' => 'save_legs'], ['meta_account_id' => $accountId, 'post_id' => $postId, 'legs' => (object) $p['keep_legs']]);
             $back = $readLegs($postId);
-            $ok = $c === 200 && array_keys($back) == array_keys($p['keep_legs']);
+            $ok = $c === 200 && legKeys($back) === legKeys($p['keep_legs']);
             stop("post $n: $why | the Pinterest leg was " . ($ok ? 'taken off again; post ' . $postId . ' has its legs as before' : 'NOT taken off (HTTP ' . $c . '): post ' . $postId . ' needs a look'));
         };
         [$c, $r] = $http('POST', 'innosocial_video_platforms.php', ['action' => 'save_legs'], ['meta_account_id' => $accountId, 'post_id' => $postId, 'legs' => $legsBody]);
         if ($c !== 200 || ($r['status'] ?? '') !== 'success') stop("post $n save_legs on #$postId -> HTTP $c " . json_encode($r, JSON_UNESCAPED_UNICODE) . ' (409: Eszter approved it meanwhile; a companion is the way then) | nothing changed');
         $saved = $readLegs($postId);
-        if (array_keys($saved) != array_keys($legsBody)) $restore('the saved legs are ' . json_encode(array_keys($saved)) . ', expected ' . json_encode(array_keys($legsBody)));
+        if (legKeys($saved) !== legKeys($legsBody)) $restore('the saved legs are ' . json_encode(legKeys($saved)) . ', expected ' . json_encode(legKeys($legsBody)));
         foreach ($legsBody as $prov => $l) {
             if ($saved[$prov]['platform_account_id'] !== $l['platform_account_id'] || !sameSettings($saved[$prov]['settings'], $l['settings'])) $restore("the $prov leg reads back " . json_encode($saved[$prov], JSON_UNESCAPED_UNICODE) . ', not as sent');
         }
@@ -937,14 +939,11 @@ foreach ($posts as $p) {
     // the video channels' legs, with the composer's own endpoint, on this post; read back before it goes to review
     if ($p['video_legs']) {
         $legsBody = array_map(fn($l) => ['platform_account_id' => $l['platform_account_id'], 'settings' => $l['settings']], $p['video_legs']);
-        ksort($legsBody);   // the read-back below is ORDER BY provider
+        ksort($legsBody);
         [$c, $r] = $http('POST', 'innosocial_video_platforms.php', ['action' => 'save_legs'], ['meta_account_id' => $accountId, 'post_id' => $postId, 'legs' => $legsBody]);
         if ($c !== 200 || ($r['status'] ?? '') !== 'success') stop("post $n save_legs -> HTTP $c " . json_encode($r, JSON_UNESCAPED_UNICODE) . " | post $postId stays DRAFT");
-        $lt = $db->prepare('SELECT provider, platform_account_id, settings FROM innosocial_post_targets WHERE post_id = ? ORDER BY provider');
-        $lt->execute([$postId]);
-        $saved = [];
-        foreach ($lt->fetchAll(PDO::FETCH_ASSOC) as $row) $saved[$row['provider']] = ['platform_account_id' => (int) $row['platform_account_id'], 'settings' => json_decode((string) $row['settings'], true) ?: []];
-        if (array_keys($saved) != array_keys($legsBody)) stop("post $n: the saved legs are " . json_encode(array_keys($saved)) . ', expected ' . json_encode(array_keys($legsBody)) . " | post $postId stays DRAFT");
+        $saved = $readLegs($postId);
+        if (legKeys($saved) !== legKeys($legsBody)) stop("post $n: the saved legs are " . json_encode(legKeys($saved)) . ', expected ' . json_encode(legKeys($legsBody)) . " | post $postId stays DRAFT");
         foreach ($legsBody as $prov => $l) {
             if ($saved[$prov]['platform_account_id'] !== $l['platform_account_id']) stop("post $n: the $prov leg went to account {$saved[$prov]['platform_account_id']}, not {$l['platform_account_id']} | post $postId stays DRAFT");
             foreach ($l['settings'] as $k => $v) if (($saved[$prov]['settings'][$k] ?? null) !== $v) stop("post $n: the $prov leg's $k reads back " . json_encode($saved[$prov]['settings'][$k] ?? null, JSON_UNESCAPED_UNICODE) . ', expected ' . json_encode($v, JSON_UNESCAPED_UNICODE) . " | post $postId stays DRAFT");
