@@ -76,6 +76,10 @@ PIN_KEYS = {'board_id', 'title', 'description', 'link', 'alt_text', 'ai_modified
 PIN_MAX = {'title': 100, 'description': 800, 'link': 2048, 'alt_text': 500}   # = VideoTargets::PINTEREST_*_MAX
 PIN_VIDEO_SEC = (4, 900)                                                      # = PINTEREST_VIDEO_MIN_SEC / MAX_SEC
 BOARDS_TSV = '/Users/macmini/marveen/agents/nova-atadas/pinterest-tablak-ws8.tsv'
+# Pinterest sandbox boards: the app lists them among the account's boards, so the live board check passes them, but a
+# real pin on one fails at publish (post 976, 2026-10-30: "Cannot add non-sandbox pins on sandbox boards. (15)").
+# Refused here even if the row comes back to the TSV.
+SANDBOX_BOARDS = {'371124894233101192': 'Egészséges receptek'}
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 UPLOADER = os.path.join(HERE, 'innosocial', 'innosocial-posztok.php')
@@ -189,6 +193,9 @@ def pinterest_leg(i, p, d, text):
     bid = pin.get('board_id')
     if not isinstance(bid, str) or not bid.isdigit():
         fail(f'{i}. poszt pinterest: a board_id a tabla szam-azonositoja, SZOVEGKENT ("371124...")')
+    if bid in SANDBOX_BOARDS:
+        fail(f'{i}. poszt pinterest: a {bid} ("{SANDBOX_BOARDS[bid]}") Pinterest SANDBOX tabla, valodi pin nem mehet ra '
+             f'(a kikuldes "Cannot add non-sandbox pins on sandbox boards" hibaval bukik); valassz masik tablat')
     tablak = boards()
     if bid not in tablak:
         fail(f'{i}. poszt pinterest: a {bid} tabla nincs a ws-8 tablalistan ({BOARDS_TSV}); ha uj tabla, Nova frissitse a listat')
