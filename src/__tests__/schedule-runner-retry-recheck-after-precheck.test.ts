@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { ScheduledTask } from '../web/scheduled-tasks-io.js'
+import { deliveredTaskText } from './helpers/scheduled-runs-tmp.js'
 
 // TESTFOLLOWUP1007G (a #1723 review finding): the pending-retry loop checks
 // that the task exists and is enabled BEFORE `await retryPreCheck(...)`, and
@@ -30,6 +31,10 @@ const mockListScheduledTasks = vi.fn(() => [] as ScheduledTask[])
 // What the fake pre-check does while it "runs", before it closes.
 let duringPreCheck: () => void = () => {}
 let preCheckRuns = 0
+
+// Snapshots of local fires go to a tmp dir, not the checkout's store (NUDGESHORT1031).
+vi.mock('../web/scheduled-run-snapshot.js', async (importOriginal) =>
+  (await import('./helpers/scheduled-runs-tmp.js')).redirectScheduledRuns(await importOriginal()))
 
 vi.mock('node:child_process', async (importOriginal) => {
   const real = await importOriginal<typeof import('node:child_process')>()
@@ -202,8 +207,8 @@ describe('schedule runner: a pending retry re-reads the task and the row after i
     const prompts = mockSendPrompt.mock.calls.map(c => String((c as unknown[])[1]))
     expect(prompts.length).toBeGreaterThan(0)
     for (const p of prompts) {
-      expect(p).toContain('Do the EDITED thing.')
-      expect(p).not.toContain('Do the thing.')
+      expect(deliveredTaskText(p)).toContain('Do the EDITED thing.')
+      expect(deliveredTaskText(p)).not.toContain('Do the thing.')
     }
   })
 
