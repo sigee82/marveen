@@ -32,10 +32,6 @@ let duringFirstFire: () => void = () => {}
 // Shared across vi.resetModules(): each runOneTick re-imports the runner, and a
 // factory-local vi.fn would be a new spy every time.
 const mockLoggerInfo = vi.fn()
-// Snapshots of local fires go to a tmp dir, not the checkout's store (NUDGESHORT1031).
-vi.mock('../web/scheduled-run-snapshot.js', async (importOriginal) =>
-  (await import('./helpers/scheduled-runs-tmp.js')).redirectScheduledRuns(await importOriginal()))
-
 vi.mock('../logger.js', () => ({
   logger: { info: (...a: unknown[]) => mockLoggerInfo(...a), warn: vi.fn(), debug: vi.fn(), error: vi.fn() },
 }))
