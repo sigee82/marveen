@@ -1694,15 +1694,21 @@ export type SubmitFollowupAction = 'retry-enter' | 'clear-and-resend' | 'done' |
  *                     send total. The decision returns 'give-up' once
  *                     attempt >= maxAttempts and the pane is still
  *                     stuck.
+ * @param ownOverfull  The caller's proof that ITS typed text is parked in
+ *                     a box taller than the pane (overfullParkedInputTail
+ *                     matched against what it typed). shouldRetrySubmit is
+ *                     blind to that shape, so without this the decision
+ *                     reads 'done' on a parked send.
  */
 export function decideSubmitFollowup(
   pane: string | null,
   payloadHint: string,
   attempt: number,
   maxAttempts: number,
+  ownOverfull = false,
 ): SubmitFollowupAction {
   if (pane == null) return 'give-up'
-  if (!shouldRetrySubmit(pane, payloadHint)) return 'done'
+  if (!shouldRetrySubmit(pane, payloadHint) && !ownOverfull) return 'done'
   if (attempt >= maxAttempts) return 'give-up'
   // A placeholder will NOT submit on a plain Enter (proven empirically: Enter
   // only expands the stub to still-parked verbatim text). Route it to the

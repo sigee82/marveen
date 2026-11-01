@@ -15,6 +15,7 @@ import {
   detectPaneState,
   parkedInputText,
   parkedInputRowCount,
+  overfullParkedInputTail,
   parkedClearSequence,
   stripGhostSuggestion,
   stripSessionTitleBanner,
@@ -93,7 +94,7 @@ import { loadProfileTemplate, profileWantsThinChiefHandoff } from './profiles.js
 import { resolveAgentSecurityProfile } from './agent-team.js'
 import { enforceStrictPermissionMode, writeAgentSettingsFromProfile, ensureFleetRosterSection, ensureProjectRootInClaudeMd, ensureAutonomySection, ensureSkillsPathTrapSection, ensureSystemDirectiveAuthSection, ensureAgentIdHeaderSection, ensureThinChiefHandoffSection, ensureMemorySearchLabelSection, ensureFleetAuthSection, ensureEvidenceSection, ensureMcpListChannelSection, ensureMessageCloseSection } from './agent-scaffold.js'
 import { schedulePluginUnlockAfterRespawn } from './channel-plugin-unlock.js'
-import { recordInjectedPrompt } from './injected-prompt-registry.js'
+import { recordInjectedPrompt, matchesInjectedPrompt } from './injected-prompt-registry.js'
 import { getSecret } from './vault.js'
 import { resolveOpenRouterModel } from './openrouter-models.js'
 import { reapChannelOrphans, reapDetachedChannelClaudes } from './channel-poller-reap.js'
@@ -4002,7 +4003,14 @@ export async function sendPromptToSession(
         break
       }
     }
-    const action = decideSubmitFollowup(pane, payloadHint, attempt, SUBMIT_RETRY_MAX_ATTEMPTS)
+    // A frame taller than the pane (an 80x24 pane, a multi-row team message)
+    // pushes the box's top off the capture, and shouldRetrySubmit reads that as
+    // 'done'. 2026-11-01 15:3x (signal, 25072) and 20:04 (reel, 25124): both
+    // parked under an idle footer with the ❯ off screen, no retry logged, and
+    // one Enter by hand submitted each. The scheduler already covers this shape
+    // (isOwnPromptParkedOverfull); the visible tail must be part of what we typed.
+    const ownOverfull = pane != null && matchesInjectedPrompt(overfullParkedInputTail(pane), { text: oneLine, at: 0 })
+    const action = decideSubmitFollowup(pane, payloadHint, attempt, SUBMIT_RETRY_MAX_ATTEMPTS, ownOverfull)
     if (action === 'done') break
     if (action === 'give-up') {
       logger.warn({ session, attempt }, 'sendPromptToSession: prompt still parked after retries')
