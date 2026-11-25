@@ -66,6 +66,12 @@ from datetime import datetime
 PROVENANCE_MARKERS = (
     "<channel ",
     "<scheduled-task ",
+    # The short pointer a local scheduled fire types (src/prompt-safety.ts,
+    # scheduledTaskReferencePrompt) opens the block with a BARE tag, no
+    # attributes, so "<scheduled-task " never matched it: a pointer whose marker
+    # line named an action word ("jovahagyas") was flagged as bare input
+    # (Nessa 31923, 2026-11-25).
+    "<scheduled-task>",
     "<trusted-peer ",
     "<untrusted ",
     # Inter-agent delivery prefixes (src/web/agent-message-wrap.ts). Redundant

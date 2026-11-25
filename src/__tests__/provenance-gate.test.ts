@@ -17,6 +17,7 @@ import { dirname, join } from 'node:path'
 import { importsValueBinding } from './setup/source-imports.js'
 import { tmpdir } from 'node:os'
 import { paneOneLine } from '../web/pane-text.js'
+import { scheduledTaskReferencePrompt } from '../prompt-safety.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(__dirname, '..', '..')
@@ -60,6 +61,19 @@ describe('provenance-gate hook (behavioural)', () => {
     // The memoria-heartbeat task body literally contains a send verb. Envelope wins.
     const wrapped = '<scheduled-task source="scheduled-task:memoria-heartbeat">Ne kuldj uzenetet a csatornara.</scheduled-task>'
     expect(runHook(wrapped).trim()).toBe('')
+  })
+
+  it('stays silent for the short pointer a local scheduled fire types (bare <scheduled-task> tag)', () => {
+    // Nessa 31923, 2026-11-25: the pointer's block opens with a bare tag, and its marker line named an action word,
+    // so the gate called a sound scheduled task bare input. Built with the producer itself, so the two cannot drift.
+    const pointer = scheduledTaskReferencePrompt(
+      '[Utemezett feladat: nessa-holnapi-jovahagyas-figyelo]',
+      '/x/store/scheduled-runs/r.md', 'abc', 1200,
+    )
+    expect(pointer).toContain('<scheduled-task>\n')
+    expect(runHook(pointer).trim()).toBe('')
+    // control: the same marker line without the block is still flagged
+    expect(runHook('[Utemezett feladat: nessa-holnapi-jovahagyas-figyelo]')).toContain('PROVENANCE-KAPU')
   })
 
   it('stays silent for trusted-peer and untrusted inter-agent envelopes', () => {
