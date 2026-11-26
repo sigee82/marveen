@@ -56,6 +56,8 @@ const REGISTRATION_SURFACES = [...SEEDING_SURFACES, ...CHECKOUT_SURFACES]
 // name -> why it is allowed to be unregistered. Keep every reason concrete;
 // "misc" entries defeat the lint.
 const EXEMPT: Record<string, string> = {
+  'scheduled-task-register-warn.py':
+    'PENDING WIRING (Nova 32038): main-agent PostToolUse/PostToolUseFailure on Edit|MultiEdit|Write|Bash in .claude/settings.json; the settings change is owner-gated and Nova carries it over. Delete this entry when it lands',
   'pr-uzenetsor-kapu.py':
     'LOCAL: dev-agent gate (no gh pr create/merge while a message waits unread), wired only in agents/bit settings (gitignored); seeding it is a separate decision',
   'ledger_lib.py':
